@@ -4,7 +4,7 @@ Django + DRF 기반 배달 주문 서비스 REST API입니다. 웹·모바일 �
 스펙에서 🎯 로 표시된 엔드포인트는 Vulnerable / Secure 두 모드로 구현되어
 취약점 실습(SQLi, IDOR/BOLA, 파일 업로드/다운로드, SSTI, 가격 조작 등)에 사용가능
 
-> 이메일/휴대폰/OTP 인증은 현재 범위에서 제외되어 있습니다.
+> 이메일/휴대폰/OTP 인증은 현재 범위에서 제외되어 있음
 
 ## 기술 스택
 - Python 3.11, Django 5.0, Django REST Framework
