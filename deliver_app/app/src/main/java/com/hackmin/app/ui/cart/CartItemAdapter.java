@@ -3,9 +3,11 @@ package com.hackmin.app.ui.cart;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -73,7 +75,8 @@ public class CartItemAdapter extends RecyclerView.Adapter<CartItemAdapter.CartVi
     static class CartViewHolder extends RecyclerView.ViewHolder {
         ImageView imgItem;
         TextView tvName, tvOption, tvPrice, tvQuantity;
-        ImageButton btnIncrease, btnDecrease, btnDelete;
+        Button btnIncrease, btnDecrease;
+        ImageButton btnDelete;
 
         CartViewHolder(@NonNull View itemView) {
             super(itemView);
