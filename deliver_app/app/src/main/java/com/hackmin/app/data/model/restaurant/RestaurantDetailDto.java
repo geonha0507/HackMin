@@ -1,5 +1,5 @@
-package com.hackmin.app.data.model.restaurant;
 
+package com.hackmin.app.data.model.restaurant;
 import com.google.gson.annotations.SerializedName;
 
 /** Full detail shape for GET /restaurants/{id}. */
