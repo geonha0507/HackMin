@@ -1,0 +1,89 @@
+"""Rider delivery endpoints (/api/v1/rider/deliveries). Require rider role."""
+
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+
+from common.exceptions import error_response
+from common.mode import is_vulnerable
+from common.permissions import IsRider
+from orders.models import Order
+from .models import Delivery
+from .serializers import DeliveryDetailSerializer, DeliveryListSerializer
+
+_STATUS_TO_ORDER = {
+    Delivery.Status.DELIVERED: Order.Status.DELIVERED,
+    Delivery.Status.DELIVERING: Order.Status.DELIVERING,
+}
+
+
+def _provision_deliveries():
+    """배달 요청(delivering) 상태인데 Delivery가 없는 주문에 대해 배차 풀 생성."""
+    pending = Order.objects.filter(status=Order.Status.DELIVERING, delivery__isnull=True)
+    for order in pending:
+        Delivery.objects.get_or_create(order=order)
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def delivery_list(request):
+    """🎯 배달 주문 조회.
+
+    Vulnerable 모드: 다른 기사에게 배정된 건까지 전체 조회(개인정보 과다 노출).
+    Secure 모드: 본인 배정 건 + 미배정(가용) 건만.
+    """
+    _provision_deliveries()
+    if is_vulnerable(request):
+        deliveries = Delivery.objects.all()
+    else:
+        deliveries = Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True))
+    deliveries = deliveries.select_related('order', 'order__restaurant').order_by('-assigned_at')
+    return Response({'results': DeliveryListSerializer(deliveries, many=True).data})
+
+
+def _get_delivery(request, pk):
+    if is_vulnerable(request):
+        return Delivery.objects.filter(pk=pk).first()
+    return Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True), pk=pk).first()
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def delivery_detail(request, pk):
+    """🎯 배달 상세(주소·연락처). Vulnerable 모드는 IDOR로 타 기사 배달 개인정보 열람."""
+    delivery = _get_delivery(request, pk)
+    if not delivery:
+        return error_response('not_found', '배달 정보를 찾을 수 없습니다.', 404)
+    return Response(DeliveryDetailSerializer(delivery).data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsRider])
+def delivery_status(request, pk):
+    """🎯 배달 상태 변경(배달 중/완료).
+
+    Vulnerable 모드: 소유권 검증 없이 임의 배달 상태 변경(IDOR).
+    Secure 모드: 본인 배정 건만(미배정 건은 수령 시 본인에게 배정).
+    """
+    delivery = _get_delivery(request, pk)
+    if not delivery:
+        return error_response('not_found', '배달 정보를 찾을 수 없습니다.', 404)
+
+    new_status = request.data.get('status')
+    if new_status not in Delivery.Status.values:
+        return error_response('bad_request', '유효하지 않은 상태입니다.', 400)
+
+    if not is_vulnerable(request) and delivery.rider is None:
+        delivery.rider = request.user
+
+    delivery.status = new_status
+    if new_status == Delivery.Status.DELIVERED:
+        delivery.completed_at = timezone.now()
+    delivery.save()
+
+    if new_status in _STATUS_TO_ORDER:
+        delivery.order.status = _STATUS_TO_ORDER[new_status]
+        delivery.order.save(update_fields=['status'])
+
+    return Response(DeliveryDetailSerializer(delivery).data)
