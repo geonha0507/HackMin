@@ -4,6 +4,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import com.hackmin.app.data.api.AuthApi;
+import com.hackmin.app.data.api.RestaurantApi;
 import java.util.concurrent.TimeUnit;
 
 /**
