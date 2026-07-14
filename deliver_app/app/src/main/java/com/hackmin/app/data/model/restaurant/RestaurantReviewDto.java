@@ -1,4 +1,6 @@
+
 package com.hackmin.app.data.model.restaurant;
+
 
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
