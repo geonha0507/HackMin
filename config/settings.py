@@ -89,12 +89,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# DB_ENGINE=mysql 이면 MySQL(RDS) 사용, 그 외(기본값)는 로컬 SQLite 사용.
+if os.environ.get('DB_ENGINE', 'sqlite') == 'mysql':
+    _mysql_options = {'charset': 'utf8mb4'}
+    # RDS 강제 SSL 인스턴스거나 SSL 연결을 원하면 DB_SSL_CA에 CA 번들 경로를 지정
+    # (예: AWS 글로벌 번들을 컨테이너에 마운트한 경로 /app/certs/rds-ca.pem)
+    _db_ssl_ca = os.environ.get('DB_SSL_CA')
+    if _db_ssl_ca:
+        _mysql_options['ssl'] = {'ca': _db_ssl_ca}
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'hackmin'),
+            'USER': os.environ.get('DB_USER', 'hackmin'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'hackmin'),
+            'HOST': os.environ.get('DB_HOST', ''),  # RDS 엔드포인트, 예: hackmin.xxxxxx.ap-northeast-2.rds.amazonaws.com
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': _mysql_options,
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_USER_MODEL = 'accounts.User'
 
