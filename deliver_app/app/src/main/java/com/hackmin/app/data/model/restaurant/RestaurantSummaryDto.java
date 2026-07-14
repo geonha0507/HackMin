@@ -1,4 +1,4 @@
-package com.hackmin.app.model.dto.restaurant;
+package com.hackmin.app.data.model.restaurant;
 
 import com.google.gson.annotations.SerializedName;
 

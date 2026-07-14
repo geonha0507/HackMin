@@ -1,7 +1,7 @@
 package com.hackmin.app.data.api;
 
-import com.hackmin.app.model.dto.common.PagedResponse;
-import com.hackmin.app.model.dto.restaurant.*;
+import com.hackmin.app.data.model.common.PagedResponse;
+import com.hackmin.app.data.model.restaurant.*;
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
