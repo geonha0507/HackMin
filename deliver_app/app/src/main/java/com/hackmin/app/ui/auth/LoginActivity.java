@@ -68,7 +68,8 @@ public class LoginActivity extends AppCompatActivity {
                 prefs.edit().remove("saved_id").apply();
             }
 
-            LoginRequest loginRequest = new LoginRequest(id, pw);
+            String encryptedPw = com.hackmin.app.security.CryptoUtil.encrypt(pw);
+            LoginRequest loginRequest = new LoginRequest(id, encryptedPw);
             ApiClient.authApi(modeProvider, tokenProvider).login(loginRequest).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
@@ -76,7 +77,9 @@ public class LoginActivity extends AppCompatActivity {
                         String token = response.body().getAccessToken();
                         prefs.edit().putString("access_token", token).apply();
                         Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
-                        finish(); // 로그인 성공 시 현재 화면 종료
+                        startActivity(new Intent(LoginActivity.this, com.hackmin.app.ui.home.HomeActivity.class));
+                        finish();
+
                     } else {
                         Toast.makeText(LoginActivity.this, "로그인 실패: 정보를 확인해 주세요.", Toast.LENGTH_SHORT).show();
                     }

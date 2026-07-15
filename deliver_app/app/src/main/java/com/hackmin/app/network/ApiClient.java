@@ -1,25 +1,14 @@
 package com.hackmin.app.network;
 
+import com.hackmin.app.data.api.*;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
-import com.hackmin.app.data.api.AuthApi;
-import com.hackmin.app.data.api.RestaurantApi;
-import java.util.concurrent.TimeUnit;
-import com.hackmin.app.data.api.AuthApi;
-import com.hackmin.app.data.api.RestaurantApi;
-
 
 /**
  * Central Retrofit setup.
- *
- * BASE_URL: point at your local Django dev server. On the Android emulator,
- * 10.0.2.2 maps to the host machine's localhost — use that instead of
- * "localhost" when running against `python manage.py runserver`.
- *
- * Swap ModeProvider/TokenProvider implementations for real ones backed by
- * e.g. a debug-menu setting and encrypted SharedPreferences/DataStore.
  */
 public final class ApiClient {
 
@@ -35,9 +24,6 @@ public final class ApiClient {
     ) {
         if (retrofit == null) {
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-            // BODY logging is convenient for a hacking-focused capstone (you
-            // want to see the raw vulnerable-mode payloads) but strip this
-            // for anything resembling a release build.
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
@@ -68,5 +54,47 @@ public final class ApiClient {
             HackminModeInterceptor.TokenProvider tokenProvider
     ) {
         return getRetrofit(modeProvider, tokenProvider).create(RestaurantApi.class);
+    }
+
+    public static MyPageApi myPageApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(MyPageApi.class);
+    }
+
+    public static CartApi cartApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(CartApi.class);
+    }
+
+    public static OrderApi orderApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(OrderApi.class);
+    }
+
+    public static PaymentApi paymentApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(PaymentApi.class);
+    }
+
+    public static ReviewApi reviewApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(ReviewApi.class);
+    }
+
+    public static CouponApi couponApi(
+            HackminModeInterceptor.ModeProvider modeProvider,
+            HackminModeInterceptor.TokenProvider tokenProvider
+    ) {
+        return getRetrofit(modeProvider, tokenProvider).create(CouponApi.class);
     }
 }
