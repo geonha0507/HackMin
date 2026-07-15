@@ -1,10 +1,12 @@
-
 package com.hackmin.app.data.model.restaurant;
-
 
 import com.google.gson.annotations.SerializedName;
 
-/** Lightweight shape for GET /restaurants (search/list results). */
+/**
+ * GET /restaurants (검색/목록) 결과의 경량 모델.
+ * 백엔드 RestaurantListSerializer 대응:
+ * id, name, cuisine_type, rating, min_order_amount, delivery_fee, is_open, latitude, longitude
+ */
 public class RestaurantSummaryDto {
 
     @SerializedName("id")
@@ -13,38 +15,35 @@ public class RestaurantSummaryDto {
     @SerializedName("name")
     private String name;
 
-    @SerializedName("category")
-    private String category;
-
-    @SerializedName("thumbnail_url")
-    private String thumbnailUrl;
+    // 음식 종류(콤마 구분 복수 가능): "한식,분식"
+    @SerializedName("cuisine_type")
+    private String cuisineType;
 
     @SerializedName("rating")
     private double rating;
 
-    @SerializedName("review_count")
-    private int reviewCount;
+    @SerializedName("min_order_amount")
+    private long minOrderAmount;
 
     @SerializedName("delivery_fee")
     private long deliveryFee;
 
-    @SerializedName("min_order_amount")
-    private long minOrderAmount;
+    @SerializedName("is_open")
+    private boolean open;
 
-    @SerializedName("estimated_delivery_minutes")
-    private int estimatedDeliveryMinutes;
+    @SerializedName("latitude")
+    private Double latitude; // nullable
 
-    @SerializedName("distance_meters")
-    private Double distanceMeters; // nullable when no location context
+    @SerializedName("longitude")
+    private Double longitude; // nullable
 
     public long getId() { return id; }
     public String getName() { return name; }
-    public String getCategory() { return category; }
-    public String getThumbnailUrl() { return thumbnailUrl; }
+    public String getCuisineType() { return cuisineType; }
     public double getRating() { return rating; }
-    public int getReviewCount() { return reviewCount; }
-    public long getDeliveryFee() { return deliveryFee; }
     public long getMinOrderAmount() { return minOrderAmount; }
-    public int getEstimatedDeliveryMinutes() { return estimatedDeliveryMinutes; }
-    public Double getDistanceMeters() { return distanceMeters; }
+    public long getDeliveryFee() { return deliveryFee; }
+    public boolean isOpen() { return open; }
+    public Double getLatitude() { return latitude; }
+    public Double getLongitude() { return longitude; }
 }

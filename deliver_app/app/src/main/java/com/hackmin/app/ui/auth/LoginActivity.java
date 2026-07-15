@@ -1,8 +1,6 @@
 package com.hackmin.app.ui.auth;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -14,9 +12,9 @@ import com.hackmin.app.R;
 import com.hackmin.app.ui.home.HomeActivity;
 import com.hackmin.app.data.model.auth.LoginRequest;
 import com.hackmin.app.data.model.auth.LoginResponse;
+import com.hackmin.app.data.model.auth.UserDto;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
+import com.hackmin.app.network.SessionManager;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -27,14 +25,14 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnLogin;
     private TextView tvGoSignup, tvGoFindPw;
     private CheckBox cbSaveId;
-    private SharedPreferences prefs;
+    private SessionManager session;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        prefs = getSharedPreferences("HackminPrefs", Context.MODE_PRIVATE);
+        session = SessionManager.getInstance(this);
 
         etLoginId = findViewById(R.id.et_login_id);
         etLoginPw = findViewById(R.id.et_login_pw);
@@ -44,14 +42,11 @@ public class LoginActivity extends AppCompatActivity {
         cbSaveId = findViewById(R.id.cb_save_id);
 
         // 저장된 아이디 불러오기
-        String savedId = prefs.getString("saved_id", "");
+        String savedId = session.getSavedId();
         if (!savedId.isEmpty()) {
             etLoginId.setText(savedId);
             cbSaveId.setChecked(true);
         }
-
-        HackminModeInterceptor.ModeProvider modeProvider = () -> HackminMode.SECURE;
-        HackminModeInterceptor.TokenProvider tokenProvider = () -> prefs.getString("access_token", "");
 
         btnLogin.setOnClickListener(v -> {
             String id = etLoginId.getText().toString().trim();
@@ -64,18 +59,22 @@ public class LoginActivity extends AppCompatActivity {
 
             // 아이디 저장 로직
             if (cbSaveId.isChecked()) {
-                prefs.edit().putString("saved_id", id).apply();
+                session.setSavedId(id);
             } else {
-                prefs.edit().remove("saved_id").apply();
+                session.clearSavedId();
             }
 
             LoginRequest loginRequest = new LoginRequest(id, pw);
-            ApiClient.authApi(modeProvider, tokenProvider).login(loginRequest).enqueue(new Callback<LoginResponse>() {
+            ApiClient.authApi(this).login(loginRequest).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
-                        String token = response.body().getAccessToken();
-                        prefs.edit().putString("access_token", token).apply();
+                        LoginResponse body = response.body();
+                        session.saveTokens(body.getAccessToken(), body.getRefreshToken());
+                        UserDto user = body.getUser();
+                        if (user != null) {
+                            session.saveUser(user.getId(), user.getUsername(), user.getNickname());
+                        }
                         Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
                         startActivity(new Intent(LoginActivity.this, HomeActivity.class));
                         finish();

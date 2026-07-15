@@ -7,8 +7,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.textfield.TextInputEditText;
 import com.hackmin.app.R;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -30,9 +28,6 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         btnSendResetLink = findViewById(R.id.btn_send_reset_link);
         findViewById(R.id.tv_back).setOnClickListener(v -> finish());
 
-        HackminModeInterceptor.ModeProvider modeProvider = () -> HackminMode.SECURE;
-        HackminModeInterceptor.TokenProvider tokenProvider = () -> "";
-
         btnSendResetLink.setOnClickListener(v -> {
             String email = etForgotEmail.getText() != null
                     ? etForgotEmail.getText().toString().trim() : "";
@@ -44,7 +39,7 @@ public class ForgotPasswordActivity extends AppCompatActivity {
             Map<String, String> body = new HashMap<>();
             body.put("username", email);
 
-            ApiClient.authApi(modeProvider, tokenProvider)
+            ApiClient.authApi(this)
                     .requestPasswordReset(body)
                     .enqueue(new Callback<Void>() {
                         @Override
