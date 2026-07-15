@@ -5,3 +5,4 @@ django-cors-headers==4.4.0
 django-filter==24.2
 Pillow==10.3.0
 mysqlclient==2.2.4
+bleach==6.1.0

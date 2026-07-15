@@ -1,20 +1,11 @@
-"""Hackmin dual-mode helper.
+"""Hackmin mode helper.
 
-Inspects the X-Hackmin-Mode header to decide whether the current request
-should follow the 'vulnerable' code path (for security training) or the
-'secure' code path (production-like behaviour).
+Vulnerable mode has been removed. This function is kept as a stub
+so that existing imports (e.g. downloads/views.py) do not break.
+It always returns False — all requests follow the secure code path.
 """
-
-from django.conf import settings
 
 
 def is_vulnerable(request):
-    """Return True when the request opts into vulnerable mode.
-
-    Conditions:
-    1. settings.HACKMIN_ALLOW_MODE_HEADER must be True (default False).
-    2. The request must carry ``X-Hackmin-Mode: vulnerable``.
-    """
-    if not getattr(settings, 'HACKMIN_ALLOW_MODE_HEADER', False):
-        return False
-    return request.META.get('HTTP_X_HACKMIN_MODE', 'secure').lower() == 'vulnerable'
+    """Always returns False — vulnerable mode is disabled."""
+    return False
