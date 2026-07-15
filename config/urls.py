@@ -20,6 +20,7 @@ api_v1 = [
     path('', include('promotions.urls')),
     path('', include('owner.urls')),
     path('', include('adminpanel.urls')),
+     path('', include('adminpanel.urls')),
     path('', include('rider.urls')),
     path('', include('downloads.urls')),
 ]
@@ -28,6 +29,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/health', health),
     path('api/v1/', include((api_v1, 'api_v1'))),
+    path('web/', include('web.urls')),
 ]
 
 if settings.DEBUG:

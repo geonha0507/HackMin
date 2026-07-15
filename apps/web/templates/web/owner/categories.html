@@ -1,0 +1,57 @@
+{% extends 'web/base.html' %}
+{% block title %}카테고리{% endblock %}
+{% block heading %}카테고리 관리{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:560px">
+  <h2>카테고리 추가</h2>
+  <form method="post" class="row">{% csrf_token %}
+    <input type="hidden" name="action" value="create">
+    <div style="flex:1">
+      <label>매장</label>
+      <select name="restaurant" required>
+        {% for r in restaurants %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="flex:1">
+      <label>이름</label>
+      <input name="name" required>
+    </div>
+    <button class="btn btn-primary" type="submit">추가</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>카테고리 목록</h2>
+  <table>
+    <thead><tr><th>이름</th><th>매장</th><th>순서</th><th></th></tr></thead>
+    <tbody>
+    {% for c in categories %}
+      <tr>
+        <td><strong>{{ c.name }}</strong></td>
+        <td class="muted">{{ c.restaurant.name }}</td>
+        <td>{{ c.display_order }}</td>
+        <td class="right">
+          <form method="post" style="display:inline">{% csrf_token %}
+            <input type="hidden" name="action" value="move_up">
+            <input type="hidden" name="category_id" value="{{ c.pk }}">
+            <button class="btn btn-sm" type="submit" title="위로">▲</button>
+          </form>
+          <form method="post" style="display:inline">{% csrf_token %}
+            <input type="hidden" name="action" value="move_down">
+            <input type="hidden" name="category_id" value="{{ c.pk }}">
+            <button class="btn btn-sm" type="submit" title="아래로">▼</button>
+          </form>
+          <form method="post" style="display:inline" onsubmit="return confirm('삭제하시겠습니까?')">{% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="category_id" value="{{ c.pk }}">
+            <button class="btn btn-sm btn-danger" type="submit">삭제</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="muted">카테고리가 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

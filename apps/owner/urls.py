@@ -5,9 +5,10 @@ from . import account, orders, products, reviews, sales
 app_name = 'owner'
 
 urlpatterns = [
-    # Account
+    # Account / 마이페이지
     path('owner/signup', account.owner_signup, name='signup'),
     path('owner/profile', account.owner_profile, name='profile'),
+    path('owner/password', account.owner_password_change, name='password'),
     path('owner/business-license', account.upload_business_license, name='business-license'),
 
     # Products

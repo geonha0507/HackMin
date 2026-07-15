@@ -1,0 +1,322 @@
+{% extends 'web/base.html' %}
+
+{% block title %}점주 입점 신청{% endblock %}
+
+{% block bare %}
+<div style="
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:40px 16px;
+  background:linear-gradient(135deg,#1f2430,#312e81);
+">
+  <div style="
+    background:#fff;
+    border-radius:16px;
+    padding:34px;
+    width:460px;
+    max-width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.3);
+  ">
+
+    <div style="font-size:26px;font-weight:800">
+      Hack<span style="color:#4f46e5">Min</span>
+    </div>
+
+    <div style="
+      color:#6b7280;
+      font-size:13px;
+      margin-bottom:24px;
+    ">
+      점주 회원가입 및 입점 신청
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="msg {{ message.tags }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form
+      method="post"
+      action="{% url 'web:signup' %}"
+      enctype="multipart/form-data"
+    >
+      {% csrf_token %}
+
+      <div style="
+        font-size:15px;
+        font-weight:700;
+        margin-bottom:12px;
+      ">
+        점주 계정 정보
+      </div>
+
+      <div class="field">
+        <label for="username">아이디</label>
+
+        <div style="display:flex;gap:8px">
+          <input
+            id="username"
+            name="username"
+            value="{{ form_data.username }}"
+            maxlength="64"
+            autocomplete="username"
+            required
+          >
+
+          <button
+            type="button"
+            class="btn"
+            onclick="checkDuplicate('username')"
+            style="white-space:nowrap"
+          >
+            중복 확인
+          </button>
+        </div>
+
+        <div
+          id="username-result"
+          style="font-size:12px;margin-top:5px"
+        ></div>
+      </div>
+
+      <div class="field">
+        <label for="email">이메일</label>
+
+        <div style="display:flex;gap:8px">
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value="{{ form_data.email }}"
+            autocomplete="email"
+            required
+          >
+
+          <button
+            type="button"
+            class="btn"
+            onclick="checkDuplicate('email')"
+            style="white-space:nowrap"
+          >
+            중복 확인
+          </button>
+        </div>
+
+        <div
+          id="email-result"
+          style="font-size:12px;margin-top:5px"
+        ></div>
+      </div>
+
+      <div class="field">
+        <label for="phone">점주 전화번호</label>
+        <input
+          id="phone"
+          type="tel"
+          name="phone"
+          value="{{ form_data.phone }}"
+          maxlength="32"
+          autocomplete="tel"
+          placeholder="010-1234-5678"
+        >
+      </div>
+
+      <div class="field">
+        <label for="nickname">점주명</label>
+        <input
+          id="nickname"
+          name="nickname"
+          value="{{ form_data.nickname }}"
+          maxlength="64"
+          autocomplete="name"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          minlength="8"
+          autocomplete="new-password"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="password_confirm">
+          비밀번호 확인
+        </label>
+        <input
+          id="password_confirm"
+          type="password"
+          name="password_confirm"
+          minlength="8"
+          autocomplete="new-password"
+          required
+        >
+      </div>
+
+      <hr style="
+        border:0;
+        border-top:1px solid #e5e7eb;
+        margin:26px 0;
+      ">
+
+      <div style="
+        font-size:15px;
+        font-weight:700;
+        margin-bottom:12px;
+      ">
+        매장 입점 정보
+      </div>
+
+      <div class="field">
+        <label for="store_name">매장명</label>
+        <input
+          id="store_name"
+          name="store_name"
+          value="{{ form_data.store_name }}"
+          maxlength="128"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="store_phone">매장 전화번호</label>
+        <input
+          id="store_phone"
+          type="tel"
+          name="store_phone"
+          value="{{ form_data.store_phone }}"
+          maxlength="32"
+          placeholder="02-1234-5678"
+        >
+      </div>
+
+      <div class="field">
+        <label for="store_address">매장 주소</label>
+        <input
+          id="store_address"
+          name="store_address"
+          value="{{ form_data.store_address }}"
+          maxlength="255"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="business_license">
+          사업자등록증
+        </label>
+
+        <input
+          id="business_license"
+          type="file"
+          name="business_license"
+          accept=".pdf,.jpg,.jpeg,.png"
+          required
+        >
+
+        <div style="
+          color:#9ca3af;
+          font-size:12px;
+          margin-top:5px;
+        ">
+          PDF, JPG, JPEG, PNG · 최대 10MB
+        </div>
+      </div>
+
+      <button
+        class="btn btn-primary"
+        style="width:100%;margin-top:12px"
+        type="submit"
+      >
+        입점 신청
+      </button>
+    </form>
+
+    <div style="
+      margin-top:16px;
+      text-align:center;
+      font-size:13px;
+    ">
+      이미 계정이 있나요?
+      <a href="{% url 'web:login' %}">
+        로그인 화면으로 돌아가기
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+async function checkDuplicate(fieldName) {
+  const input = document.getElementById(fieldName);
+  const resultElement =
+    document.getElementById(`${fieldName}-result`);
+
+  const value = input.value.trim();
+
+  if (!value) {
+    resultElement.textContent = '값을 입력하세요.';
+    resultElement.style.color = '#dc2626';
+    return;
+  }
+
+  resultElement.textContent = '확인 중입니다.';
+  resultElement.style.color = '#6b7280';
+
+  try {
+    const query =
+      `${encodeURIComponent(fieldName)}=` +
+      `${encodeURIComponent(value)}`;
+
+    /*
+     * 같은 Django 프로젝트이므로 상대 주소를 사용한다.
+     * 현재 8001 서버에서도 /api/v1 경로가 연결되어 있다.
+     */
+    const response = await fetch(
+      `/api/v1/auth/check-duplicate?${query}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      resultElement.textContent =
+        data.message || '중복 확인에 실패했습니다.';
+      resultElement.style.color = '#dc2626';
+      return;
+    }
+
+    if (data.available) {
+      resultElement.textContent = '사용할 수 있습니다.';
+      resultElement.style.color = '#16a34a';
+    } else {
+      resultElement.textContent =
+        '이미 사용 중인 값입니다.';
+      resultElement.style.color = '#dc2626';
+    }
+
+  } catch (error) {
+    resultElement.textContent =
+      '중복 확인 서버에 연결할 수 없습니다.';
+    resultElement.style.color = '#dc2626';
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}{% endblock %}

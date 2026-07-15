@@ -8,7 +8,7 @@ class Restaurant(models.Model):
         related_name='restaurants', null=True, blank=True,
     )
     name = models.CharField(max_length=128)
-    cuisine_type = models.CharField(max_length=64, blank=True)   # 종류: 치킨, 분식...
+    cuisine_type = models.CharField(max_length=255, blank=True)   # 종류(콤마구분, 복수가능): 한식,중식...
     description = models.TextField(blank=True)
     phone = models.CharField(max_length=32, blank=True)
     address = models.CharField(max_length=255, blank=True)
@@ -26,6 +26,33 @@ class Restaurant(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class RestaurantEditRequest(models.Model):
+    """점주가 제출한 매장 정보 수정 요청. 관리자 승인 후에만 실제 반영된다."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='edit_requests')
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+',
+    )
+    changes = models.JSONField()  # {field: new_value}
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+    )
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f'{self.restaurant_id}:{self.status}'
 
 
 class MenuCategory(models.Model):

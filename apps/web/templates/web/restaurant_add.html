@@ -1,0 +1,85 @@
+{% extends 'web/base.html' %}
+{% block title %}매장 추가{% endblock %}
+{% block heading %}매장 추가{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <h2>새 매장 등록</h2>
+  <p class="muted" style="margin:0 0 14px">추가하는 매장은 즉시 등록되며, 매장 관리 화면 상단의 목록에서 전환할 수 있습니다.</p>
+  <form method="post" action="{% url 'web:restaurant_add' %}">
+    {% csrf_token %}
+    <div class="field">
+      <label>매장명</label>
+      <input name="name" value="{{ form.name }}" required>
+    </div>
+    <div class="field">
+      <label>종류 (복수 선택 가능)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;margin-bottom:12px">
+        {% for c in cuisine_presets %}
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--ink);margin:0">
+            <input type="checkbox" name="cuisine_type" value="{{ c }}" style="width:auto"
+                   {% if c in selected_presets %}checked{% endif %}>
+            {{ c }}
+          </label>
+        {% endfor %}
+      </div>
+      <div id="custom-cuisine-list">
+        {% for c in custom_cuisines %}
+          <div class="row" style="gap:6px;margin-bottom:8px;align-items:center">
+            <input type="text" name="custom_cuisine" value="{{ c }}" style="flex:1">
+            <button type="button" class="btn btn-sm" onclick="this.parentElement.remove()">삭제</button>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-sm" onclick="addCuisineInput()">+ 종류 추가</button>
+    </div>
+    <div class="field">
+      <label>소개</label>
+      <textarea name="description" rows="3">{{ form.description }}</textarea>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>연락처</label>
+        <input name="phone" value="{{ form.phone }}">
+      </div>
+      <div class="field" style="flex:2">
+        <label>주소</label>
+        <input name="address" value="{{ form.address }}">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>최소주문금액</label>
+        <input type="number" name="min_order_amount" value="{{ form.min_order_amount|default:0 }}" min="0">
+      </div>
+      <div class="field" style="flex:1">
+        <label>배달비</label>
+        <input type="number" name="delivery_fee" value="{{ form.delivery_fee|default:0 }}" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label style="display:inline-flex;align-items:center;gap:6px">
+        <input type="checkbox" name="is_open" style="width:auto" {% if not form or form.is_open %}checked{% endif %}>
+        영업중
+      </label>
+    </div>
+    <button class="btn btn-primary" type="submit">매장 추가</button>
+    <a href="{% url 'web:my_restaurant' %}" class="btn btn-sm">취소</a>
+  </form>
+</div>
+
+<script>
+function addCuisineInput() {
+  const list = document.getElementById('custom-cuisine-list');
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.style.gap = '6px';
+  row.style.marginBottom = '8px';
+  row.style.alignItems = 'center';
+  row.innerHTML =
+    '<input type="text" name="custom_cuisine" placeholder="직접 입력 (예: 멕시칸)" style="flex:1">' +
+    '<button type="button" class="btn btn-sm" onclick="this.parentElement.remove()">삭제</button>';
+  list.appendChild(row);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'web/base.html' %}
+{% block title %}대시보드{% endblock %}
+{% block heading %}점주 대시보드{% endblock %}
+{% block content %}
+{% with active='dashboard' %}{% endwith %}
+<div class="cards">
+  <div class="card"><div class="label">신규 주문(접수 대기)</div><div class="value">{{ pending_count }}</div></div>
+  <div class="card"><div class="label">조리 중</div><div class="value">{{ cooking_count }}</div></div>
+  <div class="card"><div class="label">오늘 주문</div><div class="value">{{ today_order_count }}</div></div>
+  <div class="card"><div class="label">오늘 매출</div><div class="value">{{ today_sales|floatformat:0 }}원</div></div>
+  <div class="card"><div class="label">누적 매출</div><div class="value">{{ total_sales|floatformat:0 }}원</div></div>
+  <div class="card"><div class="label">등록 상품</div><div class="value">{{ menu_count }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>내 매장 ({{ restaurants|length }})</h2>
+  {% if restaurants %}
+  <table>
+    <thead><tr><th>매장명</th><th>종류</th><th>영업</th><th>주소</th></tr></thead>
+    <tbody>
+    {% for r in restaurants %}
+      <tr>
+        <td><strong>{{ r.name }}</strong></td>
+        <td>{{ r.cuisine_type|default:'-' }}</td>
+        <td>{% if r.is_open %}<span class="badge b-green">영업중</span>{% else %}<span class="badge b-gray">휴무</span>{% endif %}</td>
+        <td class="muted">{{ r.address|default:'-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">등록된 매장이 없습니다.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>최근 주문</h2>
+  {% if recent_orders %}
+  <table>
+    <thead><tr><th>주문번호</th><th>매장</th><th>금액</th><th>상태</th><th>시각</th><th></th></tr></thead>
+    <tbody>
+    {% for o in recent_orders %}
+      <tr>
+        <td>{{ o.order_number }}</td>
+        <td>{{ o.restaurant.name|default:'-' }}</td>
+        <td>{{ o.total|floatformat:0 }}원</td>
+        <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
+        <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
+        <td class="right"><a class="btn btn-sm" href="{% url 'web:owner_order_detail' o.pk %}">보기</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">주문이 없습니다.</p>{% endif %}
+</div>
+{% endblock %}

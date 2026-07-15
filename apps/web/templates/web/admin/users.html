@@ -1,0 +1,42 @@
+{% extends 'web/base.html' %}
+{% block title %}회원 목록{% endblock %}
+{% block heading %}회원 목록{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <div style="min-width:220px">
+    <label>검색 (아이디/이메일/닉네임)</label>
+    <input name="q" value="{{ q }}" placeholder="검색어">
+  </div>
+  <div>
+    <label>역할</label>
+    <select name="role">
+      <option value="">전체</option>
+      {% for val, lbl in role_choices %}
+        <option value="{{ val }}" {% if val == role %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary" type="submit">검색</button>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>아이디</th><th>닉네임</th><th>이메일</th><th>역할</th><th>상태</th><th>가입일</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td><strong>{{ u.username }}</strong></td>
+        <td>{{ u.nickname|default:'-' }}</td>
+        <td class="muted">{{ u.email|default:'-' }}</td>
+        <td>{{ u.get_role_display }}</td>
+        <td>{% include 'web/_user_badge.html' with status=u.status label=u.get_status_display %}</td>
+        <td class="muted">{{ u.date_joined|date:'Y-m-d' }}</td>
+        <td class="right"><a class="btn btn-sm" href="{% url 'web:admin_user_detail' u.pk %}">상세</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="muted">회원이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

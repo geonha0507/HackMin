@@ -1,0 +1,64 @@
+{% extends 'web/base.html' %}
+{% block title %}매장 수정 요청{% endblock %}
+{% block heading %}매장 수정 요청{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <h2>승인 대기중 ({{ pending|length }})</h2>
+  {% for item in pending %}
+    <div class="panel" style="margin:0 0 14px;background:#fffbeb;border-color:#fde68a">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div>
+          <strong>{{ item.req.restaurant.name }}</strong>
+          <span class="muted" style="font-size:12px">
+            (요청자: {{ item.req.requested_by.username }} · {{ item.req.requested_at|date:"Y-m-d H:i" }})
+          </span>
+        </div>
+        <form method="post" action="{% url 'web:admin_restaurant_edit_decide' item.req.pk %}" class="row" style="gap:6px">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-primary" name="action" value="approve" type="submit"
+                  onclick="return confirm('이 수정 요청을 승인하시겠습니까?')">승인</button>
+          <button class="btn btn-sm btn-danger" name="action" value="reject" type="submit">거절</button>
+        </form>
+      </div>
+      <table>
+        <thead><tr><th>항목</th><th>현재 값</th><th>변경 예정 값</th></tr></thead>
+        <tbody>
+        {% for row in item.rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="muted">{{ row.old }}</td>
+            <td><strong>{{ row.new }}</strong></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% empty %}
+    <p class="muted">대기 중인 매장 수정 요청이 없습니다.</p>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <h2>처리 내역</h2>
+  <table>
+    <thead><tr><th>매장</th><th>요청자</th><th>상태</th><th>처리자</th><th>처리일시</th></tr></thead>
+    <tbody>
+    {% for r in processed %}
+      <tr>
+        <td>{{ r.restaurant.name }}</td>
+        <td class="muted">{{ r.requested_by.username }}</td>
+        <td>
+          {% if r.status == 'approved' %}<span class="badge b-green">승인</span>
+          {% else %}<span class="badge b-gray">거절</span>{% endif %}
+        </td>
+        <td class="muted">{{ r.processed_by.username|default:'-' }}</td>
+        <td class="muted">{{ r.processed_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="muted">처리 내역이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -54,8 +54,13 @@ INSTALLED_APPS = [
     'owner',
     'adminpanel',
     'rider',
+    'enrollment',
     'downloads',
+    'web',
 ]
+
+# 세션 기반 관리자/점주 웹 로그인 경로
+LOGIN_URL = '/web/login'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -114,7 +119,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': os.environ.get('DB_SQLITE_PATH', BASE_DIR / 'db.sqlite3'),
         }
     }
 

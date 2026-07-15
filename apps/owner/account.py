@@ -2,15 +2,17 @@
 
 import os
 
+from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from common.exceptions import error_response
+from common.mode import is_vulnerable
 from common.permissions import IsOwner
 from restaurants.models import Restaurant
-from .serializers import OwnerProfileSerializer, OwnerSignupSerializer
+from .serializers import OwnerPasswordChangeSerializer, OwnerProfileSerializer, OwnerSignupSerializer
 
 _ALLOWED_DOC_EXT = {'.pdf', '.jpg', '.jpeg', '.png'}
 _MAX_DOC_BYTES = 10 * 1024 * 1024
@@ -25,22 +27,51 @@ def owner_signup(request):
     return Response(OwnerProfileSerializer(user).data, status=201)
 
 
-@api_view(['GET', 'PUT'])
+@api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsOwner])
 def owner_profile(request):
+    """점주 마이페이지: 정보 조회/수정, 탈퇴."""
     if request.method == 'GET':
         return Response(OwnerProfileSerializer(request.user).data)
-    serializer = OwnerProfileSerializer(request.user, data=request.data, partial=True)
+
+    if request.method == 'PUT':
+        serializer = OwnerProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    # DELETE -> 탈퇴
+    user = request.user
+    user.status = user.Status.WITHDRAWN
+    user.is_active = False
+    user.save(update_fields=['status', 'is_active'])
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['PUT'])
+@permission_classes([IsOwner])
+def owner_password_change(request):
+    """점주 비밀번호 변경."""
+    serializer = OwnerPasswordChangeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+    user = request.user
+    if not user.check_password(serializer.validated_data['old_password']):
+        return error_response('invalid_password', '현재 비밀번호가 올바르지 않습니다.', 400)
+    user.set_password(serializer.validated_data['new_password'])
+    user.save(update_fields=['password'])
+    return Response({'detail': '비밀번호가 변경되었습니다.'})
 
 
 @api_view(['POST'])
 @permission_classes([IsOwner])
 @parser_classes([MultiPartParser, FormParser])
 def upload_business_license(request):
-    """사업자등록증 업로드. 문서 확장자 화이트리스트 + 크기 제한 적용 (Secure 고정)."""
+    """🎯 사업자등록증 업로드.
+
+    Vulnerable 모드: 확장자·크기 검증 없이 업로드(Unrestricted File Upload) →
+    .php/.html 등 악성 파일 업로드 가능.
+    Secure 모드: 문서 확장자 화이트리스트 + 크기 제한.
+    """
     upload = request.FILES.get('file')
     if not upload:
         return error_response('bad_request', 'file이 필요합니다.', 400)
@@ -49,7 +80,7 @@ def upload_business_license(request):
     if not restaurant:
         restaurant = Restaurant.objects.create(owner=request.user, name=f'{request.user.username}의 매장')
 
-    if True:  # 항상 Secure 검증 적용 (Vulnerable 분기 임시 제거)
+    if not is_vulnerable(request):
         ext = os.path.splitext(upload.name)[1].lower()
         if ext not in _ALLOWED_DOC_EXT:
             return error_response('invalid_file_type', '허용되지 않는 파일 형식입니다.', 400)

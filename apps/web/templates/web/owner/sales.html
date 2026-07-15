@@ -1,0 +1,70 @@
+{% extends 'web/base.html' %}
+{% block title %}매출 분석{% endblock %}
+{% block heading %}매출 분석{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <div><label>시작일</label><input type="date" name="start" value="{{ start }}"></div>
+  <div><label>종료일</label><input type="date" name="end" value="{{ end }}"></div>
+  <button class="btn btn-primary" type="submit">조회</button>
+</form>
+
+<div class="cards">
+  <div class="card"><div class="label">기간 매출</div><div class="value">{{ total_sales|floatformat:0 }}원</div></div>
+  <div class="card"><div class="label">주문 수</div><div class="value">{{ order_count }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>매출 보고서 다운로드</h2>
+  <p class="muted">매장별 전체 누적 매출 기준 보고서입니다. (조회 중인 기간과는 별개로 집계됩니다)</p>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">
+    {% for r in restaurants %}
+      <a class="btn" href="/api/v1/downloads/sales-report/{{ r.pk }}" target="_blank" rel="noopener">
+        {{ r.name }} 보고서 다운로드
+      </a>
+    {% empty %}
+      <p class="muted">등록된 매장이 없습니다.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>일별 매출</h2>
+  {% if daily %}
+  <table>
+    <thead><tr><th style="width:110px">날짜</th><th style="width:70px">주문</th><th>매출</th></tr></thead>
+    <tbody>
+    {% for d in daily %}
+      <tr>
+        <td>{{ d.created_at__date }}</td>
+        <td>{{ d.order_count }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="bar" style="width:{{ d.pct }}%;min-width:2px"></div>
+            <span>{{ d.amount|floatformat:0 }}원</span>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">해당 기간 매출이 없습니다.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>메뉴별 매출 TOP 20</h2>
+  {% if by_menu %}
+  <table>
+    <thead><tr><th>메뉴</th><th>판매수량</th><th class="right">매출</th></tr></thead>
+    <tbody>
+    {% for m in by_menu %}
+      <tr>
+        <td>{{ m.items__menu_name }}</td>
+        <td>{{ m.qty }}</td>
+        <td class="right">{{ m.amount|floatformat:0 }}원</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">데이터가 없습니다.</p>{% endif %}
+</div>
+{% endblock %}

@@ -38,6 +38,11 @@ class OwnerProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'username', 'role']
 
 
+class OwnerPasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=4)
+
+
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu

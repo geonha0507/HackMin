@@ -27,6 +27,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         RIDER = 'rider', 'Rider'
 
     class Status(models.TextChoices):
+        PENDING = 'pending', '승인 대기'
         ACTIVE = 'active', 'Active'
         SUSPENDED = 'suspended', 'Suspended'
         WITHDRAWN = 'withdrawn', 'Withdrawn'
@@ -67,3 +68,24 @@ class Address(models.Model):
 
     def __str__(self):
         return f'{self.user_id}:{self.address}'
+
+
+class WithdrawalRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawal_requests')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    processed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+    )
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f'{self.user_id}:{self.status}'

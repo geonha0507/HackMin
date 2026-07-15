@@ -1,0 +1,52 @@
+{% extends 'web/base.html' %}
+{% block title %}회원 상세{% endblock %}
+{% block heading %}회원 상세 · {{ obj.username }}{% endblock %}
+{% block content %}
+<a href="{% url 'web:admin_users' %}" class="muted">← 회원 목록</a>
+
+<div class="panel" style="margin-top:14px;max-width:640px">
+  <h2>기본 정보</h2>
+  <table>
+    <tr><th style="width:130px">아이디</th><td>{{ obj.username }}</td></tr>
+    <tr><th>닉네임</th><td>{{ obj.nickname|default:'-' }}</td></tr>
+    <tr><th>이메일</th><td>{{ obj.email|default:'-' }}</td></tr>
+    <tr><th>전화</th><td>{{ obj.phone|default:'-' }}</td></tr>
+    <tr><th>역할</th><td>{{ obj.get_role_display }}</td></tr>
+    <tr><th>상태</th><td>{% include 'web/_user_badge.html' with status=obj.status label=obj.get_status_display %}</td></tr>
+    <tr><th>가입일</th><td>{{ obj.date_joined|date:'Y-m-d H:i' }}</td></tr>
+  </table>
+</div>
+
+<div class="panel" style="max-width:640px">
+  <h2>상태 변경</h2>
+  <form method="post" class="row">{% csrf_token %}
+    <div style="min-width:200px">
+      <select name="status">
+        {% for val, lbl in status_choices %}
+          <option value="{{ val }}" {% if val == obj.status %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit">변경</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>최근 주문</h2>
+  <table>
+    <thead><tr><th>주문번호</th><th>매장</th><th>금액</th><th>상태</th><th>시각</th></tr></thead>
+    <tbody>
+    {% for o in orders %}
+      <tr>
+        <td>{{ o.order_number }}</td>
+        <td>{{ o.restaurant.name|default:'-' }}</td>
+        <td>{{ o.total|floatformat:0 }}원</td>
+        <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
+        <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="muted">주문 내역이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

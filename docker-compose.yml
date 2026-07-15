@@ -1,21 +1,65 @@
 services:
-  web:
+  # ---------------------------------------------------------------------------
+  # API 서버 (/api/v1). 스키마 마이그레이션과 데모 시드를 담당한다.
+  # ---------------------------------------------------------------------------
+  api:
     build: .
+    image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
+      - db_data:/data          # SQLite 공유 볼륨 (web 과 동일 DB 파일)
     ports:
       - "8000:8000"
     environment:
-      DB_ENGINE: sqlite
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: ${DB_HOST}
+      # DB_ENGINE=sqlite 이면 공유 볼륨의 파일 DB, mysql 이면 RDS 사용.
+      DB_ENGINE: ${DB_ENGINE:-sqlite}
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DB_NAME: ${DB_NAME:-hackmin}
+      DB_USER: ${DB_USER:-hackmin}
+      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
+      DB_HOST: ${DB_HOST:-}
       DB_PORT: ${DB_PORT:-3306}
       DB_SSL_CA: ${DB_SSL_CA:-}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # 이 컨테이너만 migrate/seed 를 실행한다.
+      RUN_MIGRATIONS: "1"
       SEED_DEMO: ${SEED_DEMO:-1}
+
+  # ---------------------------------------------------------------------------
+  # 관리자/점주 웹 (/web). 같은 이미지·같은 DB 를 공유하며, DB 스키마가
+  # 준비될 때까지 대기했다가 기동한다.
+  # ---------------------------------------------------------------------------
+  web:
+    build: .
+    image: hackmin-app
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+      - db_data:/data
+    ports:
+      - "8001:8000"
+    environment:
+      DB_ENGINE: ${DB_ENGINE:-sqlite}
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DB_NAME: ${DB_NAME:-hackmin}
+      DB_USER: ${DB_USER:-hackmin}
+      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_SSL_CA: ${DB_SSL_CA:-}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
+      HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # web 은 마이그레이션/시드를 하지 않고 api 가 만든 스키마를 기다린다.
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
+
+volumes:
+  db_data:

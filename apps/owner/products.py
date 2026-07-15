@@ -7,6 +7,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from common.exceptions import error_response
+from common.mode import is_vulnerable
 from common.permissions import IsOwner
 from restaurants.models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant
 from .serializers import (
@@ -23,11 +24,15 @@ def owned_restaurant_ids(user):
 
 
 def _menu_scope(request):
-    """항상 본인 매장 메뉴로 한정 (Secure 고정, Vulnerable 분기 임시 제거)."""
+    """🎯 Secure는 본인 매장 메뉴로 한정, Vulnerable은 전체(BOLA/IDOR)."""
+    if is_vulnerable(request):
+        return Menu.objects.all()
     return Menu.objects.filter(restaurant__owner=request.user)
 
 
 def _assert_owns_restaurant(request, restaurant_id):
+    if is_vulnerable(request):
+        return True
     return Restaurant.objects.filter(id=restaurant_id, owner=request.user).exists()
 
 
@@ -39,7 +44,7 @@ def product_list_create(request):
         products = _menu_scope(request).order_by('-created_at')
         return Response({'results': ProductSerializer(products, many=True).data})
 
-    # 등록: 본인 매장 restaurant_id만 허용 (Secure 고정).
+    # 🎯 등록: Vulnerable 모드는 남의 매장 restaurant_id로도 등록 가능.
     serializer = ProductSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     restaurant = serializer.validated_data.get('restaurant')
@@ -57,7 +62,7 @@ def product_list_create(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsOwner])
 def product_detail(request, pk):
-    """상품 조회/수정/삭제. 본인 매장 소유 상품만 접근 가능 (Secure 고정)."""
+    """🎯 상품 조회/수정/삭제. Vulnerable 모드는 소유권 검증 없음(BOLA)."""
     product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
@@ -79,16 +84,17 @@ def product_detail(request, pk):
 @permission_classes([IsOwner])
 @parser_classes([MultiPartParser, FormParser])
 def product_image(request, pk):
-    """상품 이미지 업로드. 확장자 화이트리스트 검증 적용 (Secure 고정)."""
+    """🎯 상품 이미지 업로드. Vulnerable 모드는 확장자 검증 없음."""
     product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
     upload = request.FILES.get('image')
     if not upload:
         return error_response('bad_request', 'image 파일이 필요합니다.', 400)
-    ext = os.path.splitext(upload.name)[1].lower()
-    if ext not in _ALLOWED_IMAGE_EXT:
-        return error_response('invalid_file_type', '허용되지 않는 파일 형식입니다.', 400)
+    if not is_vulnerable(request):
+        ext = os.path.splitext(upload.name)[1].lower()
+        if ext not in _ALLOWED_IMAGE_EXT:
+            return error_response('invalid_file_type', '허용되지 않는 파일 형식입니다.', 400)
     product.image = upload
     product.save(update_fields=['image'])
     return Response({'image': product.image.url}, status=201)
@@ -113,7 +119,10 @@ def product_status(request, pk):
 @permission_classes([IsOwner])
 def category_list_create(request):
     if request.method == 'GET':
-        cats = MenuCategory.objects.filter(restaurant__owner=request.user)
+        if is_vulnerable(request):
+            cats = MenuCategory.objects.all()
+        else:
+            cats = MenuCategory.objects.filter(restaurant__owner=request.user)
         return Response({'results': CategorySerializer(cats.order_by('display_order'), many=True).data})
 
     serializer = CategorySerializer(data=request.data)
@@ -128,7 +137,10 @@ def category_list_create(request):
 @api_view(['PUT', 'DELETE'])
 @permission_classes([IsOwner])
 def category_detail(request, pk):
-    category = MenuCategory.objects.filter(pk=pk, restaurant__owner=request.user).first()
+    if is_vulnerable(request):
+        category = MenuCategory.objects.filter(pk=pk).first()
+    else:
+        category = MenuCategory.objects.filter(pk=pk, restaurant__owner=request.user).first()
     if not category:
         return error_response('not_found', '카테고리를 찾을 수 없습니다.', 404)
     if request.method == 'DELETE':
@@ -173,7 +185,10 @@ def product_options(request, pk):
 @api_view(['PUT', 'DELETE'])
 @permission_classes([IsOwner])
 def option_detail(request, pk):
-    option = MenuOption.objects.filter(pk=pk, group__menu__restaurant__owner=request.user).first()
+    if is_vulnerable(request):
+        option = MenuOption.objects.filter(pk=pk).first()
+    else:
+        option = MenuOption.objects.filter(pk=pk, group__menu__restaurant__owner=request.user).first()
     if not option:
         return error_response('not_found', '옵션을 찾을 수 없습니다.', 404)
     if request.method == 'DELETE':

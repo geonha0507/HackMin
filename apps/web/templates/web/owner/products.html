@@ -1,0 +1,39 @@
+{% extends 'web/base.html' %}
+{% block title %}상품 관리{% endblock %}
+{% block heading %}상품 관리{% endblock %}
+{% block content %}
+<div class="toolbar" style="justify-content:space-between">
+  <div class="muted">총 {{ menus|length }}개 상품</div>
+  <a class="btn btn-primary" href="{% url 'web:owner_product_new' %}">+ 상품 등록</a>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>상품명</th><th>매장</th><th>카테고리</th><th>가격</th><th>상태</th><th></th></tr></thead>
+    <tbody>
+    {% for m in menus %}
+      <tr>
+        <td><strong>{{ m.name }}</strong></td>
+        <td class="muted">{{ m.restaurant.name }}</td>
+        <td>{{ m.category.name|default:'-' }}</td>
+        <td>{{ m.price|floatformat:0 }}원</td>
+        <td>
+          {% if m.status == 'on_sale' %}<span class="badge b-green">판매중</span>
+          {% elif m.status == 'sold_out' %}<span class="badge b-amber">품절</span>
+          {% else %}<span class="badge b-gray">숨김</span>{% endif %}
+        </td>
+        <td class="right">
+          <a class="btn btn-sm" href="{% url 'web:owner_product_edit' m.pk %}">수정</a>
+          <form method="post" action="{% url 'web:owner_product_delete' m.pk %}" style="display:inline"
+                onsubmit="return confirm('삭제하시겠습니까?')">{% csrf_token %}
+            <button class="btn btn-sm btn-danger" type="submit">삭제</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="muted">등록된 상품이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

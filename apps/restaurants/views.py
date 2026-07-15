@@ -1,5 +1,6 @@
 """Public restaurant & menu browsing endpoints."""
 
+from django.db import connection
 from django.db.models import Q
 from rest_framework import generics
 from rest_framework.decorators import api_view, permission_classes
@@ -7,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from common.exceptions import error_response
+from common.mode import is_vulnerable
 from common.pagination import StandardPagination
 from .models import Menu, Restaurant
 from .serializers import (
@@ -28,22 +30,40 @@ _SORT_FIELDS = {
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def restaurant_search(request):
-    """음식점/음식 검색.
+    """🎯 음식점/음식 검색.
 
     지원 파라미터: q(음식명·음식점명), cuisine(종류), min_price, max_price,
     sort(rating|delivery_fee|min_order|newest).
+
+    Vulnerable 모드는 q를 raw SQL에 문자열 결합하여 SQL Injection에 노출된다.
     """
     q = request.query_params.get('q', '')
     cuisine = request.query_params.get('cuisine', '')
     sort = request.query_params.get('sort', '')
 
-    queryset = Restaurant.objects.all()
-    if q:
-        queryset = queryset.filter(
-            Q(name__icontains=q)
-            | Q(cuisine_type__icontains=q)
-            | Q(menus__name__icontains=q)
-        ).distinct()
+    if is_vulnerable(request) and q:
+        # VULNERABLE: 사용자 입력을 그대로 LIKE 절에 결합.
+        # 예) q = "%' UNION SELECT ... -- " 형태로 인젝션 가능.
+        sql = (
+            "SELECT id FROM restaurants_restaurant "
+            f"WHERE name LIKE '%{q}%' OR cuisine_type LIKE '%{q}%'"  # noqa
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                ids = [row[0] for row in cursor.fetchall()]
+        except Exception as exc:  # 인젝션 실습 시 오류 메시지 노출
+            return error_response('query_error', str(exc), 400)
+        queryset = Restaurant.objects.filter(id__in=ids)
+    else:
+        # SECURE: ORM 파라미터 바인딩.
+        queryset = Restaurant.objects.all()
+        if q:
+            queryset = queryset.filter(
+                Q(name__icontains=q)
+                | Q(cuisine_type__icontains=q)
+                | Q(menus__name__icontains=q)
+            ).distinct()
 
     if cuisine:
         queryset = queryset.filter(cuisine_type__iexact=cuisine)
