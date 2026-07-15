@@ -1,30 +1,26 @@
 package com.hackmin.app.ui.mypage;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.hackmin.app.R;
-import com.hackmin.app.data.api.UserApi;
-import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
+import com.hackmin.app.network.SessionManager;
 import com.hackmin.app.ui.auth.LoginActivity;
 import com.hackmin.app.ui.order.OrderHistoryActivity;
 
 public class MyPageActivity extends AppCompatActivity {
 
     private TextView tvNickname, tvUsername, tvPhone;
-    private SharedPreferences prefs;
+    private SessionManager session;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mypage);
 
-        prefs = getSharedPreferences("HackminPrefs", MODE_PRIVATE);
+        session = SessionManager.getInstance(this);
 
         // 뒤로가기
         findViewById(R.id.tv_mypage_back).setOnClickListener(v -> finish());
@@ -39,7 +35,7 @@ public class MyPageActivity extends AppCompatActivity {
                 startActivity(new Intent(this, OrderHistoryActivity.class)));
 
         findViewById(R.id.menu_logout).setOnClickListener(v -> {
-            prefs.edit().remove("access_token").apply();
+            session.clear();
             Toast.makeText(this, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -55,13 +51,16 @@ public class MyPageActivity extends AppCompatActivity {
                     Toast.makeText(this, "준비 중인 기능입니다.", Toast.LENGTH_SHORT).show());
         }
 
-        // TODO: GET /me API 호출하여 프로필 정보 로드
-        loadDummyProfile();
+        // 로그인 시 저장해 둔 세션 정보로 우선 표시.
+        // TODO(C): GET /me API로 최신 프로필(전화번호 등) 로드하여 갱신 필요.
+        loadProfileFromSession();
     }
 
-    private void loadDummyProfile() {
-        tvNickname.setText("사용자");
-        tvUsername.setText(prefs.getString("saved_id", "guest"));
+    private void loadProfileFromSession() {
+        String nickname = session.getNickname();
+        String username = session.getUsername();
+        tvNickname.setText(nickname.isEmpty() ? "사용자" : nickname);
+        tvUsername.setText(username.isEmpty() ? session.getSavedId() : username);
         tvPhone.setText("010-0000-0000");
     }
 }

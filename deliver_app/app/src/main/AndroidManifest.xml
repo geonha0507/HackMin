@@ -44,6 +44,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.restaurant.RestaurantDetailActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.order.OrderActivity"
             android:exported="false" />
 

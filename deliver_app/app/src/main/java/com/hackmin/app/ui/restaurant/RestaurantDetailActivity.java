@@ -1,0 +1,279 @@
+package com.hackmin.app.ui.restaurant;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.View;
+import android.widget.CheckBox;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.hackmin.app.R;
+import com.hackmin.app.data.model.cart.AddCartItemRequest;
+import com.hackmin.app.data.model.cart.CartDto;
+import com.hackmin.app.data.model.common.PagedResponse;
+import com.hackmin.app.data.model.restaurant.MenuDto;
+import com.hackmin.app.data.model.restaurant.MenuOptionDto;
+import com.hackmin.app.data.model.restaurant.MenuOptionGroupDto;
+import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
+import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.cart.CartActivity;
+
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class RestaurantDetailActivity extends AppCompatActivity {
+
+    public static final String EXTRA_RESTAURANT_ID = "restaurant_id";
+    public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";
+
+    private long restaurantId;
+
+    private TextView tvName, tvCuisine, tvMeta, tvAddress;
+    private RecyclerView rvMenus;
+    private ProgressBar pbLoading;
+    private MenuAdapter adapter;
+
+    private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_restaurant_detail);
+
+        restaurantId = getIntent().getLongExtra(EXTRA_RESTAURANT_ID, -1L);
+        if (restaurantId < 0) {
+            Toast.makeText(this, "잘못된 접근입니다.", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        tvName = findViewById(R.id.tv_detail_name);
+        tvCuisine = findViewById(R.id.tv_detail_cuisine);
+        tvMeta = findViewById(R.id.tv_detail_meta);
+        tvAddress = findViewById(R.id.tv_detail_address);
+        rvMenus = findViewById(R.id.rv_menus);
+        pbLoading = findViewById(R.id.pb_detail_loading);
+
+        // 진입 시점에 알고 있는 이름은 먼저 표시(체감 속도).
+        String presetName = getIntent().getStringExtra(EXTRA_RESTAURANT_NAME);
+        if (presetName != null) {
+            tvName.setText(presetName);
+        }
+
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        findViewById(R.id.btn_detail_cart).setOnClickListener(v ->
+                startActivity(new Intent(this, CartActivity.class)));
+
+        adapter = new MenuAdapter(this::onMenuClicked);
+        rvMenus.setLayoutManager(new LinearLayoutManager(this));
+        rvMenus.setAdapter(adapter);
+
+        loadDetail();
+        loadMenus();
+    }
+
+    // ── 음식점 상세 헤더 ──────────────────────────────────
+
+    private void loadDetail() {
+        ApiClient.restaurantApi(this).getRestaurantDetail(restaurantId)
+                .enqueue(new Callback<RestaurantDetailDto>() {
+                    @Override
+                    public void onResponse(Call<RestaurantDetailDto> call,
+                                           Response<RestaurantDetailDto> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            bindHeader(response.body());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<RestaurantDetailDto> call, Throwable t) {
+                        // 헤더 실패는 치명적이지 않음(메뉴 로드는 별도).
+                    }
+                });
+    }
+
+    private void bindHeader(RestaurantDetailDto r) {
+        tvName.setText(r.getName());
+        String cuisine = r.getCuisineType();
+        tvCuisine.setText(cuisine == null || cuisine.isEmpty() ? "음식점" : cuisine);
+        tvMeta.setText("⭐ " + String.format(Locale.KOREA, "%.1f", r.getRating())
+                + " · 배달비 " + won.format(r.getDeliveryFee()) + "원"
+                + " · 최소주문 " + won.format(r.getMinOrderAmount()) + "원");
+        String addr = r.getAddress();
+        tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
+        if (!r.isOpen()) {
+            tvName.setText(r.getName() + " (영업종료)");
+        }
+    }
+
+    // ── 메뉴 목록 ────────────────────────────────────────
+
+    private void loadMenus() {
+        pbLoading.setVisibility(View.VISIBLE);
+        ApiClient.restaurantApi(this).getRestaurantMenus(restaurantId)
+                .enqueue(new Callback<PagedResponse<MenuDto>>() {
+                    @Override
+                    public void onResponse(Call<PagedResponse<MenuDto>> call,
+                                           Response<PagedResponse<MenuDto>> response) {
+                        pbLoading.setVisibility(View.GONE);
+                        if (response.isSuccessful() && response.body() != null) {
+                            adapter.submit(response.body().getResults());
+                        } else {
+                            Toast.makeText(RestaurantDetailActivity.this,
+                                    "메뉴를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<PagedResponse<MenuDto>> call, Throwable t) {
+                        pbLoading.setVisibility(View.GONE);
+                        Toast.makeText(RestaurantDetailActivity.this,
+                                "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    // ── 메뉴 선택 → 옵션 상세 조회 ─────────────────────────
+
+    private void onMenuClicked(MenuDto menuFromList) {
+        // 목록 응답에는 옵션이 없으므로 상세를 다시 조회한다.
+        ApiClient.restaurantApi(this).getMenuDetail(menuFromList.getId())
+                .enqueue(new Callback<MenuDto>() {
+                    @Override
+                    public void onResponse(Call<MenuDto> call, Response<MenuDto> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            showOptionDialog(response.body());
+                        } else {
+                            // 옵션 조회 실패 시 옵션 없이 담기 시도.
+                            addToCart(menuFromList.getId(), new ArrayList<>());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<MenuDto> call, Throwable t) {
+                        Toast.makeText(RestaurantDetailActivity.this,
+                                "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    /** 옵션 그룹을 체크박스로 표시하고, 선택된 MenuOption id를 모아 장바구니에 담는다. */
+    private void showOptionDialog(MenuDto menu) {
+        List<MenuOptionGroupDto> groups = menu.getOptionGroups();
+        if (groups == null || groups.isEmpty()) {
+            addToCart(menu.getId(), new ArrayList<>());
+            return;
+        }
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(20);
+        container.setPadding(pad, dp(8), pad, dp(8));
+
+        // 체크박스 ↔ MenuOption id 매핑
+        List<CheckBox> boxes = new ArrayList<>();
+        List<Integer> boxOptionIds = new ArrayList<>();
+
+        for (MenuOptionGroupDto group : groups) {
+            TextView header = new TextView(this);
+            String title = group.getName();
+            if (group.isRequired()) {
+                title += " (필수)";
+            }
+            header.setText(title);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            header.setPadding(0, dp(12), 0, dp(4));
+            container.addView(header);
+
+            if (group.getOptions() != null) {
+                for (MenuOptionDto opt : group.getOptions()) {
+                    CheckBox cb = new CheckBox(this);
+                    String label = opt.getName();
+                    if (opt.getExtraPrice() > 0) {
+                        label += " (+" + won.format(opt.getExtraPrice()) + "원)";
+                    }
+                    cb.setText(label);
+                    container.addView(cb);
+                    boxes.add(cb);
+                    boxOptionIds.add((int) opt.getId());
+                }
+            }
+        }
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(container);
+
+        new AlertDialog.Builder(this)
+                .setTitle(menu.getName() + "  " + won.format(menu.getPrice()) + "원")
+                .setView(scroll)
+                .setPositiveButton("장바구니 담기", (dialog, which) -> {
+                    List<Integer> selected = new ArrayList<>();
+                    for (int i = 0; i < boxes.size(); i++) {
+                        if (boxes.get(i).isChecked()) {
+                            selected.add(boxOptionIds.get(i));
+                        }
+                    }
+                    addToCart(menu.getId(), selected);
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    // ── 장바구니 담기 (A→B 핸드오프) ───────────────────────
+
+    private void addToCart(long menuId, List<Integer> optionIds) {
+        AddCartItemRequest request = new AddCartItemRequest(menuId, 1, optionIds);
+        ApiClient.cartApi(this).addItem(request).enqueue(new Callback<CartDto>() {
+            @Override
+            public void onResponse(Call<CartDto> call, Response<CartDto> response) {
+                if (response.isSuccessful()) {
+                    promptGoToCart();
+                } else if (response.code() == 409) {
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            "다른 음식점의 메뉴는 함께 담을 수 없습니다.", Toast.LENGTH_LONG).show();
+                } else if (response.code() == 401) {
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            "장바구니 담기에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<CartDto> call, Throwable t) {
+                Toast.makeText(RestaurantDetailActivity.this,
+                        "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void promptGoToCart() {
+        new AlertDialog.Builder(this)
+                .setMessage("장바구니에 담았습니다.")
+                .setPositiveButton("장바구니 보기", (d, w) ->
+                        startActivity(new Intent(this, CartActivity.class)))
+                .setNegativeButton("계속 담기", null)
+                .show();
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+}

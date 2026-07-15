@@ -13,8 +13,9 @@ public class UserDto {
     @SerializedName("email")
     private String email;
 
-    @SerializedName("name")
-    private String name;
+    // 백엔드 UserSerializer는 name이 아니라 nickname을 반환한다.
+    @SerializedName("nickname")
+    private String nickname;
 
     @SerializedName("phone")
     private String phone;
@@ -22,14 +23,18 @@ public class UserDto {
     @SerializedName("role")
     private String role; // "customer" | "owner" | "admin" | "rider"
 
-    @SerializedName("created_at")
-    private String createdAt;
+    @SerializedName("status")
+    private String status;
+
+    @SerializedName("date_joined")
+    private String dateJoined;
 
     public long getId() { return id; }
     public String getUsername() { return username; }
     public String getEmail() { return email; }
-    public String getName() { return name; }
+    public String getNickname() { return nickname; }
     public String getPhone() { return phone; }
     public String getRole() { return role; }
-    public String getCreatedAt() { return createdAt; }
+    public String getStatus() { return status; }
+    public String getDateJoined() { return dateJoined; }
 }
