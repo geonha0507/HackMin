@@ -1,12 +1,11 @@
 package com.hackmin.app.data.api;
 
 import com.hackmin.app.data.model.common.MessageResponse;
+import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.user.*;
 
 import retrofit2.Call;
 import retrofit2.http.*;
-
-import java.util.List;
 
 /**
  * 사용자 (내 정보) API (/api/v1/me)
@@ -26,9 +25,9 @@ public interface UserApi {
     @PUT("me/password")
     Call<MessageResponse> changePassword(@Body ChangePasswordRequest request);
 
-    /** 배송지 목록 조회 */
+    /** 배송지 목록 조회 (서버 응답은 {count,next,previous,results} 페이지 형태) — [C] 실제 계약에 맞춰 수정 */
     @GET("me/addresses")
-    Call<List<AddressDto>> getAddresses();
+    Call<PagedResponse<AddressDto>> getAddresses();
 
     /** 배송지 등록 */
     @POST("me/addresses")

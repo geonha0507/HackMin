@@ -43,6 +43,12 @@
             android:name=".ui.mypage.MyPageActivity"
             android:exported="false" />
 
+        <!-- ===== [C] START: 배송지 관리 화면 (신규) ===== -->
+        <activity
+            android:name=".ui.mypage.AddressActivity"
+            android:exported="false" />
+        <!-- ===== [C] END ===== -->
+
         <activity
             android:name=".ui.restaurant.RestaurantDetailActivity"
             android:exported="false" />
