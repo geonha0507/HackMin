@@ -1,6 +1,17 @@
+from pathlib import Path
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
+
+def business_license_upload_to(instance, filename):
+    extension = Path(filename).suffix.lower()
+    file_id = uuid4().hex
+    now = timezone.now()
+
+    return f'licenses/{now:%Y/%m}/{file_id}{extension}'
 
 class Restaurant(models.Model):
     owner = models.ForeignKey(
@@ -18,7 +29,11 @@ class Restaurant(models.Model):
     delivery_fee = models.PositiveIntegerField(default=0)
     rating = models.FloatField(default=0.0)
     is_open = models.BooleanField(default=True)
-    business_license = models.FileField(upload_to='licenses/', null=True, blank=True)
+    business_license = models.FileField(
+        upload_to=business_license_upload_to,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
