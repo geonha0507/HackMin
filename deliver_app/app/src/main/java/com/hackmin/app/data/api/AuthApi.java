@@ -3,38 +3,40 @@ import com.hackmin.app.data.model.auth.*;
 import retrofit2.Call;
 import retrofit2.http.*;
 
+import java.util.Map;
+
 /**
  * Maps to README Section 1 — 인증 /auth
  * Base path is prefixed with /api/v1 via ApiClient's baseUrl.
- *
- * NOTE: email/phone/OTP verification endpoints are explicitly out of scope
- * per the README, so they're intentionally omitted here.
  */
 public interface AuthApi {
 
     @POST("auth/signup")
     Call<UserDto> signup(@Body SignupRequest request);
 
-    // 🎯 vulnerable/secure dual-mode (SQL Injection in vulnerable mode)
     @POST("auth/login")
     Call<LoginResponse> login(@Body LoginRequest request);
 
     @POST("auth/logout")
     Call<Void> logout();
 
-    // 🎯 vulnerable mode skips signature verification
     @POST("auth/refresh")
     Call<RefreshResponse> refresh(@Body RefreshRequest request);
 
+    /** 아이디 중복확인: checkDuplicateUsername("testuser") → ?username=testuser */
     @GET("auth/check-duplicate")
-    Call<DuplicateCheckResponse> checkDuplicate(
-            @Query("field") String field,   // "username" | "email"
-            @Query("value") String value
-    );
+    Call<DuplicateCheckResponse> checkDuplicateUsername(@Query("username") String username);
 
-    // 🎯 vulnerable mode allows account enumeration
+    /** 닉네임 중복확인: checkDuplicateNickname("홍길동") → ?nickname=홍길동 */
+    @GET("auth/check-duplicate")
+    Call<DuplicateCheckResponse> checkDuplicateNickname(@Query("nickname") String nickname);
+
+    /** 이메일 중복확인: checkDuplicateEmail("a@b.com") → ?email=a@b.com */
+    @GET("auth/check-duplicate")
+    Call<DuplicateCheckResponse> checkDuplicateEmail(@Query("email") String email);
+
     @POST("auth/password/reset-request")
-    Call<Void> requestPasswordReset(@Body PasswordResetRequestDto request);
+    Call<Void> requestPasswordReset(@Body Map<String, String> body);
 
     @POST("auth/password/reset")
     Call<Void> resetPassword(@Body PasswordResetDto request);

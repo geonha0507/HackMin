@@ -65,7 +65,7 @@ public class SignupActivity extends AppCompatActivity {
             }
 
             // AuthApi.checkDuplicate(field, value) 형식을 따름 (닉네임 중복 확인이므로 field="nickname")
-            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicate("nickname", nickname).enqueue(new Callback<DuplicateCheckResponse>() {
+            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicateNickname(nickname).enqueue(new Callback<DuplicateCheckResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<DuplicateCheckResponse> call, @NonNull Response<DuplicateCheckResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
@@ -115,7 +115,7 @@ public class SignupActivity extends AppCompatActivity {
             }
 
             // AuthApi.checkDuplicate(field, value) 형식을 따름 (아이디 중복 확인이므로 field="username")
-            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicate("username", id).enqueue(new Callback<DuplicateCheckResponse>() {
+            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicateUsername(id).enqueue(new Callback<DuplicateCheckResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<DuplicateCheckResponse> call, @NonNull Response<DuplicateCheckResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {

@@ -11,6 +11,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.textfield.TextInputEditText;
 import com.hackmin.app.R;
+import com.hackmin.app.ui.home.HomeActivity;
 import com.hackmin.app.data.model.auth.LoginRequest;
 import com.hackmin.app.data.model.auth.LoginResponse;
 import com.hackmin.app.network.ApiClient;
@@ -76,7 +77,8 @@ public class LoginActivity extends AppCompatActivity {
                         String token = response.body().getAccessToken();
                         prefs.edit().putString("access_token", token).apply();
                         Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
-                        finish(); // 로그인 성공 시 현재 화면 종료
+                        startActivity(new Intent(LoginActivity.this, HomeActivity.class));
+                        finish();
                     } else {
                         Toast.makeText(LoginActivity.this, "로그인 실패: 정보를 확인해 주세요.", Toast.LENGTH_SHORT).show();
                     }

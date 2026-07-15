@@ -1,305 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/bg_deep"
-    android:paddingTop="24dp"
-    android:paddingStart="20dp"
-    android:paddingEnd="20dp">
-
-    <!-- ===================== 상단 헤더 ===================== -->
-
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="20dp">
-
-        <!-- 앱 이름 -->
-        <TextView
-            android:id="@+id/tv_logo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="해킹의 민족"
-            android:textStyle="bold"
-            android:textSize="24sp"
-            android:textColor="@color/text_primary"
-            android:layout_centerVertical="true"/>
-
-        <!-- 오른쪽 아이콘 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:orientation="horizontal">
-
-            <!-- 알림 -->
-            <ImageButton
-                android:id="@+id/btn_notification"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_popup_reminder"
-                app:tint="@color/text_primary"/>
-
-            <!-- 장바구니 -->
-            <ImageButton
-                android:id="@+id/btn_cart"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_menu_save"
-                app:tint="@color/text_primary"/>
-
-            <!-- 마이페이지 -->
-            <ImageButton
-                android:id="@+id/btn_mypage"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_menu_myplaces"
-                app:tint="@color/text_primary"/>
-
-        </LinearLayout>
-
-    </RelativeLayout>
-
-    <!-- ===================== 검색창 ===================== -->
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="음식이나 매장 이름을 검색해보세요"
-        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
-        app:hintEnabled="false"
-        app:startIconDrawable="@android:drawable/ic_menu_search"
-        app:startIconTint="@color/text_secondary"
-        app:boxBackgroundColor="#F8F9FA"
-        app:boxCornerRadiusTopStart="16dp"
-        app:boxCornerRadiusTopEnd="16dp"
-        app:boxCornerRadiusBottomStart="16dp"
-        app:boxCornerRadiusBottomEnd="16dp"
-        app:boxStrokeWidth="0dp"
-        app:boxStrokeWidthFocused="1dp"
-        android:layout_marginBottom="28dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/et_home_search"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"/>
-
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- ===================== 카테고리 ===================== -->
+    android:fillViewport="true"
+    android:background="@color/bg_deep">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="5">
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:gravity="center_horizontal">
 
-
-        <!-- 중식 -->
+        <!-- ===== 상단 브랜딩 영역 ===== -->
         <LinearLayout
-            android:id="@+id/category_chinese"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#FFE8D6">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="🥟"
-                    android:textSize="24sp"
-                    android:gravity="center"/>
-
-            </com.google.android.material.card.MaterialCardView>
+            android:layout_marginTop="60dp"
+            android:layout_marginBottom="60dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="중식"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="6dp"/>
+                android:text="해킹의 민족"
+                android:textSize="42sp"
+                android:textStyle="bold"
+                android:textColor="@color/coral_primary"
+                android:letterSpacing="0.1"/>
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="당신의 일상을 안전하게 배달합니다"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-        <!-- 치킨 -->
-        <LinearLayout
-            android:id="@+id/category_chicken"
-            android:layout_width="0dp"
+        <!-- ===== 입력 영역 ===== -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
+            android:hint="이메일 또는 아이디"
+            app:startIconDrawable="@android:drawable/ic_menu_edit"
+            app:startIconTint="@color/text_secondary"
+            app:boxBackgroundColor="#F8F9FA"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeWidth="0dp"
+            app:boxStrokeWidthFocused="1dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            android:layout_marginBottom="16dp">
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#FFE0DB">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_login_id"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/text_primary"/>
+        </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="🍗"
-                    android:textSize="24sp"
-                    android:gravity="center"/>
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="비밀번호"
+            app:startIconDrawable="@android:drawable/ic_lock_idle_lock"
+            app:startIconTint="@color/text_secondary"
+            app:passwordToggleEnabled="true"
+            app:boxBackgroundColor="#F8F9FA"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeWidth="0dp"
+            app:boxStrokeWidthFocused="1dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            android:layout_marginBottom="8dp">
 
-            </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_login_pw"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:textColor="@color/text_primary"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <CheckBox
+            android:id="@+id/cb_save_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="아이디 저장"
+            android:textColor="@color/text_secondary"
+            android:layout_gravity="start"
+            android:layout_marginBottom="32dp"
+            app:buttonCompat="@drawable/checkbox_selector"
+            app:buttonTint="@null"
+            android:paddingStart="8dp"/>
+
+        <Button
+            android:id="@+id/btn_login"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="로그인"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:backgroundTint="@color/coral_primary"
+            app:cornerRadius="12dp"
+            android:elevation="4dp"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- ===== 하단 링크 ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="60dp">
+
+            <TextView
+                android:id="@+id/tv_go_signup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="회원가입"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:padding="8dp"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="치킨"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="6dp"/>
-
-        </LinearLayout>
-
-        <!-- 카페 -->
-        <LinearLayout
-            android:id="@+id/category_cafe"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#E8DFF5">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="☕"
-                    android:textSize="24sp"
-                    android:gravity="center"/>
-
-            </com.google.android.material.card.MaterialCardView>
+                android:text=" | "
+                android:textColor="@color/stroke_dim"
+                android:gravity="center"
+                android:layout_gravity="center_vertical"/>
 
             <TextView
+                android:id="@+id/tv_go_find_pw"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="카페"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="6dp"/>
-
-        </LinearLayout>
-
-        <!-- 찜탕 -->
-        <LinearLayout
-            android:id="@+id/category_stew"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#FFDDE1">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="🍲"
-                    android:textSize="24sp"
-                    android:gravity="center"/>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="찜, 탕"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="6dp"/>
-
-        </LinearLayout>
-
-        <!-- 한식 -->
-        <LinearLayout
-            android:id="@+id/category_korean"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#DFF0DF">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="🍚"
-                    android:textSize="24sp"
-                    android:gravity="center"/>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="한식"
-                android:textSize="12sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginTop="6dp"/>
-
+                android:text="비밀번호 찾기"
+                android:textColor="@color/text_secondary"
+                android:padding="8dp"/>
         </LinearLayout>
 
     </LinearLayout>
-
-</LinearLayout>
+</ScrollView>

@@ -13,7 +13,7 @@ public class SignupRequest {
     @SerializedName("password")
     private String password;
 
-    @SerializedName("name")
+    @SerializedName("nickname")
     private String name;
 
     @SerializedName("phone")
