@@ -21,6 +21,7 @@ api_v1 = [
     path('', include('owner.urls')),
     path('', include('adminpanel.urls')),
     path('', include('rider.urls')),
+    path('', include('enrollment.urls')),
     path('', include('downloads.urls')),
 ]
 
