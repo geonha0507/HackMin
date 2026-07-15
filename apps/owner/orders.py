@@ -4,7 +4,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsOwner
 from orders.models import Order
 from orders.serializers import OrderSerializer
@@ -13,16 +12,14 @@ from payments.serializers import PaymentSerializer, RefundSerializer
 
 
 def _order_scope(request):
-    """🎯 Secure는 본인 매장 주문만, Vulnerable은 전체(BOLA)."""
-    if is_vulnerable(request):
-        return Order.objects.all()
+    """항상 본인 매장 주문만 (Secure 고정, Vulnerable 분기 임시 제거)."""
     return Order.objects.filter(restaurant__owner=request.user)
 
 
 @api_view(['GET'])
 @permission_classes([IsOwner])
 def owner_order_list(request):
-    """🎯 신규·전체 주문 조회. ?status= 로 필터."""
+    """신규·전체 주문 조회 (본인 매장만, Secure 고정). ?status= 로 필터."""
     orders = _order_scope(request)
     status_filter = request.query_params.get('status')
     if status_filter:
@@ -44,7 +41,7 @@ def _set_status(request, pk, new_status, allowed_from=None):
     order = _order_scope(request).filter(pk=pk).first()
     if not order:
         return None, error_response('not_found', '주문을 찾을 수 없습니다.', 404)
-    if not is_vulnerable(request) and allowed_from is not None and order.status not in allowed_from:
+    if allowed_from is not None and order.status not in allowed_from:
         return None, error_response('invalid_transition', '허용되지 않는 상태 전이입니다.', 409)
     order.status = new_status
     order.save(update_fields=['status'])
@@ -68,13 +65,9 @@ def reject_order(request, pk):
 @api_view(['PUT'])
 @permission_classes([IsOwner])
 def update_order_status(request, pk):
-    """🎯 조리 시작/완료·배달 요청 등 상태 변경.
-
-    Vulnerable 모드: 임의 주문에 임의 상태값 설정(BOLA + 상태 검증 없음).
-    Secure 모드: 본인 매장 + 허용된 상태값만.
-    """
+    """조리 시작/완료·배달 요청 등 상태 변경. 본인 매장 + 허용된 상태값만 (Secure 고정)."""
     new_status = request.data.get('status')
-    if not is_vulnerable(request) and new_status not in Order.Status.values:
+    if new_status not in Order.Status.values:
         return error_response('bad_request', '유효하지 않은 상태입니다.', 400)
     order, err = _set_status(request, pk, new_status)
     return err or Response(OrderSerializer(order).data)
@@ -89,8 +82,6 @@ def cancel_order(request, pk):
 
 # --- Payments --------------------------------------------------------------
 def _payment_scope(request):
-    if is_vulnerable(request):
-        return Payment.objects.all()
     return Payment.objects.filter(order__restaurant__owner=request.user)
 
 
@@ -124,11 +115,7 @@ def owner_payment_cancel(request, pk):
 @api_view(['POST'])
 @permission_classes([IsOwner])
 def owner_payment_refund(request, pk):
-    """🎯 전체/부분 환불.
-
-    Vulnerable 모드: 소유권·금액 검증 없이 임의 금액 환불.
-    Secure 모드: 본인 매장 결제 + 남은 환불 가능 금액 이내.
-    """
+    """전체/부분 환불. 본인 매장 결제 + 남은 환불 가능 금액 이내 (Secure 고정)."""
     payment = _payment_scope(request).filter(pk=pk).first()
     if not payment:
         return error_response('not_found', '결제 내역을 찾을 수 없습니다.', 404)
@@ -137,11 +124,10 @@ def owner_payment_refund(request, pk):
     except (TypeError, ValueError):
         return error_response('bad_request', '유효한 금액이 아닙니다.', 400)
 
-    if not is_vulnerable(request):
-        already = sum(r.amount for r in payment.refunds.filter(status=Refund.Status.COMPLETED))
-        remaining = payment.amount - already
-        if amount <= 0 or amount > remaining:
-            return error_response('invalid_amount', f'환불 가능 금액은 {remaining}원 입니다.', 400)
+    already = sum(r.amount for r in payment.refunds.filter(status=Refund.Status.COMPLETED))
+    remaining = payment.amount - already
+    if amount <= 0 or amount > remaining:
+        return error_response('invalid_amount', f'환불 가능 금액은 {remaining}원 입니다.', 400)
 
     refund = Refund.objects.create(
         payment=payment, amount=amount, reason=request.data.get('reason', ''),

@@ -1,27 +1,11 @@
-"""Vulnerable / Secure mode switching for 🎯 dual-mode endpoints.
+"""Hackmin mode helper.
 
-The active mode comes from settings.HACKMIN_MODE, but can be overridden per
-request with the `X-Hackmin-Mode: vulnerable|secure` header (when
-settings.HACKMIN_ALLOW_MODE_HEADER is True) so a single running server can
-demonstrate both behaviours side by side.
+Vulnerable mode has been removed. This function is kept as a stub
+so that existing imports (e.g. downloads/views.py) do not break.
+It always returns False — all requests follow the secure code path.
 """
-
-from django.conf import settings
-
-VULNERABLE = 'vulnerable'
-SECURE = 'secure'
-
-
-def get_mode(request):
-    default = getattr(settings, 'HACKMIN_MODE', VULNERABLE)
-    if getattr(settings, 'HACKMIN_ALLOW_MODE_HEADER', False) and request is not None:
-        header = request.headers.get('X-Hackmin-Mode')
-        if header:
-            header = header.strip().lower()
-            if header in (VULNERABLE, SECURE):
-                return header
-    return default
 
 
 def is_vulnerable(request):
-    return get_mode(request) == VULNERABLE
+    """Always returns False — vulnerable mode is disabled."""
+    return False

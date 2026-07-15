@@ -6,7 +6,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsCustomer
 from .models import Coupon, Favorite, Membership, MembershipPayment, UserCoupon
 from .serializers import (
@@ -25,14 +24,7 @@ MEMBERSHIP_PRICE = 4900
 @api_view(['GET'])
 @permission_classes([IsCustomer])
 def coupon_list(request):
-    """🎯 다운로드 가능 쿠폰 목록.
-
-    Vulnerable 모드: 비활성 쿠폰까지 포함하고 쿠폰 코드를 노출한다.
-    Secure 모드: 활성 쿠폰만, 코드는 숨긴다.
-    """
-    if is_vulnerable(request):
-        coupons = Coupon.objects.all()
-        return Response({'results': CouponFullSerializer(coupons, many=True).data})
+    """다운로드 가능 쿠폰 목록. 활성 쿠폰만 노출하고 코드는 숨긴다."""
     coupons = Coupon.objects.filter(is_active=True)
     return Response({'results': CouponPublicSerializer(coupons, many=True).data})
 
@@ -40,18 +32,10 @@ def coupon_list(request):
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def download_coupon(request, pk):
-    """🎯 쿠폰 다운로드.
-
-    Vulnerable 모드: 중복 다운로드 제한 없음(수량 무제한 발급).
-    Secure 모드: 사용자당 1회로 제한.
-    """
+    """쿠폰 다운로드. 사용자당 1회로 제한한다."""
     coupon = Coupon.objects.filter(pk=pk).first()
-    if not coupon or (not coupon.is_active and not is_vulnerable(request)):
+    if not coupon or not coupon.is_active:
         return error_response('not_found', '쿠폰을 찾을 수 없습니다.', 404)
-
-    if is_vulnerable(request):
-        uc = UserCoupon.objects.create(user=request.user, coupon=coupon)
-        return Response(UserCouponSerializer(uc).data, status=201)
 
     uc, created = UserCoupon.objects.get_or_create(user=request.user, coupon=coupon)
     if not created:
@@ -116,19 +100,8 @@ def delete_favorite(request, pk):
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def membership_subscribe(request):
-    """🎯 멤버십 가입.
-
-    Vulnerable 모드: 결제 없이 요청 body의 plan을 그대로 신뢰하여 즉시 활성화.
-    Secure 모드: 모의 결제 기록을 남기고 basic 플랜으로 가입.
-    """
+    """멤버십 가입. 모의 결제 기록을 남기고 basic 플랜으로 가입한다."""
     membership, _ = Membership.objects.get_or_create(user=request.user)
-
-    if is_vulnerable(request):
-        membership.plan = request.data.get('plan', Membership.Plan.PREMIUM)
-        membership.status = Membership.Status.ACTIVE
-        membership.cancelled_at = None
-        membership.save()
-        return Response(MembershipSerializer(membership).data, status=201)
 
     membership.plan = Membership.Plan.BASIC
     membership.status = Membership.Status.ACTIVE

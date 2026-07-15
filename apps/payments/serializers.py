@@ -27,5 +27,5 @@ class PaymentCreateSerializer(serializers.Serializer):
     method = serializers.ChoiceField(
         choices=Payment.Method.choices, default=Payment.Method.MOCK,
     )
-    # 🎯 Vulnerable 모드에서만 신뢰되는 클라이언트 제공 금액.
+    # 생략 시 주문 총액을 사용하며, 값을 보내면 주문 총액과 정확히 일치해야 한다(views.create_payment).
     amount = serializers.IntegerField(required=False)

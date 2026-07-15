@@ -7,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from .models import Address
 from .serializers import AddressSerializer, PasswordChangeSerializer, UserSerializer
 
@@ -17,27 +16,11 @@ User = get_user_model()
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """🎯 내 정보 조회/수정/탈퇴.
-
-    Vulnerable 모드는 ?user_id= 파라미터로 임의 사용자 조회를 허용(IDOR).
-    """
+    """내 정보 조회/수정/탈퇴."""
     if request.method == 'GET':
-        target = request.user
-        if is_vulnerable(request):
-            spoof_id = request.query_params.get('user_id')
-            if spoof_id:
-                target = User.objects.filter(pk=spoof_id).first() or request.user
-        return Response(UserSerializer(target).data)
+        return Response(UserSerializer(request.user).data)
 
     if request.method == 'PUT':
-        # 🎯 Vulnerable 모드는 role/status 같은 보호 필드까지 대량 할당 허용(Mass Assignment).
-        if is_vulnerable(request):
-            user = request.user
-            for field in ('email', 'phone', 'nickname', 'role', 'status', 'is_staff'):
-                if field in request.data:
-                    setattr(user, field, request.data[field])
-            user.save()
-            return Response(UserSerializer(user).data)
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -76,14 +59,9 @@ class AddressListCreateView(generics.ListCreateAPIView):
 
 
 class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """🎯 배송지 수정/삭제.
-
-    Vulnerable 모드는 소유자 검증 없이 pk로만 조회(IDOR).
-    """
+    """배송지 수정/삭제. 소유자 검증 후 pk로 조회한다."""
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if is_vulnerable(self.request):
-            return Address.objects.all()
         return Address.objects.filter(user=self.request.user)

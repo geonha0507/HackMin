@@ -8,7 +8,6 @@ from rest_framework.response import Response
 from carts.models import Cart
 from carts.services import cart_totals, compute_line_total, compute_unit_price
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsCustomer
 from .models import Order, OrderItem
 from .serializers import OrderCreateSerializer, OrderSerializer
@@ -20,11 +19,7 @@ _CANCELLABLE = {Order.Status.PENDING, Order.Status.PLACED, Order.Status.ACCEPTED
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def create_order(request):
-    """🎯 주문 생성.
-
-    Vulnerable 모드: 클라이언트가 보낸 total/discount를 그대로 신뢰(가격 조작 가능).
-    Secure 모드: 장바구니로부터 서버에서 금액을 재계산한다.
-    """
+    """주문 생성. 장바구니로부터 서버에서 금액을 재계산한다."""
     serializer = OrderCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
@@ -35,17 +30,10 @@ def create_order(request):
 
     totals = cart_totals(cart)
 
-    if is_vulnerable(request):
-        # VULNERABLE: 클라이언트 값이 있으면 우선 사용.
-        discount = data.get('discount', totals['discount'])
-        total = data.get('total', totals['total'])
-        subtotal = totals['subtotal']
-        delivery_fee = totals['delivery_fee']
-    else:
-        subtotal = totals['subtotal']
-        delivery_fee = totals['delivery_fee']
-        discount = totals['discount']
-        total = totals['total']
+    subtotal = totals['subtotal']
+    delivery_fee = totals['delivery_fee']
+    discount = totals['discount']
+    total = totals['total']
 
     with transaction.atomic():
         order = Order.objects.create(
@@ -82,11 +70,8 @@ def create_order(request):
 @api_view(['GET'])
 @permission_classes([IsCustomer])
 def order_detail(request, pk):
-    """🎯 주문 상세 조회. Vulnerable 모드는 소유자 검증 없이 조회(IDOR)."""
-    if is_vulnerable(request):
-        order = Order.objects.filter(pk=pk).first()
-    else:
-        order = Order.objects.filter(pk=pk, user=request.user).first()
+    """주문 상세 조회. 소유자 검증 후 조회한다."""
+    order = Order.objects.filter(pk=pk, user=request.user).first()
     if not order:
         return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
     return Response(OrderSerializer(order).data)
@@ -104,19 +89,7 @@ def order_status(request, pk):
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def cancel_order(request, pk):
-    """🎯 주문 취소.
-
-    Vulnerable 모드: 소유자·상태 검증 없이 어떤 주문이든 취소(IDOR + 상태우회).
-    Secure 모드: 본인 주문 + 취소 가능 상태만 허용.
-    """
-    if is_vulnerable(request):
-        order = Order.objects.filter(pk=pk).first()
-        if not order:
-            return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
-        order.status = Order.Status.CANCELLED
-        order.save(update_fields=['status'])
-        return Response(OrderSerializer(order).data)
-
+    """주문 취소. 본인 주문 + 취소 가능 상태만 허용한다."""
     order = Order.objects.filter(pk=pk, user=request.user).first()
     if not order:
         return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
@@ -150,16 +123,9 @@ def reorder(request, pk):
 
 
 class MyOrderListView(generics.ListAPIView):
-    """🎯 /me/orders 주문 내역.
-
-    Vulnerable 모드: ?user_id= 로 타인의 주문 목록 조회(IDOR).
-    """
+    """/me/orders 주문 내역."""
     serializer_class = OrderSerializer
     permission_classes = [IsCustomer]
 
     def get_queryset(self):
-        if is_vulnerable(self.request):
-            spoof = self.request.query_params.get('user_id')
-            if spoof:
-                return Order.objects.filter(user_id=spoof)
         return Order.objects.filter(user=self.request.user)

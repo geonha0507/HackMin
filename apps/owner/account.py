@@ -8,7 +8,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsOwner
 from restaurants.models import Restaurant
 from .serializers import OwnerProfileSerializer, OwnerSignupSerializer
@@ -41,12 +40,7 @@ def owner_profile(request):
 @permission_classes([IsOwner])
 @parser_classes([MultiPartParser, FormParser])
 def upload_business_license(request):
-    """🎯 사업자등록증 업로드.
-
-    Vulnerable 모드: 확장자·크기 검증 없이 업로드(Unrestricted File Upload) →
-    .php/.html 등 악성 파일 업로드 가능.
-    Secure 모드: 문서 확장자 화이트리스트 + 크기 제한.
-    """
+    """사업자등록증 업로드. 문서 확장자 화이트리스트 + 크기 제한 적용 (Secure 고정)."""
     upload = request.FILES.get('file')
     if not upload:
         return error_response('bad_request', 'file이 필요합니다.', 400)
@@ -55,7 +49,7 @@ def upload_business_license(request):
     if not restaurant:
         restaurant = Restaurant.objects.create(owner=request.user, name=f'{request.user.username}의 매장')
 
-    if not is_vulnerable(request):
+    if True:  # 항상 Secure 검증 적용 (Vulnerable 분기 임시 제거)
         ext = os.path.splitext(upload.name)[1].lower()
         if ext not in _ALLOWED_DOC_EXT:
             return error_response('invalid_file_type', '허용되지 않는 파일 형식입니다.', 400)
