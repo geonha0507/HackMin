@@ -1,8 +1,6 @@
 package com.hackmin.app.ui.order;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -29,8 +27,6 @@ import com.hackmin.app.data.model.order.OrderDto;
 import com.hackmin.app.data.model.payment.PaymentCreateRequest;
 import com.hackmin.app.data.model.payment.PaymentDto;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -77,12 +73,10 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     private void initApi() {
-        SharedPreferences prefs = getSharedPreferences("HackminPrefs", Context.MODE_PRIVATE);
-        HackminModeInterceptor.ModeProvider mp = () -> HackminMode.SECURE;
-        HackminModeInterceptor.TokenProvider tp = () -> prefs.getString("access_token", "");
-        cartApi = ApiClient.cartApi(mp, tp);
-        orderApi = ApiClient.orderApi(mp, tp);
-        paymentApi = ApiClient.paymentApi(mp, tp);
+        // 토큰/모드는 SessionManager가 자동 주입 — Context만 넘기면 된다.
+        cartApi = ApiClient.cartApi(this);
+        orderApi = ApiClient.orderApi(this);
+        paymentApi = ApiClient.paymentApi(this);
     }
 
     private void initViews() {
