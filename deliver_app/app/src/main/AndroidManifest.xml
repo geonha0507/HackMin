@@ -26,12 +26,12 @@
         </activity>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.order.OrderActivity"
             android:exported="false" />
 
-        <activity android:name=".ui.auth.SignupActivity" android:exported="false" />
-        <activity android:name=".ui.auth.ForgotPasswordActivity" android:exported="false" />
-
+        <activity
+            android:name=".ui.cart.CartActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

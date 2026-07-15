@@ -7,6 +7,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import com.hackmin.app.data.api.AuthApi;
 import com.hackmin.app.data.api.RestaurantApi;
 import java.util.concurrent.TimeUnit;
+import com.hackmin.app.data.api.AuthApi;
+import com.hackmin.app.data.api.RestaurantApi;
+
 
 /**
  * Central Retrofit setup.
