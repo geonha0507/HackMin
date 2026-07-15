@@ -1,4 +1,4 @@
-package com.hackmin.app.data.model;
+package com.hackmin.app.data.model.cart;
 
 public class CartItem {
     private int id;
