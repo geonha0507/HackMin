@@ -20,5 +20,8 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // 나가기 버튼
+        findViewById(R.id.tv_back).setOnClickListener(v -> finish());
     }
 }
