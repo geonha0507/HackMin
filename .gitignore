@@ -25,3 +25,22 @@ db.sqlite3-journal
 Thumbs.db
 .idea/
 .vscode/
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+*.jar
+local.properties
+deliver_app/.gradle/
+deliver_app/app/build/
+deliver_app/build/
+deliver_app/captures/
+deliver_app/.cxx/
+
+# Misc
+_to_delete/
+*.bak
+*.swp
+*~

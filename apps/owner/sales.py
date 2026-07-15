@@ -2,14 +2,11 @@
 
 import csv
 
-from django.db import connection
 from django.db.models import Count, Sum
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsOwner
 from orders.models import Order, OrderItem
 from restaurants.models import Restaurant
@@ -26,52 +23,28 @@ def _owned_ids(user):
 @api_view(['GET'])
 @permission_classes([IsOwner])
 def sales_summary(request):
-    """🎯 일/주/월별 매출. ?start=YYYY-MM-DD&end=YYYY-MM-DD.
-
-    Vulnerable 모드: start/end를 raw SQL에 결합(SQL Injection).
-    Secure 모드: ORM 파라미터 바인딩.
-    """
+    """일/주/월별 매출. ?start=YYYY-MM-DD&end=YYYY-MM-DD (ORM 파라미터 바인딩, Secure 고정)."""
     start = request.query_params.get('start', '')
     end = request.query_params.get('end', '')
     owned = _owned_ids(request.user)
     if not owned:
         return Response({'total_sales': 0, 'order_count': 0, 'daily': []})
 
-    if is_vulnerable(request) and (start or end):
-        # VULNERABLE: 날짜 파라미터를 그대로 문자열 결합.
-        id_list = ','.join(str(i) for i in owned)
-        where = f"restaurant_id IN ({id_list})"
-        if start:
-            where += f" AND date(created_at) >= '{start}'"   # noqa
-        if end:
-            where += f" AND date(created_at) <= '{end}'"     # noqa
-        sql = (
-            "SELECT date(created_at) d, COUNT(*), COALESCE(SUM(total),0) "
-            f"FROM orders_order WHERE {where} GROUP BY date(created_at)"
-        )
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-        except Exception as exc:
-            return error_response('query_error', str(exc), 400)
-        daily = [{'date': r[0], 'order_count': r[1], 'sales': r[2]} for r in rows]
-    else:
-        qs = Order.objects.filter(restaurant_id__in=owned)
-        if start:
-            qs = qs.filter(created_at__date__gte=start)
-        if end:
-            qs = qs.filter(created_at__date__lte=end)
-        agg = (
-            qs.values('created_at__date')
-            .annotate(order_count=Count('id'), sales=Sum('total'))
-            .order_by('created_at__date')
-        )
-        daily = [
-            {'date': str(a['created_at__date']), 'order_count': a['order_count'],
-             'sales': a['sales'] or 0}
-            for a in agg
-        ]
+    qs = Order.objects.filter(restaurant_id__in=owned)
+    if start:
+        qs = qs.filter(created_at__date__gte=start)
+    if end:
+        qs = qs.filter(created_at__date__lte=end)
+    agg = (
+        qs.values('created_at__date')
+        .annotate(order_count=Count('id'), sales=Sum('total'))
+        .order_by('created_at__date')
+    )
+    daily = [
+        {'date': str(a['created_at__date']), 'order_count': a['order_count'],
+         'sales': a['sales'] or 0}
+        for a in agg
+    ]
 
     return Response({
         'total_sales': sum(d['sales'] for d in daily),
@@ -116,11 +89,7 @@ def _sanitize_cell(value):
 @api_view(['GET'])
 @permission_classes([IsOwner])
 def sales_export(request):
-    """🎯 매출 데이터 CSV 다운로드.
-
-    Vulnerable 모드: 셀 값을 정제 없이 기록(CSV/Formula Injection).
-    Secure 모드: 위험 문자로 시작하는 셀을 이스케이프.
-    """
+    """매출 데이터 CSV 다운로드. 위험 문자로 시작하는 셀을 이스케이프 (CSV Injection 방지, Secure 고정)."""
     owned = _owned_ids(request.user)
     orders = Order.objects.filter(restaurant_id__in=owned).order_by('-created_at')
 
@@ -129,10 +98,8 @@ def sales_export(request):
     writer = csv.writer(response)
     writer.writerow(['order_number', 'status', 'total', 'request_note', 'created_at'])
 
-    vulnerable = is_vulnerable(request)
     for o in orders:
         row = [o.order_number, o.status, o.total, o.request_note, o.created_at.isoformat()]
-        if not vulnerable:
-            row = [_sanitize_cell(c) for c in row]
+        row = [_sanitize_cell(c) for c in row]
         writer.writerow(row)
     return response
