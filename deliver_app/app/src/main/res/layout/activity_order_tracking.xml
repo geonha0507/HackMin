@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 상단바 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="@android:color/transparent"
+            android:contentDescription="뒤로가기" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="주문 상태"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginStart="12dp" />
+    </LinearLayout>
+
+    <!-- 주문취소 배너 (취소 상태일 때만 보임) -->
+    <TextView
+        android:id="@+id/tvCancelledBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:background="#FDECEA"
+        android:textColor="#D32F2F"
+        android:textStyle="bold"
+        android:text="이 주문은 취소되었습니다"
+        android:visibility="gone" />
+
+    <!-- 진행바 영역 (취소 아닐 때만 보임) -->
+    <LinearLayout
+        android:id="@+id/containerProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 단계 점 + 선 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View android:id="@+id/dot1" android:layout_width="16dp" android:layout_height="16dp" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/line1" android:layout_width="0dp" android:layout_height="4dp" android:layout_weight="1" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/dot2" android:layout_width="16dp" android:layout_height="16dp" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/line2" android:layout_width="0dp" android:layout_height="4dp" android:layout_weight="1" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/dot3" android:layout_width="16dp" android:layout_height="16dp" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/line3" android:layout_width="0dp" android:layout_height="4dp" android:layout_weight="1" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/dot4" android:layout_width="16dp" android:layout_height="16dp" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/line4" android:layout_width="0dp" android:layout_height="4dp" android:layout_weight="1" android:background="@android:color/darker_gray" />
+            <View android:id="@+id/dot5" android:layout_width="16dp" android:layout_height="16dp" android:background="@android:color/darker_gray" />
+        </LinearLayout>
+
+        <!-- 단계 이름 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="점주확인대기" android:textSize="10sp" android:gravity="center" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="주문접수" android:textSize="10sp" android:gravity="center" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="조리중" android:textSize="10sp" android:gravity="center" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="배달중" android:textSize="10sp" android:gravity="center" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="배달완료" android:textSize="10sp" android:gravity="center" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvCurrentStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="현재 상태"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- 주문 내역 요약 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="주문 내역"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvRestaurantName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvOrderItemsSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#888888"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tvDeliveryAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#888888"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- 주문 취소 버튼 -->
+    <Button
+        android:id="@+id/btnCancelOrder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="주문 취소" />
+
+</LinearLayout>
