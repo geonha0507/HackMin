@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.app.R;
-import com.hackmin.app.data.model.CartItem;
+import com.hackmin.app.data.model.cart.CartItem;
 
 import java.util.ArrayList;
 import java.util.List;

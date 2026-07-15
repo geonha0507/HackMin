@@ -11,8 +11,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.hackmin.app.R;
-import com.hackmin.app.data.model.CartItem;
-import com.hackmin.app.data.api.AuthApi;
+import com.hackmin.app.data.model.cart.CartItem;
 
 import java.util.ArrayList;
 import java.util.List;
