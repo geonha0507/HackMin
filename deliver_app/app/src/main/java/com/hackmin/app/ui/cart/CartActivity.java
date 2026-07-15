@@ -1,8 +1,6 @@
 package com.hackmin.app.ui.cart;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -20,8 +18,6 @@ import com.hackmin.app.data.model.cart.CartDto;
 import com.hackmin.app.data.model.cart.CartSummaryDto;
 import com.hackmin.app.data.model.cart.UpdateCartItemRequest;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
 import com.hackmin.app.ui.order.OrderActivity;
 
 import retrofit2.Call;
@@ -68,10 +64,8 @@ public class CartActivity extends AppCompatActivity {
     }
 
     private void initApi() {
-        SharedPreferences prefs = getSharedPreferences("HackminPrefs", Context.MODE_PRIVATE);
-        HackminModeInterceptor.ModeProvider mp = () -> HackminMode.SECURE;
-        HackminModeInterceptor.TokenProvider tp = () -> prefs.getString("access_token", "");
-        cartApi = ApiClient.cartApi(mp, tp);
+        // 토큰/모드는 SessionManager가 자동 주입 — Context만 넘기면 된다.
+        cartApi = ApiClient.cartApi(this);
     }
 
     private void initViews() {
