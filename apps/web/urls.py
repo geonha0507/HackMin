@@ -41,5 +41,14 @@ urlpatterns = [
     path('admin/restaurant-edits/<int:pk>/decide', admin.restaurant_edit_decide, name='admin_restaurant_edit_decide'),
     path('admin/orders', admin.order_list, name='admin_orders'),
     path('admin/payments', admin.payment_list, name='admin_payments'),
-#  path('admin/store', admin.store_list, name='admin_store')
+    path(
+        'admin/store',
+        admin.store_list,
+        name='admin_store',
+    ),
+    path(
+        'admin/store/<int:pk>/decide',
+        admin.store_decide,
+        name='admin_store_decide',
+    ),
 ]
