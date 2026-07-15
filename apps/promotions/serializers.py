@@ -12,7 +12,7 @@ class CouponPublicSerializer(serializers.ModelSerializer):
 
 
 class CouponFullSerializer(serializers.ModelSerializer):
-    """🎯 Vulnerable 모드에서 코드까지 노출되는 직렬화."""
+    """본인이 보유한 쿠폰 조회용(코드 포함). /me/coupons 에서만 사용한다."""
     class Meta:
         model = Coupon
         fields = [

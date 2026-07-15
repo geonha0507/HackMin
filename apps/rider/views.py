@@ -6,7 +6,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsRider
 from orders.models import Order
 from .models import Delivery
@@ -28,30 +27,21 @@ def _provision_deliveries():
 @api_view(['GET'])
 @permission_classes([IsRider])
 def delivery_list(request):
-    """🎯 배달 주문 조회.
-
-    Vulnerable 모드: 다른 기사에게 배정된 건까지 전체 조회(개인정보 과다 노출).
-    Secure 모드: 본인 배정 건 + 미배정(가용) 건만.
-    """
+    """배달 주문 조회. 본인 배정 건 + 미배정(가용) 건만 조회한다."""
     _provision_deliveries()
-    if is_vulnerable(request):
-        deliveries = Delivery.objects.all()
-    else:
-        deliveries = Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True))
+    deliveries = Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True))
     deliveries = deliveries.select_related('order', 'order__restaurant').order_by('-assigned_at')
     return Response({'results': DeliveryListSerializer(deliveries, many=True).data})
 
 
 def _get_delivery(request, pk):
-    if is_vulnerable(request):
-        return Delivery.objects.filter(pk=pk).first()
     return Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True), pk=pk).first()
 
 
 @api_view(['GET'])
 @permission_classes([IsRider])
 def delivery_detail(request, pk):
-    """🎯 배달 상세(주소·연락처). Vulnerable 모드는 IDOR로 타 기사 배달 개인정보 열람."""
+    """배달 상세(주소·연락처)."""
     delivery = _get_delivery(request, pk)
     if not delivery:
         return error_response('not_found', '배달 정보를 찾을 수 없습니다.', 404)
@@ -61,11 +51,7 @@ def delivery_detail(request, pk):
 @api_view(['PUT'])
 @permission_classes([IsRider])
 def delivery_status(request, pk):
-    """🎯 배달 상태 변경(배달 중/완료).
-
-    Vulnerable 모드: 소유권 검증 없이 임의 배달 상태 변경(IDOR).
-    Secure 모드: 본인 배정 건만(미배정 건은 수령 시 본인에게 배정).
-    """
+    """배달 상태 변경(배달 중/완료). 본인 배정 건만 변경 가능(미배정 건은 수령 시 본인에게 배정)."""
     delivery = _get_delivery(request, pk)
     if not delivery:
         return error_response('not_found', '배달 정보를 찾을 수 없습니다.', 404)
@@ -74,7 +60,7 @@ def delivery_status(request, pk):
     if new_status not in Delivery.Status.values:
         return error_response('bad_request', '유효하지 않은 상태입니다.', 400)
 
-    if not is_vulnerable(request) and delivery.rider is None:
+    if delivery.rider is None:
         delivery.rider = request.user
 
     delivery.status = new_status

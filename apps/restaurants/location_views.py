@@ -46,7 +46,10 @@ def nearby_restaurants(request):
         lng = float(request.query_params['lng'])
     except (KeyError, ValueError):
         return error_response('bad_request', 'lat, lng 파라미터가 필요합니다.', 400)
-    radius = float(request.query_params.get('radius_km', 3))
+    try:
+        radius = float(request.query_params.get('radius_km', 3))
+    except ValueError:
+        return error_response('bad_request', 'radius_km은 숫자여야 합니다.', 400)
 
     results = []
     for r in Restaurant.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True):

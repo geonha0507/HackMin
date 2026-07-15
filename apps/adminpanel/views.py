@@ -1,12 +1,10 @@
 """Admin endpoints (/api/v1/admin). Require admin role."""
 
 from django.contrib.auth import get_user_model
-from django.db import connection
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from common.permissions import IsAdminRole
 from orders.models import Order
 from orders.serializers import OrderSerializer
@@ -24,41 +22,11 @@ def _user_public(user):
     }
 
 
-def _user_full(user):
-    """🎯 Vulnerable 모드에서 비밀번호 해시까지 노출."""
-    data = _user_public(user)
-    data['password_hash'] = user.password
-    data['is_staff'] = user.is_staff
-    data['is_superuser'] = user.is_superuser
-    return data
-
-
 @api_view(['GET'])
 @permission_classes([IsAdminRole])
 def user_list(request):
-    """🎯 사용자 목록. ?q= 검색.
-
-    Vulnerable 모드: q를 raw SQL에 결합(SQLi) + 비밀번호 해시 노출.
-    Secure 모드: ORM 필터 + 민감정보 제외.
-    """
+    """사용자 목록. ?q= 검색 (ORM 필터 + 민감정보 제외, Secure 고정)."""
     q = request.query_params.get('q', '')
-    if is_vulnerable(request):
-        if q:
-            sql = (
-                "SELECT id FROM accounts_user "
-                f"WHERE username LIKE '%{q}%' OR email LIKE '%{q}%'"  # noqa
-            )
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(sql)
-                    ids = [r[0] for r in cursor.fetchall()]
-            except Exception as exc:
-                return error_response('query_error', str(exc), 400)
-            users = User.objects.filter(id__in=ids)
-        else:
-            users = User.objects.all()
-        return Response({'results': [_user_full(u) for u in users]})
-
     users = User.objects.all()
     if q:
         from django.db.models import Q
@@ -69,10 +37,7 @@ def user_list(request):
 @api_view(['GET', 'DELETE'])
 @permission_classes([IsAdminRole])
 def user_detail(request, pk):
-    """🎯 사용자 상세 조회 / 회원 탈퇴 처리.
-
-    조회는 Vulnerable 모드에서 비밀번호 해시 등 민감정보를 노출한다.
-    """
+    """사용자 상세 조회 / 회원 탈퇴 처리 (민감정보 제외, Secure 고정)."""
     user = User.objects.filter(pk=pk).first()
     if not user:
         return error_response('not_found', '사용자를 찾을 수 없습니다.', 404)
@@ -81,8 +46,6 @@ def user_detail(request, pk):
         user.is_active = False
         user.save(update_fields=['status', 'is_active'])
         return Response(status=204)
-    if is_vulnerable(request):
-        return Response(_user_full(user))
     return Response(_user_public(user))
 
 

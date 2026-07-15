@@ -26,6 +26,3 @@ class OrderCreateSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True, default='')
     address_detail = serializers.CharField(required=False, allow_blank=True, default='')
     request_note = serializers.CharField(required=False, allow_blank=True, default='')
-    # 🎯 Vulnerable 모드에서만 신뢰되는 클라이언트 제공 금액(가격 조작 실습용).
-    total = serializers.IntegerField(required=False)
-    discount = serializers.IntegerField(required=False)

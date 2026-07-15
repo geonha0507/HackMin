@@ -35,8 +35,9 @@ class UserCoupon(models.Model):
     is_used = models.BooleanField(default=False)
     downloaded_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(null=True, blank=True)
-    # NOTE: unique 제약을 두지 않아 🎯 취약 모드의 '중복 다운로드'를 시연할 수 있다.
-    # 보안 모드는 뷰 로직에서 사용자당 1회로 제한한다.
+
+    class Meta:
+        unique_together = [('user', 'coupon')]
 
 
 class Favorite(models.Model):
