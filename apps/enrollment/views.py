@@ -43,7 +43,7 @@ class IsAdmin(IsAuthenticated):
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
-@permission_classes(IsAuthenticated])
+@permission_classes([AllowAny])
 def submit_enrollment_request(request):
     """🎯 입점 요청 제출 (Owner).
     
@@ -82,7 +82,7 @@ def submit_enrollment_request(request):
     obj = EnrollmentRequest.objects.create(
         username=request.data['username'],
         password=make_password(request.data['password']),  # 비밀번호 해싱
-        phone=request.data['phone'],
+        phone=request.data['phone'], # 휴대폰 번호 저장 추가
         owner_name=request.data['owner_name'],
         restaurant_name=request.data['restaurant_name'],
         business_license=request.FILES['business_license']
@@ -153,18 +153,21 @@ def review_enrollment_request(request, request_id):
     
     # ===== 승인 =====
     if status == 'approved':
-        # User 생성
-        user = User.objects.create_user(
+        # User 생성 (password는 이미 해싱되어 있으므로 set_password 우회)
+        user = User(
             username=enrollment.username,
-            password=enrollment.password  # 이미 해싱됨
+            role='owner',  # 점주 입점이기에 승인시 점주 role을 부여
+            phone=enrollment.phone,
         )
+        user.password = enrollment.password  # 이미 해싱된 값 그대로 대입
+        user.save()
         
         # Restaurant 생성
         restaurant = Restaurant.objects.create(
             owner=user,
             name=enrollment.restaurant_name,
             phone=enrollment.phone,
-            business_license=enrollment.business_license
+            business_license=enrollment.business_license,
         )
         
         enrollment.status = 'approved'
