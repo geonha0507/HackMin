@@ -116,6 +116,94 @@ def owner_status(request, pk):
             messages.success(request, '점주 상태를 변경했습니다.')
     return redirect('web:admin_owners')
 
+@admin_required
+def store_list(request):
+    """입점 신청 매장 목록."""
+
+    q = request.GET.get('q', '').strip()
+    status = request.GET.get(
+        'status',
+        User.Status.PENDING,
+    )
+
+    stores = (
+        Restaurant.objects
+        .select_related('owner')
+        .filter(owner__role=User.Role.OWNER)
+        .order_by('-created_at')
+    )
+
+    if status != 'all':
+        stores = stores.filter(owner__status=status)
+
+    if q:
+        stores = stores.filter(
+            Q(owner__username__icontains=q)
+            | Q(owner__email__icontains=q)
+            | Q(owner__nickname__icontains=q)
+            | Q(name__icontains=q)
+            | Q(address__icontains=q)
+        )
+
+    return render(
+        request,
+        'web/admin/store.html',
+        {
+            'stores': stores[:300],
+            'q': q,
+            'status': status,
+            'status_choices': User.Status.choices,
+        },
+    )
+
+
+@admin_required
+def store_decide(request, pk):
+    """관리자가 입점 신청을 승인하거나 반려한다."""
+
+    store = get_object_or_404(
+        Restaurant.objects.select_related('owner'),
+        pk=pk,
+        owner__role=User.Role.OWNER,
+    )
+
+    if request.method != 'POST':
+        return redirect('web:admin_store')
+
+    owner = store.owner
+    action = request.POST.get('action')
+
+    if action == 'approve':
+        owner.status = User.Status.ACTIVE
+        owner.is_active = True
+        owner.save(
+            update_fields=['status', 'is_active'],
+        )
+
+        messages.success(
+            request,
+            f'{store.name}의 입점을 승인했습니다.',
+        )
+
+    elif action == 'reject':
+        owner.status = User.Status.SUSPENDED
+        owner.is_active = False
+        owner.save(
+            update_fields=['status', 'is_active'],
+        )
+
+        messages.success(
+            request,
+            f'{store.name}의 입점 신청을 반려했습니다.',
+        )
+
+    else:
+        messages.error(
+            request,
+            '올바르지 않은 처리 요청입니다.',
+        )
+
+    return redirect('web:admin_store')
 
 @admin_required
 def withdrawal_requests(request):

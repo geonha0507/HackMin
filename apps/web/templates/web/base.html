@@ -86,6 +86,7 @@
           <div class="sec">회원 관리</div>
           <a href="{% url 'web:admin_users' %}" class="{% if url_name == 'admin_users' or url_name == 'admin_user_detail' %}active{% endif %}">회원 목록</a>
           <a href="{% url 'web:admin_owners' %}" class="{% if url_name == 'admin_owners' %}active{% endif %}">점주 관리</a>
+          <a href="{% url 'web:admin_store' %}" class="{% if url_name == 'admin_store' or url_name == 'admin_store_decide' %}active{% endif %}">입점 관리</a>
           <a href="{% url 'web:admin_withdrawals' %}" class="{% if url_name == 'admin_withdrawals' %}active{% endif %}">탈퇴 요청</a>
           <div class="sec">매장</div>
           <a href="{% url 'web:admin_restaurant_edits' %}" class="{% if url_name == 'admin_restaurant_edits' %}active{% endif %}">매장 수정 요청</a>
