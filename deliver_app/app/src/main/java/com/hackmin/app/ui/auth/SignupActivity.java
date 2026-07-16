@@ -16,8 +16,6 @@ import com.hackmin.app.data.model.auth.DuplicateCheckResponse;
 import com.hackmin.app.data.model.auth.SignupRequest;
 import com.hackmin.app.data.model.auth.UserDto;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.network.HackminMode;
-import com.hackmin.app.network.HackminModeInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -49,9 +47,6 @@ public class SignupActivity extends AppCompatActivity {
         // 나가기 버튼 (뒤로가기)
         findViewById(R.id.tv_back).setOnClickListener(v -> finish());
 
-        HackminModeInterceptor.ModeProvider modeProvider = () -> HackminMode.SECURE;
-        HackminModeInterceptor.TokenProvider tokenProvider = () -> "";
-
         // 0. 닉네임 중복 확인 통신
         btnCheckNicknameDuplicate.setOnClickListener(v -> {
             String nickname = etSignupNickname.getText() != null ? etSignupNickname.getText().toString().trim() : "";
@@ -65,7 +60,7 @@ public class SignupActivity extends AppCompatActivity {
             }
 
             // AuthApi.checkDuplicate(field, value) 형식을 따름 (닉네임 중복 확인이므로 field="nickname")
-            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicateNickname(nickname).enqueue(new Callback<DuplicateCheckResponse>() {
+            ApiClient.authApi(this).checkDuplicateNickname(nickname).enqueue(new Callback<DuplicateCheckResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<DuplicateCheckResponse> call, @NonNull Response<DuplicateCheckResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
@@ -115,7 +110,7 @@ public class SignupActivity extends AppCompatActivity {
             }
 
             // AuthApi.checkDuplicate(field, value) 형식을 따름 (아이디 중복 확인이므로 field="username")
-            ApiClient.authApi(modeProvider, tokenProvider).checkDuplicateUsername(id).enqueue(new Callback<DuplicateCheckResponse>() {
+            ApiClient.authApi(this).checkDuplicateUsername(id).enqueue(new Callback<DuplicateCheckResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<DuplicateCheckResponse> call, @NonNull Response<DuplicateCheckResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
@@ -183,7 +178,7 @@ public class SignupActivity extends AppCompatActivity {
             // API 모델 매핑 (닉네임을 이름 자리에 반영 - 실제 DTO 필드 의미에 맞게 조정 필요)
             SignupRequest request = new SignupRequest(id, id, pw, nickname, "010-0000-0000", true);
 
-            ApiClient.authApi(modeProvider, tokenProvider).signup(request).enqueue(new Callback<UserDto>() {
+            ApiClient.authApi(this).signup(request).enqueue(new Callback<UserDto>() {
                 @Override
                 public void onResponse(@NonNull Call<UserDto> call, @NonNull Response<UserDto> response) {
                     if (response.isSuccessful()) {

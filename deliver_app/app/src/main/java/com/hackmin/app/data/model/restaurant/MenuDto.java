@@ -3,13 +3,22 @@ package com.hackmin.app.data.model.restaurant;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
+/**
+ * 메뉴 DTO.
+ * 목록(GET /restaurants/{id}/menus): id, name, description, price, image, status, category
+ * 상세(GET /menus/{id}): 위 필드 + restaurant, option_groups
+ */
 public class MenuDto {
 
     @SerializedName("id")
     private long id;
 
-    @SerializedName("restaurant_id")
-    private long restaurantId;
+    // 상세 조회에서만 채워짐(목록에서는 0).
+    @SerializedName("restaurant")
+    private long restaurant;
+
+    @SerializedName("category")
+    private Long category; // MenuCategory FK pk, nullable
 
     @SerializedName("name")
     private String name;
@@ -17,33 +26,30 @@ public class MenuDto {
     @SerializedName("description")
     private String description;
 
-    @SerializedName("image_url")
-    private String imageUrl;
+    @SerializedName("image")
+    private String image;
 
     @SerializedName("price")
     private long price;
 
-    @SerializedName("discount_price")
-    private Long discountPrice; // nullable
+    // "on_sale" | "sold_out" | "hidden"
+    @SerializedName("status")
+    private String status;
 
-    @SerializedName("sold_out")
-    private boolean soldOut;
-
-    @SerializedName("category")
-    private String category;
-
-    // Only populated on /menus/{id} detail calls; null in list contexts.
-    @SerializedName("options")
-    private List<MenuOptionDto> options;
+    // 상세(/menus/{id})에서만 채워짐. 목록에서는 null.
+    @SerializedName("option_groups")
+    private List<MenuOptionGroupDto> optionGroups;
 
     public long getId() { return id; }
-    public long getRestaurantId() { return restaurantId; }
+    public long getRestaurant() { return restaurant; }
+    public Long getCategory() { return category; }
     public String getName() { return name; }
     public String getDescription() { return description; }
-    public String getImageUrl() { return imageUrl; }
+    public String getImage() { return image; }
     public long getPrice() { return price; }
-    public Long getDiscountPrice() { return discountPrice; }
-    public boolean isSoldOut() { return soldOut; }
-    public String getCategory() { return category; }
-    public List<MenuOptionDto> getOptions() { return options; }
+    public String getStatus() { return status; }
+    public List<MenuOptionGroupDto> getOptionGroups() { return optionGroups; }
+
+    public boolean isSoldOut() { return "sold_out".equals(status); }
+    public boolean isOnSale() { return "on_sale".equals(status); }
 }

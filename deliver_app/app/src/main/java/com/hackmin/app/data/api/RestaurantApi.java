@@ -17,21 +17,17 @@ import retrofit2.http.Query;
 public interface RestaurantApi {
 
     /**
-     * 🎯 vulnerable/secure dual-mode (SQL Injection in the search query
-     * path in vulnerable mode). Supports name/restaurant-name/category/
-     * price-range search plus rating/distance/order-count sort per the
-     * spec doc — confirm exact query param names with the backend dev
-     * (guessed below as name/category/min_price/max_price/sort).
+     * 음식점/음식 검색.
+     * 백엔드 restaurant_search 파라미터: q(음식명·음식점명), cuisine(종류),
+     * min_price, max_price, sort, page.
      */
     @GET("restaurants")
     Call<PagedResponse<RestaurantSummaryDto>> searchRestaurants(
             @Query("q") String keyword,
-            @Query("category") String category,
+            @Query("cuisine") String cuisine,
             @Query("min_price") Long minPrice,
             @Query("max_price") Long maxPrice,
-            @Query("sort") String sort, // "rating" | "distance" | "order_count"
-            @Query("lat") Double latitude,
-            @Query("lng") Double longitude,
+            @Query("sort") String sort, // "rating" | "delivery_fee" | "min_order" | "newest"
             @Query("page") Integer page
     );
 
