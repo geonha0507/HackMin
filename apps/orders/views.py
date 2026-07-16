@@ -110,12 +110,14 @@ def cancel_order(request, pk):
             p.status = Payment.Status.CANCELLED
             p.save(update_fields=['status'])
         
-        # 쿠폰 복구 (취소 시 쿠폰 상태도 되돌림)
+        # 쿠폰 복구 (취소 시 사용 처리를 되돌림)
+        # is_used/used_at 는 Coupon 이 아니라 UserCoupon(사용자-쿠폰 매핑)의 필드다.
         if order.coupon:
-            order.coupon.is_used = False
-            order.coupon.used_at = None
-            order.coupon.save(update_fields=['is_used', 'used_at'])
-        
+            from promotions.models import UserCoupon
+            UserCoupon.objects.filter(user=order.user, coupon=order.coupon).update(
+                is_used=False, used_at=None,
+            )
+
         # 장바구니 복구
         cart, _ = Cart.objects.get_or_create(user=request.user)
         cart.restaurant = order.restaurant
