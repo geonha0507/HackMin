@@ -25,6 +25,10 @@ public interface UserApi {
     @PUT("me/password")
     Call<MessageResponse> changePassword(@Body ChangePasswordRequest request);
 
+    /** 회원 탈퇴 (204 No Content) */
+    @DELETE("me")
+    Call<Void> withdraw();
+
     /** 배송지 목록 조회 (서버 응답은 {count,next,previous,results} 페이지 형태) — [C] 실제 계약에 맞춰 수정 */
     @GET("me/addresses")
     Call<PagedResponse<AddressDto>> getAddresses();

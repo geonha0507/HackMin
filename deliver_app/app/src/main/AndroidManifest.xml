@@ -49,6 +49,22 @@
             android:exported="false" />
         <!-- ===== [C] END ===== -->
 
+        <!-- 마이페이지 하위 기능 화면 -->
+        <activity
+            android:name=".ui.mypage.ChangePasswordActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.mypage.CouponsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.mypage.MyReviewsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.mypage.MembershipActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ui.restaurant.RestaurantDetailActivity"
             android:exported="false" />
