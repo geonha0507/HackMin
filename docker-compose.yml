@@ -25,6 +25,10 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # S3 파일 스토리지
+      USE_S3: ${USE_S3:-0}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
+      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
       # 이 컨테이너만 migrate/seed 를 실행한다.
       RUN_MIGRATIONS: "1"
       SEED_DEMO: ${SEED_DEMO:-1}
@@ -57,6 +61,10 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # S3 파일 스토리지
+      USE_S3: ${USE_S3:-0}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
+      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
       # web 은 마이그레이션/시드를 하지 않고 api 가 만든 스키마를 기다린다.
       RUN_MIGRATIONS: "0"
       SEED_DEMO: "0"
