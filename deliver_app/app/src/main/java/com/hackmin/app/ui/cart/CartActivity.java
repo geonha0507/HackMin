@@ -8,17 +8,27 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.app.R;
 import com.hackmin.app.data.api.CartApi;
+import com.hackmin.app.data.model.cart.ApplyCouponRequest;
 import com.hackmin.app.data.model.cart.CartDto;
 import com.hackmin.app.data.model.cart.CartSummaryDto;
 import com.hackmin.app.data.model.cart.UpdateCartItemRequest;
+import com.hackmin.app.data.model.common.PagedResponse;
+import com.hackmin.app.data.model.promotion.CouponDto;
+import com.hackmin.app.data.model.promotion.UserCouponDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.order.OrderActivity;
+
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -27,11 +37,12 @@ import retrofit2.Response;
 public class CartActivity extends AppCompatActivity {
 
     private RecyclerView rvCartItems;
-    private TextView tvDeliveryFee, tvTotalPrice;
-    private Button btnOrder;
+    private TextView tvDeliveryFee, tvTotalPrice, tvDiscount, tvAppliedCoupon;
+    private Button btnOrder, btnApplyCoupon;
 
     private CartItemAdapter adapter;
     private CartApi cartApi;
+    private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +83,11 @@ public class CartActivity extends AppCompatActivity {
         rvCartItems = findViewById(R.id.rvCartItems);
         tvDeliveryFee = findViewById(R.id.tvDeliveryFee);
         tvTotalPrice = findViewById(R.id.tvTotalPrice);
+        tvDiscount = findViewById(R.id.tvDiscount);
+        tvAppliedCoupon = findViewById(R.id.tvAppliedCoupon);
         btnOrder = findViewById(R.id.btnOrder);
+        btnApplyCoupon = findViewById(R.id.btnApplyCoupon);
+        btnApplyCoupon.setOnClickListener(v -> showCouponPicker());
     }
 
     private void setupRecyclerView() {
@@ -118,14 +133,101 @@ public class CartActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<CartSummaryDto> call, @NonNull Response<CartSummaryDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     CartSummaryDto s = response.body();
-                    tvDeliveryFee.setText(s.getDeliveryFee() + "원");
-                    tvTotalPrice.setText(s.getTotal() + "원");
+                    tvDeliveryFee.setText(won.format(s.getDeliveryFee()) + "원");
+                    tvTotalPrice.setText(won.format(s.getTotal()) + "원");
+                    tvDiscount.setText("-" + won.format(s.getDiscount()) + "원");
+                    // 할인 금액으로 쿠폰 적용 여부 표시.
+                    tvAppliedCoupon.setText(s.getDiscount() > 0 ? "쿠폰 할인 적용됨" : "적용된 쿠폰 없음");
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<CartSummaryDto> call, @NonNull Throwable t) {
                 // 목록은 이미 표시됨 — 요약만 실패한 경우 조용히 무시.
+            }
+        });
+    }
+
+    /** 보유 쿠폰(GET /me/coupons)을 불러와 선택/해제 다이얼로그를 띄운다. */
+    private void showCouponPicker() {
+        ApiClient.promotionApi(this).getMyCoupons(null)
+                .enqueue(new Callback<PagedResponse<UserCouponDto>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<PagedResponse<UserCouponDto>> call,
+                                           @NonNull Response<PagedResponse<UserCouponDto>> response) {
+                        List<UserCouponDto> coupons = response.isSuccessful() && response.body() != null
+                                ? response.body().getResults() : null;
+                        buildCouponDialog(coupons);
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<PagedResponse<UserCouponDto>> call, @NonNull Throwable t) {
+                        Toast.makeText(CartActivity.this, "쿠폰을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void buildCouponDialog(List<UserCouponDto> coupons) {
+        List<String> labels = new ArrayList<>();
+        List<String> codes = new ArrayList<>();
+        if (coupons != null) {
+            for (UserCouponDto uc : coupons) {
+                if (uc.isUsed()) continue; // 사용 완료 쿠폰 제외
+                CouponDto c = uc.getCoupon();
+                if (c == null || c.getCode() == null) continue;
+                String discount = "percent".equals(c.getDiscountType())
+                        ? c.getDiscountValue() + "%"
+                        : won.format(c.getDiscountValue()) + "원";
+                labels.add(c.getName() + " (" + discount + " 할인)");
+                codes.add(c.getCode());
+            }
+        }
+        labels.add("쿠폰 적용 안 함(해제)");
+
+        String[] items = labels.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle("쿠폰 선택")
+                .setItems(items, (dialog, which) -> {
+                    if (which == codes.size()) {
+                        removeCoupon();
+                    } else {
+                        applyCoupon(codes.get(which));
+                    }
+                })
+                .show();
+    }
+
+    private void applyCoupon(String code) {
+        cartApi.applyCoupon(new ApplyCouponRequest(code)).enqueue(new Callback<CartDto>() {
+            @Override
+            public void onResponse(@NonNull Call<CartDto> call, @NonNull Response<CartDto> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(CartActivity.this, "쿠폰이 적용되었습니다.", Toast.LENGTH_SHORT).show();
+                    loadSummary();
+                } else if (response.code() == 400) {
+                    Toast.makeText(CartActivity.this, "최소 주문금액을 확인해주세요.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(CartActivity.this, "쿠폰을 적용할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<CartDto> call, @NonNull Throwable t) {
+                Toast.makeText(CartActivity.this, "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void removeCoupon() {
+        cartApi.removeCoupon().enqueue(new Callback<CartDto>() {
+            @Override
+            public void onResponse(@NonNull Call<CartDto> call, @NonNull Response<CartDto> response) {
+                loadSummary();
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<CartDto> call, @NonNull Throwable t) {
+                Toast.makeText(CartActivity.this, "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
             }
         });
     }

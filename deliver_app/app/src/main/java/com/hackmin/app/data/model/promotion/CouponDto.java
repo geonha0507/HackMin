@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 public class CouponDto {
     @SerializedName("id") private long id;
+    @SerializedName("code") private String code;
     @SerializedName("name") private String name;
     @SerializedName("discount_type") private String discountType;
     @SerializedName("discount_value") private int discountValue;
@@ -11,6 +12,7 @@ public class CouponDto {
     @SerializedName("valid_until") private String validUntil;
 
     public long getId() { return id; }
+    public String getCode() { return code; }
     public String getName() { return name; }
     public String getDiscountType() { return discountType; }
     public int getDiscountValue() { return discountValue; }
