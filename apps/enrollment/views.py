@@ -43,7 +43,7 @@ class IsAdmin(IsAuthenticated):
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
-@permission_classes([AllowAny])
+@permission_classes(IsAuthenticated])
 def submit_enrollment_request(request):
     """🎯 입점 요청 제출 (Owner).
     
