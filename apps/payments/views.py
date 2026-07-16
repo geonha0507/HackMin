@@ -90,11 +90,13 @@ def cancel_payment(request, pk):
         payment.order.status = Order.Status.CANCELLED
         payment.order.save(update_fields=['status'])
         
-        # 쿠폰 복구 (취소 시 쿠폰 상태도 되돌림)
+        # 쿠폰 복구 (취소 시 사용 처리를 되돌림)
+        # is_used/used_at 는 Coupon 이 아니라 UserCoupon 의 필드다.
         if payment.order.coupon:
-            payment.order.coupon.is_used = False
-            payment.order.coupon.used_at = None
-            payment.order.coupon.save(update_fields=['is_used', 'used_at'])
+            from promotions.models import UserCoupon
+            UserCoupon.objects.filter(
+                user=payment.order.user, coupon=payment.order.coupon,
+            ).update(is_used=False, used_at=None)
     
     return Response(PaymentSerializer(payment).data)
 
