@@ -22,11 +22,16 @@ import com.hackmin.app.data.api.PaymentApi;
 import com.hackmin.app.data.model.cart.CartDto;
 import com.hackmin.app.data.model.cart.CartItemDto;
 import com.hackmin.app.data.model.cart.CartSummaryDto;
+import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.order.OrderCreateRequest;
 import com.hackmin.app.data.model.order.OrderDto;
 import com.hackmin.app.data.model.payment.PaymentCreateRequest;
 import com.hackmin.app.data.model.payment.PaymentDto;
+import com.hackmin.app.data.model.user.AddressDto;
 import com.hackmin.app.network.ApiClient;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -61,7 +66,7 @@ public class OrderActivity extends AppCompatActivity {
         initApi();
         initViews();
 
-        btnChangeAddress.setOnClickListener(v -> showAddressInputDialog());
+        btnChangeAddress.setOnClickListener(v -> selectAddress());
         btnPay.setOnClickListener(v -> submitOrder());
 
         View btnBack = findViewById(R.id.btnBack);
@@ -137,9 +142,62 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     /**
-     * 배송지 직접 입력 다이얼로그(임시).
-     * TODO: C의 GET /me/addresses(저장 배송지) 연동되면 선택형으로 교체.
+     * 저장된 배송지(GET /me/addresses)를 불러와 선택하게 한다.
+     * 저장된 배송지가 없으면 직접 입력 다이얼로그로 폴백한다.
      */
+    private void selectAddress() {
+        ApiClient.userApi(this).getAddresses().enqueue(new Callback<PagedResponse<AddressDto>>() {
+            @Override
+            public void onResponse(@NonNull Call<PagedResponse<AddressDto>> call,
+                                   @NonNull Response<PagedResponse<AddressDto>> response) {
+                List<AddressDto> list = response.isSuccessful() && response.body() != null
+                        ? response.body().getResults() : null;
+                if (list == null || list.isEmpty()) {
+                    // 저장된 배송지가 없으면 직접 입력.
+                    showAddressInputDialog();
+                    return;
+                }
+                showAddressPicker(list);
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<PagedResponse<AddressDto>> call, @NonNull Throwable t) {
+                // 목록 조회 실패 시에도 최소한 직접 입력은 가능하게.
+                showAddressInputDialog();
+            }
+        });
+    }
+
+    /** 저장 배송지 선택 다이얼로그(+ 직접 입력 항목). */
+    private void showAddressPicker(List<AddressDto> list) {
+        List<String> labels = new ArrayList<>();
+        for (AddressDto a : list) {
+            String label = (a.getLabel() != null && !a.getLabel().isEmpty() ? "[" + a.getLabel() + "] " : "")
+                    + a.getAddress()
+                    + (a.getDetail() != null && !a.getDetail().isEmpty() ? " " + a.getDetail() : "");
+            labels.add(label);
+        }
+        labels.add("+ 직접 입력");
+        String[] items = labels.toArray(new String[0]);
+
+        new AlertDialog.Builder(this)
+                .setTitle("배송지 선택")
+                .setItems(items, (dialog, which) -> {
+                    if (which == list.size()) {
+                        showAddressInputDialog();
+                        return;
+                    }
+                    AddressDto a = list.get(which);
+                    selectedAddress = a.getAddress() != null ? a.getAddress() : "";
+                    selectedAddressDetail = a.getDetail() != null ? a.getDetail() : "";
+                    tvSelectedAddress.setText(
+                            selectedAddress
+                                    + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+                })
+                .show();
+    }
+
+    /** 배송지 직접 입력 다이얼로그(저장 배송지가 없을 때 폴백). */
     private void showAddressInputDialog() {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
