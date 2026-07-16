@@ -21,6 +21,7 @@
         <td>
           {% for r in row.restaurants %}
             <div>{{ r.name }} {% if r.is_open %}<span class="badge b-green">영업</span>{% else %}<span class="badge b-gray">휴무</span>{% endif %}</div>
+            <div class="muted" style="font-size:12px">{{ r.address|default:'주소 없음' }}</div>
           {% empty %}<span class="muted">매장 없음</span>{% endfor %}
         </td>
         <td>{% include 'web/_user_badge.html' with status=row.user.status label=row.user.get_status_display %}</td>

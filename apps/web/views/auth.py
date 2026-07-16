@@ -111,7 +111,9 @@ def signup_view(request):
         'nickname': '',
         'store_name': '',
         'store_phone': '',
-        'store_address': '',
+        'store_postcode': '',
+        'store_road_address': '',
+        'store_detail_address': '',
     }
 
     if request.method == 'POST':
@@ -122,7 +124,9 @@ def signup_view(request):
 
         store_name = request.POST.get('store_name', '').strip()
         store_phone = request.POST.get('store_phone', '').strip()
-        store_address = request.POST.get('store_address', '').strip()
+        store_postcode = request.POST.get('store_postcode', '').strip()
+        store_road_address = request.POST.get('store_road_address', '').strip()
+        store_detail_address = request.POST.get('store_detail_address', '').strip()
 
         password = request.POST.get('password', '')
         password_confirm = request.POST.get(
@@ -141,7 +145,9 @@ def signup_view(request):
             'nickname': nickname,
             'store_name': store_name,
             'store_phone': store_phone,
-            'store_address': store_address,
+            'store_postcode': store_postcode,
+            'store_road_address': store_road_address,
+            'store_detail_address': store_detail_address,
         }
 
         error_found = False
@@ -162,8 +168,12 @@ def signup_view(request):
             messages.error(request, '매장명을 입력하세요.')
             error_found = True
 
-        elif not store_address:
-            messages.error(request, '매장 주소를 입력하세요.')
+        elif not store_postcode or not store_road_address:
+            messages.error(request, '주소 검색으로 매장 주소를 입력하세요.')
+            error_found = True
+
+        elif not store_detail_address:
+            messages.error(request, '상세 주소를 입력하세요.')
             error_found = True
 
         elif not business_license:
@@ -228,6 +238,10 @@ def signup_view(request):
                 error_found = True
 
         if not error_found:
+            store_address = (
+                f'[{store_postcode}] {store_road_address} {store_detail_address}'
+            )
+
             try:
                 # User와 Restaurant 중 하나만 저장되는 일을 막는다.
                 with transaction.atomic():
