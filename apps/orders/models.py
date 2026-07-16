@@ -27,6 +27,9 @@ class Order(models.Model):
     restaurant = models.ForeignKey(
         'restaurants.Restaurant', on_delete=models.SET_NULL, null=True, related_name='orders',
     )
+    coupon = models.ForeignKey(
+        'promotions.Coupon', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders',
+    )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
 
     subtotal = models.PositiveIntegerField(default=0)
