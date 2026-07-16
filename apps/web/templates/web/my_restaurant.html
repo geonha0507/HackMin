@@ -70,15 +70,37 @@
       <label>소개</label>
       <textarea name="description" rows="3">{{ restaurant.description }}</textarea>
     </div>
-    <div class="row">
-      <div class="field" style="flex:1">
-        <label>연락처</label>
-        <input name="phone" value="{{ restaurant.phone }}">
+    <div class="field">
+      <label>연락처</label>
+      <input name="phone" value="{{ restaurant.phone }}">
+    </div>
+
+    <div class="field">
+      <label>주소</label>
+      <div style="display:flex;gap:8px">
+        <input
+          id="postcode"
+          name="postcode"
+          placeholder="우편번호"
+          readonly
+          style="flex:0 0 120px;background:#f8fafc"
+        >
+        <button type="button" class="btn" onclick="searchAddress()" style="white-space:nowrap">주소 검색</button>
       </div>
-      <div class="field" style="flex:2">
-        <label>주소</label>
-        <input name="address" value="{{ restaurant.address }}">
-      </div>
+      <input
+        id="road_address"
+        name="road_address"
+        placeholder="도로명 주소"
+        readonly
+        style="margin-top:8px;background:#f8fafc"
+      >
+      <input
+        id="detail_address"
+        name="detail_address"
+        value="{{ restaurant.address }}"
+        placeholder="상세 주소 (건물명, 층, 호수 등)"
+        style="margin-top:8px"
+      >
     </div>
     <div class="row">
       <div class="field" style="flex:1">
@@ -101,7 +123,47 @@
   </fieldset>
 </div>
 
+<div
+  id="postcode-overlay"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999"
+>
+  <div style="width:460px;max-width:90%;margin:60px auto 0;position:relative">
+    <button
+      type="button"
+      onclick="closePostcode()"
+      style="position:absolute;top:-32px;right:0;color:#fff;background:none;border:none;font-size:14px;cursor:pointer"
+    >
+      닫기 ✕
+    </button>
+    <div
+      id="postcode-layer"
+      style="box-sizing:content-box;width:100%;height:500px;background:#fff;border-radius:8px;overflow:hidden"
+    ></div>
+  </div>
+</div>
+
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
+function searchAddress() {
+  document.getElementById('postcode-overlay').style.display = 'block';
+
+  new daum.Postcode({
+    oncomplete: function (data) {
+      document.getElementById('postcode').value = data.zonecode;
+      document.getElementById('road_address').value = data.roadAddress;
+      closePostcode();
+      document.getElementById('detail_address').focus();
+    },
+    width: '100%',
+    height: '100%',
+  }).embed(document.getElementById('postcode-layer'));
+}
+
+function closePostcode() {
+  document.getElementById('postcode-overlay').style.display = 'none';
+  document.getElementById('postcode-layer').innerHTML = '';
+}
+
 function addCuisineInput() {
   const list = document.getElementById('custom-cuisine-list');
   const row = document.createElement('div');

@@ -37,12 +37,23 @@ def _parse_form(post):
         if c and c not in cuisines:
             cuisines.append(c)
 
+    # 주소 검색(우편번호+도로명주소)을 새로 했으면 세 값을 합치고,
+    # 검색하지 않았으면(=편집 폼에서 주소를 건드리지 않은 경우) 상세주소
+    # 칸에 그대로 들어있는 기존 주소 문자열을 유지한다.
+    postcode = post.get('postcode', '').strip()
+    road_address = post.get('road_address', '').strip()
+    detail_address = post.get('detail_address', '').strip()
+    if postcode or road_address:
+        address = f'[{postcode}] {road_address} {detail_address}'.strip()
+    else:
+        address = detail_address
+
     return {
         'name': post.get('name', '').strip(),
         'cuisine_type': ','.join(cuisines),
         'description': post.get('description', '').strip(),
         'phone': post.get('phone', '').strip(),
-        'address': post.get('address', '').strip(),
+        'address': address,
         'min_order_amount': min_order_amount,
         'delivery_fee': delivery_fee,
         'is_open': post.get('is_open') == 'on',

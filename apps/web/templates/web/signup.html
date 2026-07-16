@@ -202,13 +202,43 @@
       </div>
 
       <div class="field">
-        <label for="store_address">매장 주소</label>
+        <label for="store_postcode">매장 주소</label>
+        <div style="display:flex;gap:8px">
+          <input
+            id="store_postcode"
+            name="store_postcode"
+            value="{{ form_data.store_postcode }}"
+            placeholder="우편번호"
+            readonly
+            required
+            style="flex:0 0 120px;background:#f8fafc"
+          >
+          <button
+            type="button"
+            class="btn"
+            onclick="searchAddress()"
+            style="white-space:nowrap"
+          >
+            주소 검색
+          </button>
+        </div>
         <input
-          id="store_address"
-          name="store_address"
-          value="{{ form_data.store_address }}"
+          id="store_road_address"
+          name="store_road_address"
+          value="{{ form_data.store_road_address }}"
+          placeholder="도로명 주소"
+          readonly
+          required
+          style="margin-top:8px;background:#f8fafc"
+        >
+        <input
+          id="store_detail_address"
+          name="store_detail_address"
+          value="{{ form_data.store_detail_address }}"
+          placeholder="상세 주소 (건물명, 층, 호수 등)"
           maxlength="255"
           required
+          style="margin-top:8px"
         >
       </div>
 
@@ -256,7 +286,86 @@
   </div>
 </div>
 
+<div
+  id="postcode-overlay"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999"
+>
+  <div style="width:460px;max-width:90%;margin:60px auto 0;position:relative">
+    <button
+      type="button"
+      onclick="closePostcode()"
+      style="position:absolute;top:-32px;right:0;color:#fff;background:none;border:none;font-size:14px;cursor:pointer"
+    >
+      닫기 ✕
+    </button>
+    <div
+      id="postcode-layer"
+      style="box-sizing:content-box;width:100%;height:500px;background:#fff;border-radius:8px;overflow:hidden"
+    ></div>
+  </div>
+</div>
+
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
+function searchAddress() {
+  document.getElementById('postcode-overlay').style.display = 'block';
+
+  new daum.Postcode({
+    oncomplete: function (data) {
+      document.getElementById('store_postcode').value = data.zonecode;
+      document.getElementById('store_road_address').value = data.roadAddress;
+      closePostcode();
+      document.getElementById('store_detail_address').focus();
+    },
+    width: '100%',
+    height: '100%',
+
+    /*
+     * .open() 이 만드는 자체 레이어는 base.html 의 전역
+     * `* { box-sizing: border-box }` 리셋과 충돌해 크기 계산이
+     * 깨지며 흰 화면만 뜨는 문제가 있어, 우리가 만든
+     * content-box 컨테이너에 직접 embed 한다.
+     */
+  }).embed(document.getElementById('postcode-layer'));
+}
+
+function closePostcode() {
+  document.getElementById('postcode-overlay').style.display = 'none';
+  document.getElementById('postcode-layer').innerHTML = '';
+}
+
+const REQUIRED_FIELDS = [
+  { id: 'username', label: '아이디' },
+  { id: 'email', label: '이메일' },
+  { id: 'nickname', label: '점주명' },
+  { id: 'password', label: '비밀번호' },
+  { id: 'password_confirm', label: '비밀번호 확인' },
+  { id: 'store_name', label: '매장명' },
+  { id: 'store_postcode', label: '매장 주소 (주소 검색)' },
+  { id: 'store_road_address', label: '매장 주소 (주소 검색)' },
+  { id: 'store_detail_address', label: '상세 주소' },
+];
+
+document.querySelector('form').addEventListener('submit', function (e) {
+  for (const field of REQUIRED_FIELDS) {
+    const input = document.getElementById(field.id);
+
+    if (!input.value.trim()) {
+      e.preventDefault();
+      alert(`${field.label}을(를) 입력해주세요.`);
+      input.focus();
+      return;
+    }
+  }
+
+  const businessLicense = document.getElementById('business_license');
+  if (!businessLicense.value) {
+    e.preventDefault();
+    alert('사업자등록증 파일을 첨부해주세요.');
+    businessLicense.focus();
+  }
+});
+
 async function checkDuplicate(fieldName) {
   const input = document.getElementById(fieldName);
   const resultElement =
