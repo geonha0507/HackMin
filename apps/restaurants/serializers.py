@@ -39,7 +39,7 @@ class MenuOptionGroupSerializer(serializers.ModelSerializer):
 class MenuListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Menu
-        fields = ['id', 'name', 'description', 'price', 'image', 'status', 'category']
+        fields = ['id', 'name', 'description', 'price', 'image', 'status', 'category', 'is_membership_only']
 
 
 class MenuDetailSerializer(serializers.ModelSerializer):
@@ -49,7 +49,7 @@ class MenuDetailSerializer(serializers.ModelSerializer):
         model = Menu
         fields = [
             'id', 'restaurant', 'category', 'name', 'description', 'price',
-            'image', 'status', 'option_groups',
+            'image', 'status', 'is_membership_only', 'option_groups',
         ]
 
 

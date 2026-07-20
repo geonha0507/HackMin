@@ -23,6 +23,7 @@ urlpatterns = [
     path('membership/cancel', views.membership_cancel, name='membership-cancel'),
     path('membership/benefits', views.membership_benefits, name='membership-benefits'),
     path('membership/payments', views.membership_payments, name='membership-payments'),
+    path('membership/points', views.membership_points, name='membership-points'),
 
     # /me (spec section 2)
     path('me/coupons', views.MyCouponListView.as_view(), name='my-coupons'),
