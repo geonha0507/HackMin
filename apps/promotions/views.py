@@ -7,17 +7,24 @@ from rest_framework.response import Response
 
 from common.exceptions import error_response
 from common.permissions import IsCustomer
-from .models import Coupon, Favorite, Membership, MembershipPayment, UserCoupon
+from restaurants.models import Menu
+from .models import Coupon, Favorite, Membership, MembershipPayment, MembershipPointTransaction, UserCoupon
+from .services import POINT_EARN_RATE
 from .serializers import (
     CouponFullSerializer,
     CouponPublicSerializer,
     FavoriteSerializer,
     MembershipPaymentSerializer,
+    MembershipPointTransactionSerializer,
     MembershipSerializer,
     UserCouponSerializer,
 )
 
 MEMBERSHIP_PRICE = 4900
+
+
+def _has_active_membership(user):
+    return Membership.objects.filter(user=user, status=Membership.Status.ACTIVE).exists()
 
 
 # --- Coupons ---------------------------------------------------------------
@@ -32,10 +39,12 @@ def coupon_list(request):
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def download_coupon(request, pk):
-    """쿠폰 다운로드. 사용자당 1회로 제한한다."""
+    """쿠폰 다운로드. 사용자당 1회로 제한하고, 멤버십 전용 쿠폰은 활성 멤버십 보유자만 받을 수 있다."""
     coupon = Coupon.objects.filter(pk=pk).first()
     if not coupon or not coupon.is_active:
         return error_response('not_found', '쿠폰을 찾을 수 없습니다.', 404)
+    if coupon.is_membership_only and not _has_active_membership(request.user):
+        return error_response('membership_required', '멤버십 전용 쿠폰입니다.', 403)
 
     uc, created = UserCoupon.objects.get_or_create(user=request.user, coupon=coupon)
     if not created:
@@ -53,6 +62,8 @@ def register_coupon(request):
     coupon = Coupon.objects.filter(code=code, is_active=True).first()
     if not coupon:
         return error_response('coupon_not_found', '유효하지 않은 쿠폰 코드입니다.', 404)
+    if coupon.is_membership_only and not _has_active_membership(request.user):
+        return error_response('membership_required', '멤버십 전용 쿠폰입니다.', 403)
     uc, created = UserCoupon.objects.get_or_create(user=request.user, coupon=coupon)
     if not created:
         return error_response('already_registered', '이미 등록된 쿠폰입니다.', 409)
@@ -129,10 +140,30 @@ def membership_benefits(_request):
     return Response({
         'benefits': [
             {'title': '무료배달', 'description': '멤버십 전용 무료배달 쿠폰 월 5장'},
-            {'title': '추가 적립', 'description': '주문 금액의 3% 포인트 적립'},
+            {'title': '추가 적립', 'description': f'주문 금액의 {POINT_EARN_RATE}% 포인트 적립'},
             {'title': '전용 할인', 'description': '멤버십 전용가 상품 이용'},
         ],
         'price': MEMBERSHIP_PRICE,
+        'membership_only_coupon_count': Coupon.objects.filter(
+            is_active=True, is_membership_only=True,
+        ).count(),
+        'membership_only_product_count': Menu.objects.filter(
+            is_membership_only=True, status=Menu.Status.ON_SALE,
+        ).count(),
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsCustomer])
+def membership_points(request):
+    """포인트 적립/사용 내역 (/me/membership/points)."""
+    membership = Membership.objects.filter(user=request.user).first()
+    if not membership:
+        return Response({'balance': 0, 'results': []})
+    transactions = membership.point_transactions.all()
+    return Response({
+        'balance': membership.points,
+        'results': MembershipPointTransactionSerializer(transactions, many=True).data,
     })
 
 

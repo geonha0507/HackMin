@@ -1,14 +1,24 @@
 from rest_framework import serializers
 
 from restaurants.models import Restaurant
-from .models import Coupon, Favorite, Membership, MembershipPayment, UserCoupon
+from .models import (
+    Coupon,
+    Favorite,
+    Membership,
+    MembershipPayment,
+    MembershipPointTransaction,
+    UserCoupon,
+)
 
 
 class CouponPublicSerializer(serializers.ModelSerializer):
     """다운로드 가능 목록용(코드 비노출)."""
     class Meta:
         model = Coupon
-        fields = ['id', 'name', 'discount_type', 'discount_value', 'min_order_amount', 'valid_until']
+        fields = [
+            'id', 'name', 'discount_type', 'discount_value',
+            'min_order_amount', 'valid_until', 'is_membership_only',
+        ]
 
 
 class CouponFullSerializer(serializers.ModelSerializer):
@@ -17,7 +27,7 @@ class CouponFullSerializer(serializers.ModelSerializer):
         model = Coupon
         fields = [
             'id', 'code', 'name', 'discount_type', 'discount_value',
-            'min_order_amount', 'valid_until', 'is_active',
+            'min_order_amount', 'valid_until', 'is_active', 'is_membership_only',
         ]
 
 
@@ -46,10 +56,18 @@ class FavoriteSerializer(serializers.ModelSerializer):
 class MembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = Membership
-        fields = ['id', 'plan', 'status', 'started_at', 'cancelled_at']
+        fields = ['id', 'plan', 'status', 'points', 'started_at', 'cancelled_at']
 
 
 class MembershipPaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = MembershipPayment
         fields = ['id', 'amount', 'paid_at']
+
+
+class MembershipPointTransactionSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source='order.order_number', read_only=True, default=None)
+
+    class Meta:
+        model = MembershipPointTransaction
+        fields = ['id', 'type', 'amount', 'balance_after', 'order_number', 'created_at']
