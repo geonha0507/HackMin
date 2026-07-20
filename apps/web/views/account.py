@@ -56,8 +56,8 @@ def password_change(request):
 
         if not user.check_password(old):
             messages.error(request, '현재 비밀번호가 올바르지 않습니다.')
-        elif len(new) < 4:
-            messages.error(request, '새 비밀번호는 4자 이상이어야 합니다.')
+        elif len(new) < 8:
+            messages.error(request, '새 비밀번호는 8자 이상이어야 합니다.')
         elif new != new2:
             messages.error(request, '새 비밀번호와 확인이 일치하지 않습니다.')
         else:
