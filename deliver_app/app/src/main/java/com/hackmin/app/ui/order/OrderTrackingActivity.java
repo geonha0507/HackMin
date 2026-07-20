@@ -1,5 +1,6 @@
 package com.hackmin.app.ui.order;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -13,6 +14,7 @@ import com.hackmin.app.R;
 import com.hackmin.app.data.model.order.OrderDto;
 import com.hackmin.app.data.model.order.OrderItemDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.home.HomeActivity;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,8 +34,11 @@ public class OrderTrackingActivity extends AppCompatActivity {
 
     private TextView tvCurrentStatus, tvRestaurantName, tvOrderItemsSummary, tvDeliveryAddress, tvCancelledBanner;
     private View containerProgress;
-    private Button btnCancelOrder;
+    private Button btnCancelOrder, btnGoHome;
     private ImageButton btnBack;
+
+    /** 취소/거절 배너 문구 구분을 위해 최근 조회한 서버 상태 문자열을 보관. */
+    private String lastStatus;
 
     private final String[] statusLabels = {"점주확인대기", "주문접수", "조리중", "배달중", "배달완료"};
 
@@ -45,6 +50,7 @@ public class OrderTrackingActivity extends AppCompatActivity {
         initViews();
 
         btnBack.setOnClickListener(v -> finish());
+        btnGoHome.setOnClickListener(v -> goHome());
 
         // ===== [C] START: 주문추적 GET /orders/{id} 연동 =====
         orderId = getIntent().getLongExtra("order_id", -1);
@@ -69,6 +75,7 @@ public class OrderTrackingActivity extends AppCompatActivity {
         tvOrderItemsSummary = findViewById(R.id.tvOrderItemsSummary);
         tvDeliveryAddress = findViewById(R.id.tvDeliveryAddress);
         btnCancelOrder = findViewById(R.id.btnCancelOrder);
+        btnGoHome = findViewById(R.id.btnGoHome);
 
         dots = new View[]{
                 findViewById(R.id.dot1), findViewById(R.id.dot2),
@@ -109,8 +116,15 @@ public class OrderTrackingActivity extends AppCompatActivity {
         tvOrderItemsSummary.setText(buildItemsSummary(order));
         tvDeliveryAddress.setText(buildAddress(order));
 
+        lastStatus = order.getStatus();
         currentStatusIndex = statusToIndex(order.getStatus());
         renderStatus();
+    }
+
+    private void goHome() {
+        Intent intent = new Intent(this, HomeActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
     }
 
     private String buildItemsSummary(OrderDto order) {
@@ -174,7 +188,10 @@ public class OrderTrackingActivity extends AppCompatActivity {
 
     private void renderStatus() {
         if (currentStatusIndex == -1) {
-            // 주문취소 상태
+            // 주문취소/거절 상태 — 실제 사유에 따라 배너 문구를 구분한다.
+            tvCancelledBanner.setText("rejected".equals(lastStatus)
+                    ? "이 주문은 점주에 의해 거절되었습니다"
+                    : "이 주문은 취소되었습니다");
             tvCancelledBanner.setVisibility(View.VISIBLE);
             containerProgress.setVisibility(View.GONE);
             btnCancelOrder.setVisibility(View.GONE);

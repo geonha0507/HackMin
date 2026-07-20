@@ -28,7 +28,7 @@
             android:layout_marginStart="12dp" />
     </LinearLayout>
 
-    <!-- 주문취소 배너 (취소 상태일 때만 보임) -->
+    <!-- 주문취소/거절 배너 (취소 또는 거절 상태일 때만 보임, 텍스트는 코드에서 상태에 맞게 설정) -->
     <TextView
         android:id="@+id/tvCancelledBanner"
         android:layout_width="match_parent"
@@ -39,6 +39,15 @@
         android:textStyle="bold"
         android:text="이 주문은 취소되었습니다"
         android:visibility="gone" />
+
+    <Button
+        android:id="@+id/btnGoHome"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:text="홈으로" />
 
     <!-- 진행바 영역 (취소 아닐 때만 보임) -->
     <LinearLayout
