@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.hackmin.app.R;
@@ -52,7 +53,7 @@ public class MembershipActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> finish());
         btnAction.setOnClickListener(v -> {
             if (isActive) {
-                cancel();
+                confirmCancel();
             } else {
                 subscribe();
             }
@@ -147,6 +148,15 @@ public class MembershipActivity extends AppCompatActivity {
                                 "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private void confirmCancel() {
+        new AlertDialog.Builder(this)
+                .setTitle("멤버십 해지")
+                .setMessage("멤버십을 해지하면 무료배달, 적립, 전용 쿠폰 등의 혜택이 즉시 종료됩니다. 해지하시겠어요?")
+                .setPositiveButton("해지", (d, w) -> cancel())
+                .setNegativeButton("취소", null)
+                .show();
     }
 
     private void cancel() {

@@ -44,6 +44,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";
 
     private long restaurantId;
+    private boolean isOpen = true;
 
     private TextView tvName, tvCuisine, tvMeta, tvAddress;
     private RecyclerView rvMenus;
@@ -118,7 +119,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                 + " · 최소주문 " + won.format(r.getMinOrderAmount()) + "원");
         String addr = r.getAddress();
         tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
-        if (!r.isOpen()) {
+        isOpen = r.isOpen();
+        if (!isOpen) {
             tvName.setText(r.getName() + " (영업종료)");
         }
     }
@@ -153,6 +155,10 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     // ── 메뉴 선택 → 옵션 상세 조회 ─────────────────────────
 
     private void onMenuClicked(MenuDto menuFromList) {
+        if (!isOpen) {
+            Toast.makeText(this, "영업 종료된 매장입니다. 영업 시간에 다시 주문해주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
         // 목록 응답에는 옵션이 없으므로 상세를 다시 조회한다.
         ApiClient.restaurantApi(this).getMenuDetail(menuFromList.getId())
                 .enqueue(new Callback<MenuDto>() {

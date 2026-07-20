@@ -74,6 +74,7 @@
     <!-- ===================== 검색창 ===================== -->
 
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_home_search"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="음식이나 매장 이름을 검색해보세요"
@@ -81,6 +82,7 @@
         app:hintEnabled="false"
         app:startIconDrawable="@android:drawable/ic_menu_search"
         app:startIconTint="@color/text_secondary"
+        app:startIconContentDescription="검색"
         app:boxBackgroundColor="#F8F9FA"
         app:boxCornerRadiusTopStart="16dp"
         app:boxCornerRadiusTopEnd="16dp"
