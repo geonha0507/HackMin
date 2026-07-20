@@ -17,7 +17,6 @@ SALES_STATUSES = ('placed', 'accepted', 'cooking', 'cooked', 'delivering', 'deli
 ORDER_STATUS_LABELS = dict(Order.Status.choices)
 MENU_STATUS_LABELS = dict(Menu.Status.choices)
 
-
 def _owned_restaurants(user):
     return Restaurant.objects.filter(owner=user)
 
@@ -161,16 +160,38 @@ def category_list(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'create':
-            restaurant = Restaurant.objects.filter(pk=request.POST.get('restaurant'), owner=request.user).first()
+            restaurant = Restaurant.objects.filter(
+                pk=request.POST.get('restaurant'),
+                owner=request.user,
+            ).first()
+
             name = request.POST.get('name', '').strip()
-            if restaurant and name:
+
+            if not restaurant:
+                messages.error(request, '유효한 매장을 선택하세요.')
+
+            elif not name:
+                messages.error(request, '카테고리 이름을 입력하세요.')
+
+            elif MenuCategory.objects.filter(
+                restaurant=restaurant,
+                name__iexact=name,
+            ).exists():
+                messages.error(
+                    request,
+                    '이미 같은 이름의 카테고리가 있습니다.',
+                )
+
+            else:
                 last_order = (
                     MenuCategory.objects.filter(restaurant=restaurant)
                     .aggregate(m=Max('display_order'))['m']
                 )
                 next_order = (last_order or 0) + 1
+
                 MenuCategory.objects.create(
-                    restaurant=restaurant, name=name,
+                    restaurant=restaurant,
+                    name=name,
                     display_order=next_order,
                 )
                 messages.success(request, '카테고리를 추가했습니다.')
