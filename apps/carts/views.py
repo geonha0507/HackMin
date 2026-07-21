@@ -101,17 +101,23 @@ def item_detail(request, pk):
     return Response(CartSerializer(item.cart).data)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'DELETE'])
 @permission_classes([IsCustomer])
 def apply_coupon(request):
-    """쿠폰 적용. 사용자 보유 쿠폰 + 활성/유효기간을 확인한다."""
+    """쿠폰 적용(POST) / 해제(DELETE). 보유 쿠폰 + 활성/최소주문을 확인한다."""
     from promotions.models import Coupon, UserCoupon
+
+    cart = _get_cart(request.user)
+
+    # 쿠폰 해제: 장바구니에 적용된 쿠폰을 제거한다.
+    if request.method == 'DELETE':
+        cart.coupon = None
+        cart.save(update_fields=['coupon'])
+        return Response(CartSerializer(cart).data)
 
     code = request.data.get('code')
     if not code:
         return error_response('bad_request', '쿠폰 코드가 필요합니다.', 400)
-
-    cart = _get_cart(request.user)
 
     coupon = Coupon.objects.filter(code=code, is_active=True).first()
     if not coupon:

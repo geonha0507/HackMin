@@ -254,6 +254,9 @@ public class OrderActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<OrderDto> call, @NonNull Response<OrderDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     payForOrder(response.body());
+                } else if (response.code() == 400) {
+                    // 최소 주문금액 미달 등 서버 검증 실패 → 서버 메시지 그대로 안내.
+                    fail(extractErrorMessage(response, "최소 주문금액을 확인해주세요."));
                 } else {
                     fail("주문 생성에 실패했습니다.");
                 }
@@ -264,6 +267,22 @@ public class OrderActivity extends AppCompatActivity {
                 fail("네트워크 연결 실패 (서버 확인 필요)");
             }
         });
+    }
+
+    /** 에러 응답 본문({code,message})에서 message를 뽑아낸다. 실패 시 fallback 반환. */
+    private String extractErrorMessage(Response<?> response, String fallback) {
+        try {
+            if (response.errorBody() != null) {
+                com.hackmin.app.data.model.common.ApiErrorResponse err = new com.google.gson.Gson()
+                        .fromJson(response.errorBody().string(),
+                                com.hackmin.app.data.model.common.ApiErrorResponse.class);
+                if (err != null && err.getMessage() != null && !err.getMessage().isEmpty()) {
+                    return err.getMessage();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return fallback;
     }
 
     private void payForOrder(OrderDto order) {
