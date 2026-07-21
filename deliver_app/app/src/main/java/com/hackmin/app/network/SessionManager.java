@@ -6,9 +6,8 @@ import android.content.SharedPreferences;
 /**
  * 앱 전역 세션 저장소.
  *
- * <p>액세스/리프레시 토큰과 로그인 사용자 정보, 현재 Hackmin 모드를 한 곳에서
- * 관리한다. {@link HackminModeInterceptor}의 {@link HackminModeInterceptor.ModeProvider}·
- * {@link HackminModeInterceptor.TokenProvider}를 그대로 구현하므로, 각 화면에서
+ * <p>액세스/리프레시 토큰과 로그인 사용자 정보를 한 곳에서 관리한다.
+ * {@link AuthInterceptor.TokenProvider}를 그대로 구현하므로, 각 화면에서
  * 람다를 새로 만들 필요 없이 이 싱글톤을 인터셉터에 바로 넘길 수 있다.
  *
  * <p>사용 예시(각 Activity):
@@ -20,7 +19,7 @@ import android.content.SharedPreferences;
  * }</pre>
  */
 public final class SessionManager
-        implements HackminModeInterceptor.ModeProvider, HackminModeInterceptor.TokenProvider {
+        implements AuthInterceptor.TokenProvider {
 
     private static final String PREFS_NAME = "HackminPrefs";
 
@@ -36,8 +35,6 @@ public final class SessionManager
 
     private final SharedPreferences prefs;
 
-    // 모드는 데모/QA 토글용. 기본은 SECURE.
-    private volatile HackminMode mode = HackminMode.SECURE;
 
     private SessionManager(Context context) {
         // Activity가 destroy돼도 살아있도록 applicationContext 사용.
@@ -66,7 +63,7 @@ public final class SessionManager
                 .apply();
     }
 
-    /** {@link HackminModeInterceptor.TokenProvider} 구현. 헤더에 실릴 액세스 토큰. */
+    /** {@link AuthInterceptor.TokenProvider} 구현. 헤더에 실릴 액세스 토큰. */
     @Override
     public String getAccessToken() {
         return prefs.getString(KEY_ACCESS_TOKEN, "");
@@ -117,18 +114,6 @@ public final class SessionManager
 
     public String getSavedId() {
         return prefs.getString(KEY_SAVED_ID, "");
-    }
-
-    // ── 모드(취약/보안 데모 토글) ──────────────────────────────
-
-    /** {@link HackminModeInterceptor.ModeProvider} 구현. */
-    @Override
-    public HackminMode getMode() {
-        return mode;
-    }
-
-    public void setMode(HackminMode mode) {
-        this.mode = mode == null ? HackminMode.SECURE : mode;
     }
 
     // ── 로그아웃 ──────────────────────────────────────────
