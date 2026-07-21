@@ -4,6 +4,7 @@
 관리자 승인 후에만 실제 Restaurant 레코드에 반영된다.
 """
 
+import os
 from datetime import date
 
 from django.contrib import messages
@@ -28,6 +29,14 @@ CUISINE_PRESETS = ['한식', '중식', '양식', '일식', '분식', '치킨', '
 # 최소주문금액/배달비 상한선. 비정상적으로 큰 숫자 입력(정수 오버플로우 등)을 막는다.
 MAX_MIN_ORDER_AMOUNT = 1_000_000
 MAX_DELIVERY_FEE = 100_000
+
+_ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+_MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _valid_image(upload):
+    extension = os.path.splitext(upload.name)[1].lower()
+    return extension in _ALLOWED_IMAGE_EXTENSIONS and upload.size <= _MAX_IMAGE_SIZE
 
 
 def _split_cuisines(cuisine_type):
@@ -161,7 +170,19 @@ def add_restaurant(request):
         elif proposed['min_order_amount'] < 0 or proposed['delivery_fee'] < 0:
             messages.error(request, '최소주문금액/배달비는 0 이상의 숫자여야 합니다.')
         else:
+            image = request.FILES.get('image')
+            if image and not _valid_image(image):
+                messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+                return render(request, 'web/restaurant_add.html', {
+                    'cuisine_presets': CUISINE_PRESETS,
+                    'selected_presets': request.POST.getlist('cuisine_type'),
+                    'custom_cuisines': [c for c in request.POST.getlist('custom_cuisine') if c.strip()],
+                    'form': request.POST,
+                })
             restaurant = Restaurant.objects.create(owner=request.user, **proposed)
+            if image:
+                restaurant.image = image
+                restaurant.save(update_fields=['image'])
             messages.success(request, '매장이 추가되었습니다.')
             return _redirect_to_restaurant(restaurant)
         return render(request, 'web/restaurant_add.html', {
@@ -228,4 +249,23 @@ def regular_closed_days_update(request):
         RestaurantRegularClosedDay(restaurant=restaurant, weekday=w) for w in selected
     ])
     messages.success(request, '정기휴무일을 저장했습니다.')
+    return _redirect_to_restaurant(restaurant)
+
+
+@owner_required
+def restaurant_image_upload(request):
+    """매장 대표 이미지 업로드/교체. 승인 절차 없이 즉시 반영된다."""
+    if request.method != 'POST':
+        return redirect('web:my_restaurant')
+
+    restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    image = request.FILES.get('image')
+    if not image:
+        messages.error(request, '이미지 파일을 선택하세요.')
+    elif not _valid_image(image):
+        messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+    else:
+        restaurant.image = image
+        restaurant.save(update_fields=['image'])
+        messages.success(request, '매장 사진을 변경했습니다.')
     return _redirect_to_restaurant(restaurant)
