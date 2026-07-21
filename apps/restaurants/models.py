@@ -56,6 +56,11 @@ class Restaurant(models.Model):
     delivery_fee = models.PositiveIntegerField(default=0)
     rating = models.FloatField(default=0.0)
     is_open = models.BooleanField(default=True)
+    image = models.ImageField(
+        upload_to=restaurant_image_upload_to,
+        null=True,
+        blank=True,
+    )
     business_license = models.FileField(
         upload_to=business_license_upload_to,  # ✅ owner.user_id 사용
         null=True,
