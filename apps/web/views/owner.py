@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from orders.models import Order
 from restaurants.models import Menu, MenuCategory, Restaurant
+from restaurants.selectors import owned_restaurant_ids, owned_restaurants
 from reviews.models import Review, ReviewReply
 
 from ..decorators import owner_required
@@ -24,11 +25,11 @@ MENU_STATUS_LABELS = dict(Menu.Status.choices)
 MAX_MENU_PRICE = 10_000_000
 
 def _owned_restaurants(user):
-    return Restaurant.objects.filter(owner=user)
+    return owned_restaurants(user)
 
 
 def _owned_ids(user):
-    return list(_owned_restaurants(user).values_list('id', flat=True))
+    return owned_restaurant_ids(user)
 
 
 @owner_required
