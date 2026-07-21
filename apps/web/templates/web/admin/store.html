@@ -140,42 +140,78 @@
           </td>
 
           <td>
-            {% if store.owner.status == 'pending' %}
-              <form
-                method="post"
-                action="{% url 'web:admin_store_decide' store.pk %}"
-                style="display:flex;gap:6px"
+           {% if store.owner.status == 'pending' %}
+            <form
+              method="post"
+              action="{% url 'web:admin_store_decide' store.pk %}"
+              style="margin-bottom:8px"
+            >
+              {% csrf_token %}
+
+              <button
+                class="btn btn-sm btn-primary"
+                type="submit"
+                name="action"
+                value="approve"
+                onclick="return confirm('입점 신청을 승인하시겠습니까?')"
               >
-                {% csrf_token %}
+                승인
+              </button>
+            </form>
 
-                <button
-                  class="btn btn-sm btn-primary"
-                  type="submit"
-                  name="action"
-                  value="approve"
-                >
-                  승인
-                </button>
+            <form
+              method="post"
+              action="{% url 'web:admin_store_decide' store.pk %}"
+              onsubmit="return confirm('입점 신청을 반려하시겠습니까?')"
+            >
+              {% csrf_token %}
 
-                <button
-                  class="btn btn-sm"
-                  type="submit"
-                  name="action"
-                  value="reject"
-                  onclick="return confirm('입점 신청을 반려하시겠습니까?')"
+              <textarea
+                name="rejection_reason"
+                maxlength="500"
+                placeholder="반려 사유를 입력하세요."
+                required
+                style="
+                  width:210px;
+                  min-height:64px;
+                  padding:8px;
+                  margin-bottom:6px;
+                  resize:vertical;
+                  font-size:12px;
+                "
+              ></textarea>
+
+              <button
+                class="btn btn-sm"
+                type="submit"
+                name="action"
+                value="reject"
+              >
+                반려
+              </button>
+            </form>
+
+          {% elif store.owner.status == 'active' %}
+            <span class="badge b-green">
+              승인 완료
+            </span>
+
+          {% else %}
+            <span class="muted">
+              처리 완료
+            </span>
+
+            {% with enrollment=store.enrollment_request %}
+              {% if enrollment.rejection_reason %}
+                <div
+                  class="muted"
+                  style="font-size:11px;margin-top:6px;max-width:220px"
                 >
-                  반려
-                </button>
-              </form>
-            {% elif store.owner.status == 'active' %}
-              <span class="badge b-green">
-                승인 완료
-              </span>
-            {% else %}
-              <span class="muted">
-                처리 완료
-              </span>
-            {% endif %}
+                  반려 사유: {{ enrollment.rejection_reason }}
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
           </td>
         </tr>
 

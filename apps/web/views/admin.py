@@ -1,5 +1,8 @@
 """관리자(Admin) 웹 화면 - 회원/점주/주문/결제 관리."""
 
+from django.db import transaction
+from enrollment.models import EnrollmentRequest
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Sum
@@ -128,7 +131,7 @@ def store_list(request):
 
     stores = (
         Restaurant.objects
-        .select_related('owner')
+        .select_related('owner', 'enrollment_request')
         .filter(owner__role=User.Role.OWNER)
         .order_by('-created_at')
     )
@@ -172,35 +175,80 @@ def store_decide(request, pk):
 
     owner = store.owner
     action = request.POST.get('action')
+    rejection_reason = request.POST.get(
+        'rejection_reason',
+        '',
+    ).strip()
 
-    if action == 'approve':
-        owner.status = User.Status.ACTIVE
-        owner.is_active = True
+    if owner.status != User.Status.PENDING:
+        messages.error(
+            request,
+            '이미 처리된 입점 신청입니다.',
+        )
+        return redirect('web:admin_store')
+
+    if action not in ('approve', 'reject'):
+        messages.error(
+            request,
+            '올바르지 않은 처리 요청입니다.',
+        )
+        return redirect('web:admin_store')
+
+    if action == 'reject' and not rejection_reason:
+        messages.error(
+            request,
+            '반려 사유를 입력해주세요.',
+        )
+        return redirect('web:admin_store')
+
+    if len(rejection_reason) > 500:
+        messages.error(
+            request,
+            '반려 사유는 500자 이하로 입력해주세요.',
+        )
+        return redirect('web:admin_store')
+
+    with transaction.atomic():
+        if action == 'approve':
+            owner.status = User.Status.ACTIVE
+            owner.is_active = True
+
+            enrollment_status = 'approved'
+            rejection_reason = ''
+
+        else:
+            owner.status = User.Status.SUSPENDED
+            owner.is_active = False
+
+            enrollment_status = 'rejected'
+
         owner.save(
             update_fields=['status', 'is_active'],
         )
 
+        EnrollmentRequest.objects.update_or_create(
+            username=owner.username,
+            defaults={
+                'restaurant': store,
+                'phone': (owner.phone or '')[:20],
+                'owner_name': owner.nickname or owner.username,
+                'restaurant_name': store.name,
+                'status': enrollment_status,
+                'rejection_reason': rejection_reason,
+                'reviewed_at': timezone.now(),
+                'reviewed_by': request.user,
+            },
+        )
+
+    if action == 'approve':
         messages.success(
             request,
             f'{store.name}의 입점을 승인했습니다.',
         )
-
-    elif action == 'reject':
-        owner.status = User.Status.SUSPENDED
-        owner.is_active = False
-        owner.save(
-            update_fields=['status', 'is_active'],
-        )
-
+    else:
         messages.success(
             request,
             f'{store.name}의 입점 신청을 반려했습니다.',
-        )
-
-    else:
-        messages.error(
-            request,
-            '올바르지 않은 처리 요청입니다.',
         )
 
     return redirect('web:admin_store')
