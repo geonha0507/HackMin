@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
@@ -31,6 +32,7 @@ import retrofit2.Response;
 public class HomeActivity extends AppCompatActivity {
 
     private TextInputEditText etHomeSearch;
+    private TextInputLayout tilHomeSearch;
     private RecyclerView rvRestaurants;
     private ProgressBar pbLoading;
     private TextView tvEmpty;
@@ -42,6 +44,7 @@ public class HomeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_home);
 
         etHomeSearch = findViewById(R.id.et_home_search);
+        tilHomeSearch = findViewById(R.id.til_home_search);
         rvRestaurants = findViewById(R.id.rv_restaurants);
         pbLoading = findViewById(R.id.pb_loading);
         tvEmpty = findViewById(R.id.tv_empty);
@@ -68,21 +71,26 @@ public class HomeActivity extends AppCompatActivity {
         rvRestaurants.setLayoutManager(new LinearLayoutManager(this));
         rvRestaurants.setAdapter(adapter);
 
-        // 검색창(키보드 검색 버튼)
+        // 검색창(키보드 검색 버튼 + 돋보기 아이콘 둘 다 같은 동작 수행)
         etHomeSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                String keyword = etHomeSearch.getText() != null
-                        ? etHomeSearch.getText().toString().trim() : "";
-                loadRestaurants(keyword.isEmpty() ? null : keyword, null);
+                triggerSearch();
                 return true;
             }
             return false;
         });
+        tilHomeSearch.setStartIconOnClickListener(v -> triggerSearch());
 
         setupCategoryListeners();
 
         // 최초 진입: 전체 목록(평점순)
         loadRestaurants(null, null);
+    }
+
+    private void triggerSearch() {
+        String keyword = etHomeSearch.getText() != null
+                ? etHomeSearch.getText().toString().trim() : "";
+        loadRestaurants(keyword.isEmpty() ? null : keyword, null);
     }
 
     private void setupCategoryListeners() {

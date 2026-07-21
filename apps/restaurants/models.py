@@ -97,6 +97,7 @@ class Menu(models.Model):
     price = models.PositiveIntegerField(default=0)
     image = models.ImageField(upload_to='menus/', null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ON_SALE)
+    is_membership_only = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
