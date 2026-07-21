@@ -1,5 +1,8 @@
-"""
-Django settings for the HackMin delivery-order backend.
+"""HackMin 공통(base) 설정.
+
+환경별 설정(dev.py / prod.py)이 이 모듈을 가져와 DEBUG·SECRET_KEY·
+ALLOWED_HOSTS·CORS 등을 재정의한다. 활성 프로파일은 DJANGO_ENV 로 선택하며
+기본은 dev (config/settings/__init__.py 참고).
 """
 
 import os
@@ -7,20 +10,17 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# 이 파일은 config/settings/base.py 이므로 프로젝트 루트는 세 단계 위.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Make the `apps/` package importable as top-level app labels (e.g. `accounts`).
 sys.path.insert(0, str(BASE_DIR / 'apps'))
 
 
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-q02ar%@=o_+br_@sno7rlcrct&6f$7#1zblta0_yqckg9484_e',
-)
-
-DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
-
-ALLOWED_HOSTS = ['*']
+# 아래 3개는 안전한 기본값이며, dev.py / prod.py 에서 재정의한다.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+DEBUG = False
+ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
@@ -178,6 +178,6 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
 }
 
-# CORS – open for lab/dev convenience.
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS 공통값. 오리진 허용 정책(CORS_ALLOW_ALL_ORIGINS 등)은 dev/prod 에서 지정.
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
