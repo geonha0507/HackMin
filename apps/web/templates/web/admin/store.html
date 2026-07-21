@@ -91,14 +91,25 @@
           </td>
 
           <td>
-            <strong>{{ store.name }}</strong>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              {% if store.image %}
+                <img
+                  src="{{ store.image.url }}"
+                  alt="{{ store.name }}"
+                  style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0"
+                >
+              {% endif %}
+              <div>
+                <strong>{{ store.name }}</strong>
 
-            <div class="muted" style="font-size:12px">
-              {{ store.phone|default:'전화번호 없음' }}
-            </div>
+                <div class="muted" style="font-size:12px">
+                  {{ store.phone|default:'전화번호 없음' }}
+                </div>
 
-            <div class="muted" style="font-size:12px">
-              {{ store.address|default:'주소 없음' }}
+                <div class="muted" style="font-size:12px">
+                  {{ store.address|default:'주소 없음' }}
+                </div>
+              </div>
             </div>
           </td>
 
