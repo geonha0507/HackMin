@@ -26,6 +26,7 @@ import com.hackmin.app.data.model.review.ReviewCreateRequest;
 import com.hackmin.app.data.model.review.ReviewDto;
 import com.hackmin.app.data.model.review.ReviewImageDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.network.SessionManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -154,6 +155,19 @@ public class WriteReviewActivity extends AppCompatActivity {
     // ── 전송 ─────────────────────────────────────────────
 
     private void submit() {
+        // 회원만 주문·리뷰가 가능하므로 작성자(닉네임)는 항상 존재해야 한다.
+        // 로그인/닉네임이 비어 있으면 익명 리뷰가 생기지 않도록 등록을 막는다.
+        SessionManager session = SessionManager.getInstance(this);
+        if (!session.isLoggedIn()) {
+            Toast.makeText(this, "로그인 후 리뷰를 작성할 수 있습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String nickname = session.getNickname();
+        if (nickname == null || nickname.trim().isEmpty()) {
+            Toast.makeText(this, "작성자 정보를 확인할 수 없어 리뷰를 등록할 수 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         float ratingF = rbRating.getRating();
         if (ratingF < 0.5f) {
             Toast.makeText(this, "별점을 선택해주세요.", Toast.LENGTH_SHORT).show();
