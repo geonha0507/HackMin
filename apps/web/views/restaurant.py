@@ -33,10 +33,18 @@ MAX_DELIVERY_FEE = 100_000
 _ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
+_ALLOWED_LICENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
+_MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
+
 
 def _valid_image(upload):
     extension = os.path.splitext(upload.name)[1].lower()
     return extension in _ALLOWED_IMAGE_EXTENSIONS and upload.size <= _MAX_IMAGE_SIZE
+
+
+def _valid_license(upload):
+    extension = os.path.splitext(upload.name)[1].lower()
+    return extension in _ALLOWED_LICENSE_EXTENSIONS and upload.size <= _MAX_LICENSE_SIZE
 
 
 def _split_cuisines(cuisine_type):
@@ -165,21 +173,23 @@ def add_restaurant(request):
     """이미 계정이 있는 점주가 매장을 추가로 등록한다. (회원가입 시 최초 매장 등록과는 별개)"""
     if request.method == 'POST':
         proposed = _parse_form(request.POST)
+        image = request.FILES.get('image')
+        business_license = request.FILES.get('business_license')
+
         if not proposed['name']:
             messages.error(request, '매장명은 필수입니다.')
         elif proposed['min_order_amount'] < 0 or proposed['delivery_fee'] < 0:
             messages.error(request, '최소주문금액/배달비는 0 이상의 숫자여야 합니다.')
+        elif not business_license:
+            messages.error(request, '사업자등록증 파일을 첨부하세요.')
+        elif not _valid_license(business_license):
+            messages.error(request, '사업자등록증은 PDF, JPG, JPEG, PNG · 최대 10MB만 가능합니다.')
+        elif image and not _valid_image(image):
+            messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
         else:
-            image = request.FILES.get('image')
-            if image and not _valid_image(image):
-                messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
-                return render(request, 'web/restaurant_add.html', {
-                    'cuisine_presets': CUISINE_PRESETS,
-                    'selected_presets': request.POST.getlist('cuisine_type'),
-                    'custom_cuisines': [c for c in request.POST.getlist('custom_cuisine') if c.strip()],
-                    'form': request.POST,
-                })
-            restaurant = Restaurant.objects.create(owner=request.user, **proposed)
+            restaurant = Restaurant.objects.create(
+                owner=request.user, business_license=business_license, **proposed,
+            )
             if image:
                 restaurant.image = image
                 restaurant.save(update_fields=['image'])

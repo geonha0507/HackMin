@@ -17,6 +17,13 @@
       <input type="file" name="image" accept="image/*">
     </div>
     <div class="field">
+      <label>사업자등록증</label>
+      <input type="file" name="business_license" accept=".pdf,.jpg,.jpeg,.png" required>
+      <div style="color:#9ca3af;font-size:12px;margin-top:5px">
+        PDF, JPG, JPEG, PNG · 최대 10MB
+      </div>
+    </div>
+    <div class="field">
       <label>종류 (복수 선택 가능)</label>
       <div style="display:flex;flex-wrap:wrap;gap:8px 18px;margin-bottom:12px">
         {% for c in cuisine_presets %}
