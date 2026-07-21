@@ -33,7 +33,12 @@
       </div>
       <div class="field">
         <label>이메일</label>
-        <input type="email" name="email" value="{{ u.email }}">
+        <input
+                type="email"
+                name="email"
+                value="{{ u.email|default_if_none:'' }}"
+                required
+        >
       </div>
       <div class="field">
         <label>연락처</label>

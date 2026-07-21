@@ -8,9 +8,10 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
 
-from accounts.models import WithdrawalRequest
+from accounts.models import User, WithdrawalRequest
 from ..decorators import owner_required, role_required
 
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
@@ -23,27 +24,55 @@ def mypage(request):
 
     if request.method == 'POST':
         nickname = request.POST.get('nickname', '').strip()
-        email = request.POST.get('email', '').strip()
+        email = request.POST.get('email', '').strip() or None
         phone = request.POST.get('phone', '').strip()
-
-        if email and not EMAIL_RE.match(email):
+        if not email:
+          messages.error(request, '이메일을 입력해주세요.')
+        elif email and not EMAIL_RE.fullmatch(email):
             messages.error(request, '올바른 이메일 형식이 아닙니다.')
+
+        elif (
+            email
+            and User.objects
+            .filter(email__iexact=email)
+            .exclude(pk=user.pk)
+            .exists()
+        ):
+            messages.error(request, '이미 사용 중인 이메일입니다.')
+
         else:
-            user.nickname = nickname
-            user.email = email
-            user.phone = phone
-            user.save(update_fields=['nickname', 'email', 'phone'])
-            messages.success(request, '내 정보가 저장되었습니다.')
-            return redirect('web:mypage')
+            try:
+                with transaction.atomic():
+                    user.nickname = nickname
+                    user.email = email
+                    user.phone = phone
+                    user.save(
+                        update_fields=['nickname', 'email', 'phone']
+                    )
+
+            except IntegrityError:
+                messages.error(request, '이미 사용 중인 이메일입니다.')
+
+            else:
+                messages.success(request, '내 정보가 저장되었습니다.')
+                return redirect('web:mypage')
 
     pending_withdrawal = None
+
     if user.role == 'owner':
         pending_withdrawal = WithdrawalRequest.objects.filter(
-            user=user, status=WithdrawalRequest.Status.PENDING,
+            user=user,
+            status=WithdrawalRequest.Status.PENDING,
         ).first()
 
-    return render(request, 'web/mypage.html', {'u': user, 'pending_withdrawal': pending_withdrawal})
-
+    return render(
+        request,
+        'web/mypage.html',
+        {
+            'u': user,
+            'pending_withdrawal': pending_withdrawal,
+        },
+    )
 
 @role_required('owner', 'admin')
 def password_change(request):
