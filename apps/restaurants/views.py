@@ -87,7 +87,8 @@ def restaurant_search(request):
 
     paginator = StandardPagination()
     page = paginator.paginate_queryset(queryset, request)
-    serializer = RestaurantListSerializer(page, many=True)
+    # context에 request를 넘겨야 ImageField(image)가 절대 URL로 직렬화된다.
+    serializer = RestaurantListSerializer(page, many=True, context={'request': request})
     return paginator.get_paginated_response(serializer.data)
 
 
@@ -124,4 +125,8 @@ class RestaurantReviewListView(generics.ListAPIView):
 
     def get_queryset(self):
         from reviews.models import Review
-        return Review.objects.filter(restaurant_id=self.kwargs['pk']).select_related('user')
+        return (
+            Review.objects.filter(restaurant_id=self.kwargs['pk'])
+            .select_related('user', 'reply')
+            .prefetch_related('images')
+        )

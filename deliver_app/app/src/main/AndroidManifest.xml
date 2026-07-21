@@ -40,6 +40,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.notice.NoticeActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.mypage.MyPageActivity"
             android:exported="false" />
 
@@ -74,6 +78,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.restaurant.RestaurantReviewsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.order.OrderActivity"
             android:exported="false" />
 
@@ -88,6 +96,11 @@
         <activity
             android:name=".ui.order.OrderTrackingActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ui.review.WriteReviewActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

@@ -43,6 +43,10 @@ public class RestaurantDetailDto {
     @SerializedName("rating")
     private double rating;
 
+    // 음식점 대표 이미지 URL(절대/상대). 백엔드에 필드가 아직 없으면 null.
+    @SerializedName("image")
+    private String image;
+
     @SerializedName("is_open")
     private boolean open;
 
@@ -60,6 +64,8 @@ public class RestaurantDetailDto {
     public long getMinOrderAmount() { return minOrderAmount; }
     public long getDeliveryFee() { return deliveryFee; }
     public double getRating() { return rating; }
+    public void setRating(double rating) { this.rating = rating; }
+    public String getImage() { return image; }
     public boolean isOpen() { return open; }
     public String getCreatedAt() { return createdAt; }
 }

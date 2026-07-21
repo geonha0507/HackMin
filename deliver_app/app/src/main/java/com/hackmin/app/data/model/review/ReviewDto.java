@@ -8,7 +8,7 @@ public class ReviewDto {
     @SerializedName("restaurant") private long restaurant;
     @SerializedName("order") private Long order;
     @SerializedName("author") private String author;
-    @SerializedName("rating") private int rating;
+    @SerializedName("rating") private double rating;
     @SerializedName("content") private String content;
     @SerializedName("images") private List<ReviewImageDto> images;
     @SerializedName("reply") private ReviewReplyDto reply;
@@ -19,7 +19,7 @@ public class ReviewDto {
     public long getRestaurant() { return restaurant; }
     public Long getOrder() { return order; }
     public String getAuthor() { return author; }
-    public int getRating() { return rating; }
+    public double getRating() { return rating; }
     public String getContent() { return content; }
     public List<ReviewImageDto> getImages() { return images; }
     public ReviewReplyDto getReply() { return reply; }

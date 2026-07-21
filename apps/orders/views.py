@@ -46,6 +46,13 @@ def create_order(request):
 
     totals = cart_totals(cart)
 
+    # 최소 주문 금액 검증: 상품 합계(subtotal)가 매장 최소주문 미만이면 주문 불가.
+    if cart.restaurant and totals['subtotal'] < cart.restaurant.min_order_amount:
+        return error_response(
+            'min_order_not_met',
+            f'최소 주문금액은 {cart.restaurant.min_order_amount}원입니다.', 400,
+        )
+
     subtotal = totals['subtotal']
     delivery_fee = totals['delivery_fee']
     discount = totals['discount']

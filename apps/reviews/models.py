@@ -12,7 +12,7 @@ class Review(models.Model):
     order = models.ForeignKey(
         'orders.Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews',
     )
-    rating = models.PositiveSmallIntegerField(default=5)   # 1..5
+    rating = models.FloatField(default=5)   # 0.5 단위, 0.5..5
     content = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

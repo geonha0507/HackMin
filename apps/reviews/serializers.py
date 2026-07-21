@@ -32,5 +32,11 @@ class ReviewSerializer(serializers.ModelSerializer):
 class ReviewCreateSerializer(serializers.Serializer):
     restaurant = serializers.IntegerField()
     order = serializers.IntegerField(required=False, allow_null=True)
-    rating = serializers.IntegerField(min_value=1, max_value=5)
+    rating = serializers.FloatField(min_value=0.5, max_value=5)
     content = serializers.CharField(allow_blank=True, default='')
+
+    def validate_rating(self, value):
+        # 0.5 단위만 허용
+        if (value * 2) % 1 != 0:
+            raise serializers.ValidationError('별점은 0.5 단위로만 입력할 수 있습니다.')
+        return value

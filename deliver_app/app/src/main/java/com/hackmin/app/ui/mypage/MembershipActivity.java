@@ -55,7 +55,7 @@ public class MembershipActivity extends AppCompatActivity {
             if (isActive) {
                 confirmCancel();
             } else {
-                subscribe();
+                confirmSubscribe();
             }
         });
 
@@ -122,6 +122,18 @@ public class MembershipActivity extends AppCompatActivity {
             }
         }
         tvPrice.setText("월 " + won.format(data.getPrice()) + "원");
+    }
+
+    /** 가입 확인 다이얼로그. 유료 멤버십이므로 클릭 즉시 가입되지 않도록 한 번 더 확인. */
+    private void confirmSubscribe() {
+        String priceText = tvPrice.getText() != null ? tvPrice.getText().toString().trim() : "";
+        String msg = "멤버십에 가입하시겠어요?" + (priceText.isEmpty() ? "" : "\n" + priceText);
+        new AlertDialog.Builder(this)
+                .setTitle("멤버십 가입")
+                .setMessage(msg)
+                .setPositiveButton("가입", (d, w) -> subscribe())
+                .setNegativeButton("취소", null)
+                .show();
     }
 
     private void subscribe() {

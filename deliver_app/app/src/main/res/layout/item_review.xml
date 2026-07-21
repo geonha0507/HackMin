@@ -51,6 +51,14 @@
             android:textColor="#212529"
             android:layout_marginTop="6dp" />
 
+        <LinearLayout
+            android:id="@+id/llReviewImages"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/tvReviewDate"
             android:layout_width="wrap_content"

@@ -9,6 +9,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +22,7 @@ import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
 import com.hackmin.app.ui.mypage.MyPageActivity;
+import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.ui.restaurant.RestaurantDetailActivity;
 
 import java.util.List;
@@ -38,6 +40,10 @@ public class HomeActivity extends AppCompatActivity {
     private TextView tvEmpty;
     private RestaurantAdapter adapter;
 
+    // 뒤로가기 두 번 눌러 종료: 마지막 뒤로가기 시각(ms)과 허용 간격.
+    private static final long BACK_EXIT_INTERVAL_MS = 2000L;
+    private long lastBackPressedTime = 0L;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,8 +56,13 @@ public class HomeActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tv_empty);
 
         // 상단 아이콘 버튼
+        ImageButton btnNotification = findViewById(R.id.btn_notification);
         ImageButton btnCart = findViewById(R.id.btn_cart);
         ImageButton btnMypage = findViewById(R.id.btn_mypage);
+        if (btnNotification != null) {
+            btnNotification.setOnClickListener(v ->
+                    startActivity(new Intent(this, NoticeActivity.class)));
+        }
         if (btnCart != null) {
             btnCart.setOnClickListener(v ->
                     startActivity(new Intent(this, CartActivity.class)));
@@ -83,8 +94,29 @@ public class HomeActivity extends AppCompatActivity {
 
         setupCategoryListeners();
 
+        // 뒤로가기 두 번 연속(2초 이내)이면 앱 종료, 한 번이면 안내 토스트.
+        setupDoubleBackToExit();
+
         // 최초 진입: 전체 목록(평점순)
         loadRestaurants(null, null);
+    }
+
+    /** 메인 화면에서 뒤로가기를 두 번 눌러야 앱이 종료되도록 처리한다. */
+    private void setupDoubleBackToExit() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                long now = System.currentTimeMillis();
+                if (now - lastBackPressedTime < BACK_EXIT_INTERVAL_MS) {
+                    // 짧은 간격 내 두 번째 뒤로가기 → 앱 종료(태스크 전체 종료).
+                    finishAffinity();
+                } else {
+                    lastBackPressedTime = now;
+                    Toast.makeText(HomeActivity.this,
+                            "한 번 더 누르면 종료됩니다.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
     private void triggerSearch() {

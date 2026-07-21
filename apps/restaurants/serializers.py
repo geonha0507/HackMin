@@ -7,7 +7,7 @@ class RestaurantListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
         fields = [
-            'id', 'name', 'cuisine_type', 'rating', 'min_order_amount',
+            'id', 'name', 'cuisine_type', 'rating', 'image', 'min_order_amount',
             'delivery_fee', 'is_open', 'latitude', 'longitude',
         ]
 
@@ -18,7 +18,7 @@ class RestaurantDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'cuisine_type', 'description', 'phone', 'address',
             'latitude', 'longitude', 'min_order_amount', 'delivery_fee',
-            'rating', 'is_open', 'created_at',
+            'rating', 'image', 'is_open', 'created_at',
         ]
 
 
@@ -64,6 +64,17 @@ class RestaurantReviewSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     user = serializers.CharField(source='user.nickname')
-    rating = serializers.IntegerField()
+    rating = serializers.FloatField()
     content = serializers.CharField()
+    image_urls = serializers.SerializerMethodField()
+    owner_reply = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
+
+    def get_image_urls(self, obj):
+        return [img.image.url for img in obj.images.all() if img.image]
+
+    def get_owner_reply(self, obj):
+        try:
+            return obj.reply.content
+        except Exception:
+            return None

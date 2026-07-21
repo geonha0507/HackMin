@@ -222,6 +222,11 @@ public class CartActivity extends AppCompatActivity {
         cartApi.removeCoupon().enqueue(new Callback<CartDto>() {
             @Override
             public void onResponse(@NonNull Call<CartDto> call, @NonNull Response<CartDto> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(CartActivity.this, "쿠폰이 해제되었습니다.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(CartActivity.this, "쿠폰 해제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
                 loadSummary();
             }
 

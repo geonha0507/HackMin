@@ -16,6 +16,10 @@ public interface CartApi {
     @GET("cart")
     Call<CartDto> getCart();
 
+    /** 장바구니 통째로 비우기 (다른 음식점 메뉴로 교체 시 사용) */
+    @DELETE("cart")
+    Call<CartDto> clearCart();
+
     /** 장바구니에 메뉴 추가 */
     @POST("cart/items")
     Call<CartDto> addItem(@Body AddCartItemRequest request);

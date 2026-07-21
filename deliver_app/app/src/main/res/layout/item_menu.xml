@@ -14,63 +14,91 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
+        <!-- 메뉴 설명 영역 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tv_menu_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="메뉴 이름"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textColor="#212529"
+                    android:maxLines="1"
+                    android:ellipsize="end"/>
+
+                <TextView
+                    android:id="@+id/tv_menu_soldout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="품절"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#E03131"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:visibility="gone"/>
+
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/tv_menu_name"
-                android:layout_width="0dp"
+                android:id="@+id/tv_menu_desc"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="메뉴 이름"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="#212529"
-                android:maxLines="1"
+                android:text="메뉴 설명"
+                android:textSize="13sp"
+                android:textColor="#868E96"
+                android:layout_marginTop="4dp"
+                android:maxLines="2"
                 android:ellipsize="end"/>
 
             <TextView
-                android:id="@+id/tv_menu_soldout"
+                android:id="@+id/tv_menu_price"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="품절"
-                android:textSize="11sp"
-                android:textColor="#FFFFFF"
-                android:background="#E03131"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:visibility="gone"/>
+                android:text="12,000원"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:textColor="#212529"
+                android:layout_marginTop="8dp"/>
 
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tv_menu_desc"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="메뉴 설명"
-            android:textSize="13sp"
-            android:textColor="#868E96"
-            android:layout_marginTop="4dp"
-            android:maxLines="2"
-            android:ellipsize="end"/>
+        <!-- 메뉴 사진 (오른쪽) -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:layout_marginStart="14dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp">
 
-        <TextView
-            android:id="@+id/tv_menu_price"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="12,000원"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:textColor="#212529"
-            android:layout_marginTop="8dp"/>
+            <ImageView
+                android:id="@+id/iv_menu_thumb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="메뉴 사진"
+                android:src="@drawable/ic_image_placeholder"/>
+
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 

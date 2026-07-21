@@ -54,7 +54,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:text="배송지 추가"
-        android:backgroundTint="#5C2D91"
+        android:backgroundTint="@color/coral_primary"
         android:textColor="#FFFFFF" />
 
 </LinearLayout>

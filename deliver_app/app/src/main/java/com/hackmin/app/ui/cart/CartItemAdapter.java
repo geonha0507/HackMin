@@ -7,6 +7,7 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import androidx.annotation.NonNull;
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.cart.CartItemDto;
+import com.hackmin.app.util.CartRules;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,6 +71,10 @@ public class CartItemAdapter extends RecyclerView.Adapter<CartItemAdapter.CartVi
         holder.tvQuantity.setText(String.valueOf(item.getQuantity()));
 
         holder.btnIncrease.setOnClickListener(v -> {
+            if (item.getQuantity() >= CartRules.MAX_ITEM_QUANTITY) {
+                Toast.makeText(v.getContext(), CartRules.MAX_QUANTITY_MESSAGE, Toast.LENGTH_SHORT).show();
+                return;
+            }
             int newQty = item.getQuantity() + 1;
             holder.tvQuantity.setText(String.valueOf(newQty)); // 낙관적 표시, 서버 응답으로 최종 동기화
             listener.onQuantityChanged(item.getId(), newQty);
