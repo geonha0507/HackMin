@@ -30,7 +30,7 @@
     <div class="row">
       <div class="field" style="flex:1">
         <label>가격(원)</label>
-        <input type="number" name="price" min="0" value="{{ menu.price|default:0 }}">
+        <input type="number" name="price" min="0" max="10000000" value="{{ menu.price|default:0 }}">
       </div>
       <div class="field" style="flex:1">
         <label>상태</label>

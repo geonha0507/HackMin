@@ -17,6 +17,9 @@ SALES_STATUSES = ('placed', 'accepted', 'cooking', 'cooked', 'delivering', 'deli
 ORDER_STATUS_LABELS = dict(Order.Status.choices)
 MENU_STATUS_LABELS = dict(Menu.Status.choices)
 
+# 상품 가격 상한선. 비정상적으로 큰 숫자 입력(정수 오버플로우 등)을 막는다.
+MAX_MENU_PRICE = 10_000_000
+
 def _owned_restaurants(user):
     return Restaurant.objects.filter(owner=user)
 
@@ -114,11 +117,16 @@ def product_form(request, pk=None):
         if category_id:
             category = MenuCategory.objects.filter(pk=category_id, restaurant=restaurant).first()
         name = request.POST.get('name', '').strip()
-        price = int(request.POST.get('price') or 0)
+        try:
+            price = int(request.POST.get('price') or 0)
+        except (TypeError, ValueError):
+            price = -1
         description = request.POST.get('description', '').strip()
         status = request.POST.get('status', 'on_sale')
         if not name:
             messages.error(request, '상품명을 입력하세요.')
+        elif price < 0 or price > MAX_MENU_PRICE:
+            messages.error(request, f'가격은 0원 이상 {MAX_MENU_PRICE:,}원 이하로 입력하세요.')
         else:
             if menu is None:
                 menu = Menu(restaurant=restaurant)
