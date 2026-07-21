@@ -40,6 +40,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.notice.NoticeActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.mypage.MyPageActivity"
             android:exported="false" />
 

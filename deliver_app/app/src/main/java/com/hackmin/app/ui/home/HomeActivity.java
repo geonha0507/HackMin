@@ -21,6 +21,7 @@ import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
 import com.hackmin.app.ui.mypage.MyPageActivity;
+import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.ui.restaurant.RestaurantDetailActivity;
 
 import java.util.List;
@@ -50,8 +51,13 @@ public class HomeActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tv_empty);
 
         // 상단 아이콘 버튼
+        ImageButton btnNotification = findViewById(R.id.btn_notification);
         ImageButton btnCart = findViewById(R.id.btn_cart);
         ImageButton btnMypage = findViewById(R.id.btn_mypage);
+        if (btnNotification != null) {
+            btnNotification.setOnClickListener(v ->
+                    startActivity(new Intent(this, NoticeActivity.class)));
+        }
         if (btnCart != null) {
             btnCart.setOnClickListener(v ->
                     startActivity(new Intent(this, CartActivity.class)));
