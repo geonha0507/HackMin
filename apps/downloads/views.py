@@ -1,6 +1,6 @@
 """File download endpoints (/api/v1/downloads) — File Download 실습 대상.
 
-🎯 주요 취약점:
+주요 취약점:
 - attachment: Path Traversal (사용자 입력 경로를 검증 없이 파일 시스템 접근)
 - 나머지: IDOR (소유권 검증 없이 타인의 문서 다운로드)
 """
@@ -15,7 +15,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.mode import is_vulnerable
 from orders.models import Order
 from restaurants.models import Restaurant
 
@@ -29,9 +28,7 @@ def _text_download(filename, body):
 
 
 def _order_for(request, order_id):
-    """Secure: 본인 주문 또는 본인 매장 주문. Vulnerable: 임의 주문(IDOR)."""
-    if is_vulnerable(request):
-        return Order.objects.filter(pk=order_id).first()
+    """Secure: 본인 주문 또는 본인 매장 주문."""
     user = request.user
     return Order.objects.filter(pk=order_id).filter(
         Q(user=user) | Q(restaurant__owner=user)
@@ -41,7 +38,7 @@ def _order_for(request, order_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def receipt(request, order_id):
-    """🎯 영수증 다운로드. Vulnerable 모드는 IDOR로 타인 영수증 열람."""
+    """영수증 다운로드."""
     order = _order_for(request, order_id)
     if not order:
         return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
@@ -62,13 +59,10 @@ def receipt(request, order_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_history(request, pk):
-    """🎯 주문 내역 다운로드. Vulnerable 모드는 IDOR로 타 사용자 내역 열람."""
-    if is_vulnerable(request):
-        orders = Order.objects.filter(user_id=pk)
-    else:
-        if str(request.user.id) != str(pk):
-            return error_response('forbidden', '본인 주문 내역만 다운로드할 수 있습니다.', 403)
-        orders = Order.objects.filter(user_id=pk)
+    """주문 내역 다운로드."""
+    if str(request.user.id) != str(pk):
+        return error_response('forbidden', '본인 주문 내역만 다운로드할 수 있습니다.', 403)
+    orders = Order.objects.filter(user_id=pk)
     lines = ['=== 주문 내역 ===']
     for o in orders.order_by('-created_at'):
         lines.append(f'{o.created_at:%Y-%m-%d} {o.order_number} {o.status} {o.total}원')
@@ -78,11 +72,8 @@ def order_history(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def sales_report(request, pk):
-    """🎯 매출 보고서 다운로드(점주). Vulnerable 모드는 IDOR로 타 매장 매출 열람."""
-    if is_vulnerable(request):
-        restaurant = Restaurant.objects.filter(pk=pk).first()
-    else:
-        restaurant = Restaurant.objects.filter(pk=pk, owner=request.user).first()
+    """매출 보고서 다운로드(점주)."""
+    restaurant = Restaurant.objects.filter(pk=pk, owner=request.user).first()
     if not restaurant:
         return error_response('not_found', '매장을 찾을 수 없습니다.', 404)
     orders = Order.objects.filter(restaurant=restaurant)
@@ -98,10 +89,10 @@ def sales_report(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def business_license(request, pk):
-    """🎯 사업자등록증 다운로드(점주/관리자). Vulnerable 모드는 IDOR로 타 매장 문서 열람."""
+    """사업자등록증 다운로드(점주/관리자)."""
     user = request.user
     is_admin = getattr(user, 'role', None) == 'admin' or user.is_staff
-    if is_vulnerable(request) or is_admin:
+    if is_admin:
         restaurant = Restaurant.objects.filter(pk=pk).first()
     else:
         restaurant = Restaurant.objects.filter(pk=pk, owner=user).first()
@@ -113,20 +104,11 @@ def business_license(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def attachment(request, pk):
-    """🎯 첨부파일 다운로드 — Path Traversal 실습.
+    """첨부파일 다운로드 — Path Traversal 실습.
 
-    Vulnerable 모드: ?name= 값을 검증 없이 파일 경로로 사용 →
-    예) ?name=../../../../etc/passwd 로 임의 파일 열람 가능.
     Secure 모드: 파일명 정규화 후 지정 디렉터리 밖 접근을 차단한다.
     """
     name = request.query_params.get('name', str(pk))
-
-    if is_vulnerable(request):
-        # VULNERABLE: 사용자 입력 경로를 그대로 결합.
-        target = os.path.join(ATTACHMENT_ROOT, name)
-        if not os.path.isfile(target):
-            return error_response('not_found', f'파일을 찾을 수 없습니다: {target}', 404)
-        return FileResponse(open(target, 'rb'), as_attachment=True)
 
     # SECURE: basename만 사용하고 정규화된 경로가 기준 디렉터리 내부인지 확인.
     safe_name = os.path.basename(name)

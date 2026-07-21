@@ -51,15 +51,14 @@ public final class ApiClient {
     }
 
     public static synchronized Retrofit getRetrofit(
-            HackminModeInterceptor.ModeProvider modeProvider,
-            HackminModeInterceptor.TokenProvider tokenProvider
+            AuthInterceptor.TokenProvider tokenProvider
     ) {
         if (retrofit == null) {
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
-                    .addInterceptor(new HackminModeInterceptor(modeProvider, tokenProvider))
+                    .addInterceptor(new AuthInterceptor(tokenProvider))
                     .addInterceptor(logging)
                     .connectTimeout(15, TimeUnit.SECONDS)
                     .readTimeout(15, TimeUnit.SECONDS)
@@ -77,15 +76,15 @@ public final class ApiClient {
     // ══════════════════════════════════════════════════════════════
     //  Context 기반 편의 메서드 (권장)
     //
-    //  각 화면에서 ModeProvider/TokenProvider 람다를 직접 만들 필요 없이
-    //  Context만 넘기면 SessionManager 싱글톤이 토큰/모드를 자동으로 주입한다.
+    //  각 화면에서 TokenProvider 람다를 직접 만들 필요 없이
+    //  Context만 넘기면 SessionManager 싱글톤이 토큰을 자동으로 주입한다.
     //    예) ApiClient.restaurantApi(this).searchRestaurants(...)
     // ══════════════════════════════════════════════════════════════
 
     /** 임의의 Retrofit 서비스를 SessionManager 기반으로 생성한다. */
     public static <T> T api(Context context, Class<T> service) {
         SessionManager session = SessionManager.getInstance(context);
-        return getRetrofit(session, session).create(service);
+        return getRetrofit(session).create(service);
     }
 
     public static AuthApi authApi(Context context) { return api(context, AuthApi.class); }
@@ -119,104 +118,90 @@ public final class ApiClient {
     public static DownloadApi downloadApi(Context context) { return api(context, DownloadApi.class); }
 
     // ══════════════════════════════════════════════════════════════
-    //  레거시: ModeProvider/TokenProvider 직접 주입 방식 (하위 호환용)
+    //  레거시: TokenProvider 직접 주입 방식 (하위 호환용)
     // ══════════════════════════════════════════════════════════════
 
     // ── 인증 ──
     public static AuthApi authApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(AuthApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(AuthApi.class);
     }
 
     // ── 사용자 (내 정보) ──
     public static UserApi userApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(UserApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(UserApi.class);
     }
 
     // ── 음식점 / 메뉴 ──
     public static RestaurantApi restaurantApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(RestaurantApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(RestaurantApi.class);
     }
 
     // ── 위치 ──
     public static LocationApi locationApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(LocationApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(LocationApi.class);
     }
 
     // ── 장바구니 ──
     public static CartApi cartApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(CartApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(CartApi.class);
     }
 
     // ── 주문 ──
     public static OrderApi orderApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(OrderApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(OrderApi.class);
     }
 
     // ── 결제 ──
     public static PaymentApi paymentApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(PaymentApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(PaymentApi.class);
     }
 
     // ── 리뷰 ──
     public static ReviewApi reviewApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(ReviewApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(ReviewApi.class);
     }
 
     // ── 프로모션 (쿠폰/찜/멤버십) ──
     public static PromotionApi promotionApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(PromotionApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(PromotionApi.class);
     }
 
     // ── 챗봇 ──
     public static ChatbotApi chatbotApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(ChatbotApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(ChatbotApi.class);
     }
 
     // ── 사장님 ──
     public static OwnerApi ownerApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(OwnerApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(OwnerApi.class);
     }
 
     // ── 관리자 ──
     public static AdminApi adminApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(AdminApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(AdminApi.class);
     }
 
     // ── 라이더 ──
     public static RiderApi riderApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(RiderApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(RiderApi.class);
     }
 
     // ── 다운로드 ──
     public static DownloadApi downloadApi(
-            HackminModeInterceptor.ModeProvider mp,
-            HackminModeInterceptor.TokenProvider tp) {
-        return getRetrofit(mp, tp).create(DownloadApi.class);
+            AuthInterceptor.TokenProvider tp) {
+        return getRetrofit(tp).create(DownloadApi.class);
     }
 }

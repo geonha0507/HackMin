@@ -8,12 +8,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from orders.models import Order
 from restaurants.models import Menu, MenuCategory, Restaurant
+from restaurants.selectors import owned_restaurant_ids, owned_restaurants
 from reviews.models import Review, ReviewReply
 
 from ..decorators import owner_required
 
 # 매출 집계 대상 상태
-SALES_STATUSES = ('placed', 'accepted', 'cooking', 'cooked', 'delivering', 'delivered')
+SALES_STATUSES = (
+    Order.Status.PLACED, Order.Status.ACCEPTED, Order.Status.COOKING,
+    Order.Status.COOKED, Order.Status.DELIVERING, Order.Status.DELIVERED,
+)
 ORDER_STATUS_LABELS = dict(Order.Status.choices)
 MENU_STATUS_LABELS = dict(Menu.Status.choices)
 
@@ -21,11 +25,11 @@ MENU_STATUS_LABELS = dict(Menu.Status.choices)
 MAX_MENU_PRICE = 10_000_000
 
 def _owned_restaurants(user):
-    return Restaurant.objects.filter(owner=user)
+    return owned_restaurants(user)
 
 
 def _owned_ids(user):
-    return list(_owned_restaurants(user).values_list('id', flat=True))
+    return owned_restaurant_ids(user)
 
 
 @owner_required
@@ -37,8 +41,10 @@ def dashboard(request):
     sales_qs = orders.filter(status__in=SALES_STATUSES)
     ctx = {
         'restaurants': _owned_restaurants(request.user),
-        'pending_count': orders.filter(status='placed').count(),
-        'cooking_count': orders.filter(status__in=('accepted', 'cooking', 'cooked')).count(),
+        'pending_count': orders.filter(status=Order.Status.PLACED).count(),
+        'cooking_count': orders.filter(
+            status__in=(Order.Status.ACCEPTED, Order.Status.COOKING, Order.Status.COOKED)
+        ).count(),
         'today_order_count': today_orders.count(),
         'today_sales': today_orders.filter(status__in=SALES_STATUSES).aggregate(s=Sum('total'))['s'] or 0,
         'total_sales': sales_qs.aggregate(s=Sum('total'))['s'] or 0,
@@ -73,16 +79,16 @@ def order_detail(request, pk):
     )
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action == 'accept' and order.status == 'placed':
-            order.status = 'accepted'
-        elif action == 'reject' and order.status == 'placed':
-            order.status = 'rejected'
+        if action == 'accept' and order.status == Order.Status.PLACED:
+            order.status = Order.Status.ACCEPTED
+        elif action == 'reject' and order.status == Order.Status.PLACED:
+            order.status = Order.Status.REJECTED
         elif action == 'status':
             new_status = request.POST.get('status')
             if new_status in dict(Order.Status.choices):
                 order.status = new_status
         elif action == 'cancel':
-            order.status = 'cancelled'
+            order.status = Order.Status.CANCELLED
         order.save(update_fields=['status', 'updated_at'])
         messages.success(request, '주문 상태를 변경했습니다.')
         return redirect('web:owner_order_detail', pk=pk)
@@ -122,7 +128,7 @@ def product_form(request, pk=None):
         except (TypeError, ValueError):
             price = -1
         description = request.POST.get('description', '').strip()
-        status = request.POST.get('status', 'on_sale')
+        status = request.POST.get('status', Menu.Status.ON_SALE)
         if not name:
             messages.error(request, '상품명을 입력하세요.')
         elif price < 0 or price > MAX_MENU_PRICE:
@@ -135,7 +141,7 @@ def product_form(request, pk=None):
             menu.name = name
             menu.price = price
             menu.description = description
-            menu.status = status if status in MENU_STATUS_LABELS else 'on_sale'
+            menu.status = status if status in MENU_STATUS_LABELS else Menu.Status.ON_SALE
             if request.FILES.get('image'):
                 menu.image = request.FILES['image']
             menu.save()
