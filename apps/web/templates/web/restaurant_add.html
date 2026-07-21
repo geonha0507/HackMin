@@ -72,11 +72,11 @@
     <div class="row">
       <div class="field" style="flex:1">
         <label>최소주문금액</label>
-        <input type="number" name="min_order_amount" value="{{ form.min_order_amount|default:0 }}" min="0">
+        <input type="number" name="min_order_amount" value="{{ form.min_order_amount|default:0 }}" min="0" max="1000000">
       </div>
       <div class="field" style="flex:1">
         <label>배달비</label>
-        <input type="number" name="delivery_fee" value="{{ form.delivery_fee|default:0 }}" min="0">
+        <input type="number" name="delivery_fee" value="{{ form.delivery_fee|default:0 }}" min="0" max="100000">
       </div>
     </div>
     <div class="field">
