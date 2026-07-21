@@ -7,7 +7,13 @@ from django.conf import settings
 
 class EnrollmentRequest(models.Model):
     """입점 요청 (Owner → Admin 승인 대기)."""
-    
+    restaurant = models.OneToOneField(
+        'restaurants.Restaurant',
+        on_delete=models.CASCADE,
+        related_name='enrollment_request',
+        null=True,
+        blank=True,
+    )
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('approved', 'Approved'),
