@@ -283,6 +283,6 @@ def review_list(request):
     reviews = (
         Review.objects.filter(restaurant_id__in=ids)
         .select_related('restaurant', 'user')
-        .prefetch_related('reply')
+        .prefetch_related('reply', 'images')
     )
     return render(request, 'web/owner/reviews.html', {'reviews': reviews})
