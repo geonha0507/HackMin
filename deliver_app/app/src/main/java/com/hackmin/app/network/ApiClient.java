@@ -13,6 +13,7 @@ import com.hackmin.app.data.api.CartApi;
 import com.hackmin.app.data.api.ChatbotApi;
 import com.hackmin.app.data.api.DownloadApi;
 import com.hackmin.app.data.api.LocationApi;
+import com.hackmin.app.data.api.NoticeApi;
 import com.hackmin.app.data.api.OrderApi;
 import com.hackmin.app.data.api.OwnerApi;
 import com.hackmin.app.data.api.PaymentApi;
@@ -98,6 +99,8 @@ public final class ApiClient {
     public static CartApi cartApi(Context context) { return api(context, CartApi.class); }
 
     public static OrderApi orderApi(Context context) { return api(context, OrderApi.class); }
+
+    public static NoticeApi noticeApi(Context context) { return api(context, NoticeApi.class); }
 
     public static PaymentApi paymentApi(Context context) { return api(context, PaymentApi.class); }
 
