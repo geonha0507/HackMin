@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -28,6 +29,7 @@ import com.hackmin.app.data.model.restaurant.MenuOptionGroupDto;
 import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
+import com.hackmin.app.util.ImageLoader;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -47,6 +49,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private boolean isOpen = true;
 
     private TextView tvName, tvCuisine, tvMeta, tvAddress;
+    private ImageView ivImage;
     private RecyclerView rvMenus;
     private ProgressBar pbLoading;
     private MenuAdapter adapter;
@@ -69,6 +72,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         tvCuisine = findViewById(R.id.tv_detail_cuisine);
         tvMeta = findViewById(R.id.tv_detail_meta);
         tvAddress = findViewById(R.id.tv_detail_address);
+        ivImage = findViewById(R.id.iv_detail_image);
         rvMenus = findViewById(R.id.rv_menus);
         pbLoading = findViewById(R.id.pb_detail_loading);
 
@@ -119,6 +123,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                 + " · 최소주문 " + won.format(r.getMinOrderAmount()) + "원");
         String addr = r.getAddress();
         tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
+        ImageLoader.load(ivImage, r.getImage());
         isOpen = r.isOpen();
         if (!isOpen) {
             tvName.setText(r.getName() + " (영업종료)");

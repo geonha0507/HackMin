@@ -39,6 +39,16 @@ public final class ApiClient {
 
     private ApiClient() {}
 
+    /**
+     * 이미지 등 미디어 절대경로 구성을 위한 서버 오리진(scheme+host+port).
+     * BASE_URL에서 "/api/..." 앞부분만 잘라낸다. 예) http://54.116.95.188:8000
+     * 서버가 상대경로(/media/...)를 줄 때 이 값을 앞에 붙여 절대 URL을 만든다.
+     */
+    public static String mediaBaseUrl() {
+        int idx = BASE_URL.indexOf("/api/");
+        return idx > 0 ? BASE_URL.substring(0, idx) : BASE_URL;
+    }
+
     public static synchronized Retrofit getRetrofit(
             HackminModeInterceptor.ModeProvider modeProvider,
             HackminModeInterceptor.TokenProvider tokenProvider

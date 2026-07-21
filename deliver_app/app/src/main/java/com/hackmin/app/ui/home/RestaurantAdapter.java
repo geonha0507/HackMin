@@ -3,6 +3,7 @@ package com.hackmin.app.ui.home;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
+import com.hackmin.app.util.ImageLoader;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -63,6 +65,8 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.VH
 
         h.closed.setVisibility(r.isOpen() ? View.GONE : View.VISIBLE);
 
+        ImageLoader.load(h.thumb, r.getImage());
+
         h.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onClick(r);
@@ -77,6 +81,7 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.VH
 
     static class VH extends RecyclerView.ViewHolder {
         final TextView name, cuisine, meta, closed;
+        final ImageView thumb;
 
         VH(@NonNull View v) {
             super(v);
@@ -84,6 +89,7 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.VH
             cuisine = v.findViewById(R.id.tv_item_cuisine);
             meta = v.findViewById(R.id.tv_item_meta);
             closed = v.findViewById(R.id.tv_item_closed);
+            thumb = v.findViewById(R.id.iv_item_thumb);
         }
     }
 }
