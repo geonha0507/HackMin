@@ -13,6 +13,14 @@ def business_license_upload_to(instance, filename):
 
     return f'licenses/{now:%Y/%m}/{file_id}{extension}'
 
+
+def restaurant_image_upload_to(instance, filename):
+    extension = Path(filename).suffix.lower()
+    file_id = uuid4().hex
+    now = timezone.now()
+
+    return f'restaurants/{now:%Y/%m}/{file_id}{extension}'
+
 class Restaurant(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -29,6 +37,12 @@ class Restaurant(models.Model):
     delivery_fee = models.PositiveIntegerField(default=0)
     rating = models.FloatField(default=0.0)
     is_open = models.BooleanField(default=True)
+    # 음식점 대표 이미지(점주 웹에서 업로드). 앱 목록/상세에서 표시.
+    image = models.ImageField(
+        upload_to=restaurant_image_upload_to,
+        null=True,
+        blank=True,
+    )
     business_license = models.FileField(
         upload_to=business_license_upload_to,
         null=True,

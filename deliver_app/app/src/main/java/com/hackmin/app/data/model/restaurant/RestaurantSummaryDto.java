@@ -22,6 +22,10 @@ public class RestaurantSummaryDto {
     @SerializedName("rating")
     private double rating;
 
+    // 음식점 대표 이미지 URL(절대/상대). 백엔드에 필드가 아직 없으면 null.
+    @SerializedName("image")
+    private String image;
+
     @SerializedName("min_order_amount")
     private long minOrderAmount;
 
@@ -41,6 +45,7 @@ public class RestaurantSummaryDto {
     public String getName() { return name; }
     public String getCuisineType() { return cuisineType; }
     public double getRating() { return rating; }
+    public String getImage() { return image; }
     public long getMinOrderAmount() { return minOrderAmount; }
     public long getDeliveryFee() { return deliveryFee; }
     public boolean isOpen() { return open; }

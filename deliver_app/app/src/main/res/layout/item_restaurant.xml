@@ -17,7 +17,7 @@
         android:orientation="horizontal"
         android:padding="16dp">
 
-        <!-- 썸네일 자리(음식점 이미지 필드가 백엔드에 없어 이모지 플레이스홀더) -->
+        <!-- 음식점 썸네일 (image URL을 Glide로 로드, 없으면 placeholder) -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="64dp"
             android:layout_height="64dp"
@@ -25,12 +25,13 @@
             app:cardElevation="0dp"
             app:cardBackgroundColor="#F1F3F5">
 
-            <TextView
+            <ImageView
+                android:id="@+id/iv_item_thumb"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:text="🍽️"
-                android:textSize="28sp"
-                android:gravity="center"/>
+                android:scaleType="centerCrop"
+                android:contentDescription="음식점 사진"
+                android:src="@drawable/ic_image_placeholder"/>
 
         </com.google.android.material.card.MaterialCardView>
 

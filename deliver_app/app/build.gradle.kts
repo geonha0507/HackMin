@@ -45,6 +45,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Image loading (review photos from S3)
+    // 이미지 로딩 (음식점/메뉴 사진)
     implementation("com.github.bumptech.glide:glide:4.16.0")
 // Testing (unit tests, run on JVM, no emulator needed)
     testImplementation("junit:junit:4.13.2")

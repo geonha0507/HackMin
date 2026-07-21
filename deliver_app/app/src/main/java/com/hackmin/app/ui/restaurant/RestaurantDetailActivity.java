@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -29,6 +30,7 @@ import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
 import com.hackmin.app.data.model.restaurant.RestaurantReviewDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
+import com.hackmin.app.util.ImageLoader;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private String restaurantName;
 
     private TextView tvName, tvCuisine, tvMeta, tvAddress;
+    private ImageView ivImage;
     private RecyclerView rvMenus;
     private ProgressBar pbLoading;
     private MenuAdapter adapter;
@@ -74,6 +77,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         tvCuisine = findViewById(R.id.tv_detail_cuisine);
         tvMeta = findViewById(R.id.tv_detail_meta);
         tvAddress = findViewById(R.id.tv_detail_address);
+        ivImage = findViewById(R.id.iv_detail_image);
         rvMenus = findViewById(R.id.rv_menus);
         pbLoading = findViewById(R.id.pb_detail_loading);
 
@@ -126,6 +130,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         tvCuisine.setText(cuisine == null || cuisine.isEmpty() ? "음식점" : cuisine);
         String addr = r.getAddress();
         tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
+        ImageLoader.load(ivImage, r.getImage());
         isOpen = r.isOpen();
         tvName.setText(isOpen ? r.getName() : (r.getName() + " (영업종료)"));
         updateMeta();
@@ -319,14 +324,45 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
                     promptGoToCart();
                 } else if (response.code() == 409) {
-                    Toast.makeText(RestaurantDetailActivity.this,
-                            "다른 음식점의 메뉴는 함께 담을 수 없습니다.", Toast.LENGTH_LONG).show();
+                    // 다른 음식점 메뉴가 담겨 있음 → 비우고 교체할지 확인.
+                    promptReplaceCart(menuId, optionIds, quantity);
                 } else if (response.code() == 401) {
                     Toast.makeText(RestaurantDetailActivity.this,
                             "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(RestaurantDetailActivity.this,
                             "장바구니 담기에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<CartDto> call, Throwable t) {
+                Toast.makeText(RestaurantDetailActivity.this,
+                        "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /** 다른 음식점 메뉴 충돌(409) 시 교체 여부 확인. */
+    private void promptReplaceCart(long menuId, List<Integer> optionIds, int quantity) {
+        new AlertDialog.Builder(this)
+                .setTitle("장바구니 교체")
+                .setMessage("장바구니에 다른 음식점의 메뉴가 담겨 있습니다.\n기존 장바구니를 비우고 새로 담을까요?")
+                .setPositiveButton("비우고 담기", (d, w) -> clearCartThenAdd(menuId, optionIds, quantity))
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    /** 장바구니를 비운 뒤(DELETE /cart) 같은 메뉴를 다시 담는다. */
+    private void clearCartThenAdd(long menuId, List<Integer> optionIds, int quantity) {
+        ApiClient.cartApi(this).clearCart().enqueue(new Callback<CartDto>() {
+            @Override
+            public void onResponse(Call<CartDto> call, Response<CartDto> response) {
+                if (response.isSuccessful()) {
+                    addToCart(menuId, optionIds, quantity); // 비운 뒤 재담기(이제 충돌 없음)
+                } else {
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            "장바구니 비우기에 실패했습니다.", Toast.LENGTH_SHORT).show();
                 }
             }
 
