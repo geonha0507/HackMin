@@ -25,6 +25,10 @@ EDITABLE_FIELDS = [
 
 CUISINE_PRESETS = ['한식', '중식', '양식', '일식', '분식', '치킨', '피자', '햄버거', '카페/디저트', '아시안']
 
+# 최소주문금액/배달비 상한선. 비정상적으로 큰 숫자 입력(정수 오버플로우 등)을 막는다.
+MAX_MIN_ORDER_AMOUNT = 1_000_000
+MAX_DELIVERY_FEE = 100_000
+
 
 def _split_cuisines(cuisine_type):
     return [c.strip() for c in cuisine_type.split(',') if c.strip()]
@@ -36,6 +40,11 @@ def _parse_form(post):
         delivery_fee = int(post.get('delivery_fee', '0') or 0)
     except (TypeError, ValueError):
         min_order_amount = delivery_fee = -1
+    else:
+        if not (0 <= min_order_amount <= MAX_MIN_ORDER_AMOUNT):
+            min_order_amount = -1
+        if not (0 <= delivery_fee <= MAX_DELIVERY_FEE):
+            delivery_fee = -1
 
     checked = post.getlist('cuisine_type')
     custom = [c.strip() for c in post.getlist('custom_cuisine') if c.strip()]
@@ -98,7 +107,11 @@ def my_restaurant(request):
             if not proposed['name']:
                 messages.error(request, '매장명은 필수입니다.')
             elif proposed['min_order_amount'] < 0 or proposed['delivery_fee'] < 0:
-                messages.error(request, '최소주문금액/배달비는 0 이상의 숫자여야 합니다.')
+                messages.error(
+                    request,
+                    f'최소주문금액은 0~{MAX_MIN_ORDER_AMOUNT:,}원, '
+                    f'배달비는 0~{MAX_DELIVERY_FEE:,}원 사이여야 합니다.',
+                )
             else:
                 changes = {
                     field: value for field, value in proposed.items()
