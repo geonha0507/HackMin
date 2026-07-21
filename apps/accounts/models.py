@@ -6,8 +6,16 @@ class UserManager(BaseUserManager):
     def create_user(self, username, password=None, **extra):
         if not username:
             raise ValueError('username is required')
-        email = extra.pop('email', '') or ''
-        user = self.model(username=username, email=self.normalize_email(email), **extra)
+
+        raw_email = extra.pop('email', None)
+        email = self.normalize_email(raw_email) if raw_email else None
+
+        user = self.model(
+            username=username,
+            email=email,
+            **extra,
+        )
+
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -33,7 +41,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         WITHDRAWN = 'withdrawn', 'Withdrawn'
 
     username = models.CharField(max_length=64, unique=True)
-    email = models.EmailField(blank=True)
+    email = models.EmailField(
+        blank=True,
+        null=True,
+        unique=True,
+    )
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
