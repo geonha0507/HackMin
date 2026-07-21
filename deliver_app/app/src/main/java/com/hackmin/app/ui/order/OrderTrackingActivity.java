@@ -15,6 +15,7 @@ import com.hackmin.app.data.model.order.OrderDto;
 import com.hackmin.app.data.model.order.OrderItemDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.home.HomeActivity;
+import com.hackmin.app.ui.review.WriteReviewActivity;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -29,12 +30,16 @@ public class OrderTrackingActivity extends AppCompatActivity {
     private long orderId = -1;
     // ===== [C] END =====
 
+    /** 리뷰 작성 진입에 필요한 식당 id / 표시용 이름 (주문 조회 후 채워짐) */
+    private long restaurantId = -1;
+    private String restaurantName;
+
     private View[] dots;
     private View[] lines;
 
     private TextView tvCurrentStatus, tvRestaurantName, tvOrderItemsSummary, tvDeliveryAddress, tvCancelledBanner;
     private View containerProgress;
-    private Button btnCancelOrder, btnGoHome;
+    private Button btnCancelOrder, btnGoHome, btnWriteReview;
     private ImageButton btnBack;
 
     /** 취소/거절 배너 문구 구분을 위해 최근 조회한 서버 상태 문자열을 보관. */
@@ -51,6 +56,7 @@ public class OrderTrackingActivity extends AppCompatActivity {
 
         btnBack.setOnClickListener(v -> finish());
         btnGoHome.setOnClickListener(v -> goHome());
+        btnWriteReview.setOnClickListener(v -> goWriteReview());
 
         // ===== [C] START: 주문추적 GET /orders/{id} 연동 =====
         orderId = getIntent().getLongExtra("order_id", -1);
@@ -76,6 +82,7 @@ public class OrderTrackingActivity extends AppCompatActivity {
         tvDeliveryAddress = findViewById(R.id.tvDeliveryAddress);
         btnCancelOrder = findViewById(R.id.btnCancelOrder);
         btnGoHome = findViewById(R.id.btnGoHome);
+        btnWriteReview = findViewById(R.id.btnWriteReview);
 
         dots = new View[]{
                 findViewById(R.id.dot1), findViewById(R.id.dot2),
@@ -111,14 +118,27 @@ public class OrderTrackingActivity extends AppCompatActivity {
 
     private void bindOrder(OrderDto order) {
         // 목록 응답에 식당명이 없으므로 주문번호를 상단에 표시
-        tvRestaurantName.setText(order.getOrderNumber() != null
-                ? order.getOrderNumber() : ("주문 #" + order.getId()));
+        String title = order.getOrderNumber() != null
+                ? order.getOrderNumber() : ("주문 #" + order.getId());
+        tvRestaurantName.setText(title);
         tvOrderItemsSummary.setText(buildItemsSummary(order));
         tvDeliveryAddress.setText(buildAddress(order));
+
+        // 리뷰 작성 진입에 필요한 값 보관
+        restaurantId = order.getRestaurant() != null ? order.getRestaurant() : -1;
+        restaurantName = title;
 
         lastStatus = order.getStatus();
         currentStatusIndex = statusToIndex(order.getStatus());
         renderStatus();
+    }
+
+    private void goWriteReview() {
+        if (restaurantId < 0) {
+            Toast.makeText(this, "리뷰를 작성할 수 없는 주문입니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        startActivity(WriteReviewActivity.newIntent(this, restaurantId, orderId, restaurantName));
     }
 
     private void goHome() {
@@ -195,6 +215,7 @@ public class OrderTrackingActivity extends AppCompatActivity {
             tvCancelledBanner.setVisibility(View.VISIBLE);
             containerProgress.setVisibility(View.GONE);
             btnCancelOrder.setVisibility(View.GONE);
+            btnWriteReview.setVisibility(View.GONE);
             return;
         }
 
@@ -207,16 +228,19 @@ public class OrderTrackingActivity extends AppCompatActivity {
 
         for (int i = 0; i < dots.length; i++) {
             dots[i].setBackgroundColor(i <= currentStatusIndex
-                    ? 0xFF5C2D91 // 진행된 단계: 보라색
+                    ? 0xFFFF6F61 // 진행된 단계: 보라색
                     : 0xFFBDBDBD); // 아직 안된 단계: 회색
         }
         for (int i = 0; i < lines.length; i++) {
             lines[i].setBackgroundColor(i < currentStatusIndex
-                    ? 0xFF5C2D91
+                    ? 0xFFFF6F61
                     : 0xFFBDBDBD);
         }
 
         // 배달중(3) 이후로는 취소 불가 처리 (배달완료 포함)
         btnCancelOrder.setVisibility(currentStatusIndex >= 3 ? View.GONE : View.VISIBLE);
+
+        // 배달완료(4)일 때만 리뷰 쓰기 노출
+        btnWriteReview.setVisibility(currentStatusIndex == 4 ? View.VISIBLE : View.GONE);
     }
 }

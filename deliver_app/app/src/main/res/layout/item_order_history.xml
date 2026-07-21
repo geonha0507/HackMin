@@ -40,6 +40,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:textColor="#5C2D91" />
+            android:textColor="@color/coral_primary" />
     </LinearLayout>
 </LinearLayout>

@@ -26,6 +26,7 @@ import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.MenuOptionDto;
 import com.hackmin.app.data.model.restaurant.MenuOptionGroupDto;
 import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
+import com.hackmin.app.data.model.restaurant.RestaurantReviewDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
 
@@ -45,6 +46,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
 
     private long restaurantId;
     private boolean isOpen = true;
+    private String restaurantName;
 
     private TextView tvName, tvCuisine, tvMeta, tvAddress;
     private RecyclerView rvMenus;
@@ -52,6 +54,9 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private MenuAdapter adapter;
 
     private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
+
+    private RestaurantDetailDto detail;
+    private Double reviewAvg;   // 리뷰 평균(있으면 헤더 별점에 우선 반영)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,11 +81,14 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         String presetName = getIntent().getStringExtra(EXTRA_RESTAURANT_NAME);
         if (presetName != null) {
             tvName.setText(presetName);
+            restaurantName = presetName;
         }
 
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
         findViewById(R.id.btn_detail_cart).setOnClickListener(v ->
                 startActivity(new Intent(this, CartActivity.class)));
+        findViewById(R.id.btn_view_reviews).setOnClickListener(v ->
+                startActivity(RestaurantReviewsActivity.newIntent(this, restaurantId, restaurantName)));
 
         adapter = new MenuAdapter(this::onMenuClicked);
         rvMenus.setLayoutManager(new LinearLayoutManager(this));
@@ -88,6 +96,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
 
         loadDetail();
         loadMenus();
+        loadReviewAverage();
     }
 
     // ── 음식점 상세 헤더 ──────────────────────────────────
@@ -111,18 +120,47 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     }
 
     private void bindHeader(RestaurantDetailDto r) {
-        tvName.setText(r.getName());
+        detail = r;
+        restaurantName = r.getName();
         String cuisine = r.getCuisineType();
         tvCuisine.setText(cuisine == null || cuisine.isEmpty() ? "음식점" : cuisine);
-        tvMeta.setText("⭐ " + String.format(Locale.KOREA, "%.1f", r.getRating())
-                + " · 배달비 " + won.format(r.getDeliveryFee()) + "원"
-                + " · 최소주문 " + won.format(r.getMinOrderAmount()) + "원");
         String addr = r.getAddress();
         tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
         isOpen = r.isOpen();
-        if (!isOpen) {
-            tvName.setText(r.getName() + " (영업종료)");
-        }
+        tvName.setText(isOpen ? r.getName() : (r.getName() + " (영업종료)"));
+        updateMeta();
+    }
+
+    /** 별점은 리뷰 평균(reviewAvg)이 있으면 그것을, 없으면 서버 값을 사용한다. */
+    private void updateMeta() {
+        if (detail == null) return;
+        double rating = reviewAvg != null ? reviewAvg : detail.getRating();
+        tvMeta.setText("⭐ " + String.format(Locale.KOREA, "%.1f", rating)
+                + " · 배달비 " + won.format(detail.getDeliveryFee()) + "원"
+                + " · 최소주문 " + won.format(detail.getMinOrderAmount()) + "원");
+    }
+
+    /** 리뷰 평균을 계산해 헤더 별점에 반영한다(서버 rating이 리뷰와 분리돼 있어 보정). */
+    private void loadReviewAverage() {
+        ApiClient.restaurantApi(this).getRestaurantReviews(restaurantId, null)
+                .enqueue(new Callback<PagedResponse<RestaurantReviewDto>>() {
+                    @Override
+                    public void onResponse(Call<PagedResponse<RestaurantReviewDto>> call,
+                                           Response<PagedResponse<RestaurantReviewDto>> response) {
+                        if (!response.isSuccessful() || response.body() == null) return;
+                        List<RestaurantReviewDto> reviews = response.body().getResults();
+                        if (reviews == null || reviews.isEmpty()) return;
+                        double sum = 0;
+                        for (RestaurantReviewDto r : reviews) sum += r.getRating();
+                        reviewAvg = sum / reviews.size();
+                        updateMeta();
+                    }
+
+                    @Override
+                    public void onFailure(Call<PagedResponse<RestaurantReviewDto>> call, Throwable t) {
+                        // 평균 보정 실패는 무시(서버 rating 그대로 표시).
+                    }
+                });
     }
 
     // ── 메뉴 목록 ────────────────────────────────────────

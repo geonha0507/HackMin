@@ -10,11 +10,11 @@ public class RestaurantReviewDto {
     @SerializedName("id")
     private long id;
 
-    @SerializedName("author_name")
+    @SerializedName("user")
     private String authorName;
 
     @SerializedName("rating")
-    private int rating;
+    private double rating;
 
     @SerializedName("content")
     private String content;
@@ -30,7 +30,7 @@ public class RestaurantReviewDto {
 
     public long getId() { return id; }
     public String getAuthorName() { return authorName; }
-    public int getRating() { return rating; }
+    public double getRating() { return rating; }
     public String getContent() { return content; }
     public List<String> getImageUrls() { return imageUrls; }
     public String getOwnerReply() { return ownerReply; }

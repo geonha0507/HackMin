@@ -60,6 +60,7 @@ public class RestaurantDetailDto {
     public long getMinOrderAmount() { return minOrderAmount; }
     public long getDeliveryFee() { return deliveryFee; }
     public double getRating() { return rating; }
+    public void setRating(double rating) { this.rating = rating; }
     public boolean isOpen() { return open; }
     public String getCreatedAt() { return createdAt; }
 }

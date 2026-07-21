@@ -137,6 +137,19 @@
             android:layout_marginTop="4dp" />
     </LinearLayout>
 
+    <!-- 리뷰 쓰기 버튼 (배달완료 시에만 보임) -->
+    <Button
+        android:id="@+id/btnWriteReview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:backgroundTint="@color/coral_primary"
+        android:text="리뷰 쓰기"
+        android:textColor="#FFFFFF"
+        android:visibility="gone" />
+
     <!-- 주문 취소 버튼 -->
     <Button
         android:id="@+id/btnCancelOrder"

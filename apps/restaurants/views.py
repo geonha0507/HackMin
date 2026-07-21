@@ -124,4 +124,8 @@ class RestaurantReviewListView(generics.ListAPIView):
 
     def get_queryset(self):
         from reviews.models import Review
-        return Review.objects.filter(restaurant_id=self.kwargs['pk']).select_related('user')
+        return (
+            Review.objects.filter(restaurant_id=self.kwargs['pk'])
+            .select_related('user', 'reply')
+            .prefetch_related('images')
+        )
