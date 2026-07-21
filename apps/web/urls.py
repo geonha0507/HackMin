@@ -16,6 +16,9 @@ urlpatterns = [
     path('me/withdraw', account.withdraw, name='withdraw'),
     path('me/restaurant', restaurant.my_restaurant, name='my_restaurant'),
     path('me/restaurant/add', restaurant.add_restaurant, name='restaurant_add'),
+    path('me/restaurant/closed-dates/add', restaurant.closed_date_add, name='closed_date_add'),
+    path('me/restaurant/closed-dates/<int:pk>/delete', restaurant.closed_date_delete, name='closed_date_delete'),
+    path('me/restaurant/regular-closed-days', restaurant.regular_closed_days_update, name='regular_closed_days_update'),
 
     # 점주
     path('owner/', owner.dashboard, name='owner_dashboard'),

@@ -123,6 +123,65 @@
   </fieldset>
 </div>
 
+<div class="panel">
+  <h2>정기휴무일</h2>
+  <p class="muted" style="margin-bottom:14px">매주 반복되는 휴무 요일을 선택하세요. 해당 요일에는 앱에서 주문을 받지 않습니다.</p>
+
+  <form method="post" action="{% url 'web:regular_closed_days_update' %}">
+    {% csrf_token %}
+    <input type="hidden" name="rid" value="{{ restaurant.id }}">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 18px;margin-bottom:14px">
+      {% for val, label in weekday_choices %}
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--ink);margin:0">
+          <input
+            type="checkbox"
+            name="weekday"
+            value="{{ val }}"
+            style="width:auto"
+            {% if val in regular_closed_weekdays %}checked{% endif %}
+          >
+          {{ label }}
+        </label>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" type="submit">정기휴무일 저장</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>휴무일</h2>
+  <p class="muted" style="margin-bottom:14px">특정 날짜를 휴무일로 등록하면 그 날에는 앱에서 주문을 받지 않습니다.</p>
+
+  <form method="post" action="{% url 'web:closed_date_add' %}" class="row" style="margin-bottom:16px">
+    {% csrf_token %}
+    <input type="hidden" name="rid" value="{{ restaurant.id }}">
+    <div>
+      <label>휴무일 추가</label>
+      <input type="date" name="date" min="{% now 'Y-m-d' %}" required>
+    </div>
+    <button class="btn btn-primary" type="submit">추가</button>
+  </form>
+
+  <table>
+    <thead><tr><th>날짜</th><th></th></tr></thead>
+    <tbody>
+    {% for cd in closed_dates %}
+      <tr>
+        <td>{{ cd.date|date:'Y-m-d (D)' }}</td>
+        <td class="right">
+          <form method="post" action="{% url 'web:closed_date_delete' cd.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('휴무일을 삭제하시겠습니까?')">삭제</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="2" class="muted">등록된 휴무일이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <div
   id="postcode-overlay"
   style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999"

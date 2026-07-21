@@ -1,5 +1,7 @@
 """Order endpoints (/api/v1/orders) and /api/v1/me/orders."""
 
+from datetime import date
+
 from django.db import transaction
 from rest_framework import generics
 from rest_framework.decorators import api_view, permission_classes
@@ -32,6 +34,15 @@ def create_order(request):
     cart = Cart.objects.filter(user=request.user).first()
     if not cart or not cart.items.exists():
         return error_response('empty_cart', '장바구니가 비어 있습니다.', 400)
+
+    if cart.restaurant:
+        today = date.today()
+        is_closed = (
+            cart.restaurant.regular_closed_days.filter(weekday=today.weekday()).exists()
+            or cart.restaurant.closed_dates.filter(date=today).exists()
+        )
+        if is_closed:
+            return error_response('restaurant_closed', '오늘은 휴무일이라 주문할 수 없습니다.', 400)
 
     totals = cart_totals(cart)
 
