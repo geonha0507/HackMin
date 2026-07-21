@@ -26,8 +26,9 @@ def mypage(request):
         nickname = request.POST.get('nickname', '').strip()
         email = request.POST.get('email', '').strip() or None
         phone = request.POST.get('phone', '').strip()
-
-        if email and not EMAIL_RE.fullmatch(email):
+        if not email:
+          messages.error(request, '이메일을 입력해주세요.')
+        elif email and not EMAIL_RE.fullmatch(email):
             messages.error(request, '올바른 이메일 형식이 아닙니다.')
 
         elif (
