@@ -5,13 +5,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0006_alter_user_email'),
+        ('accounts', '0008_populate_user_id'),
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='user',
             name='user_id',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, null=True),
+            field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
         ),
     ]
