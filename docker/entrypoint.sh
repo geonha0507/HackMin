@@ -9,7 +9,10 @@ if [ "$DB_ENGINE" = "mysql" ]; then
   echo "MySQL is up."
 fi
 
-python manage.py migrate --noinput
+if [ "$RUN_MIGRATIONS" = "1" ]; then
+  echo "Running migrations..."
+  python manage.py migrate --noinput
+fi
 
 if [ "$SEED_DEMO" = "1" ]; then
   echo "Seeding demo data..."
