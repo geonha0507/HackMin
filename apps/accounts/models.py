@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -40,12 +41,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         SUSPENDED = 'suspended', 'Suspended'
         WITHDRAWN = 'withdrawn', 'Withdrawn'
 
-    username = models.CharField(max_length=64, unique=True)
-    email = models.EmailField(
-        blank=True,
-        null=True,
+    user_id = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
         unique=True,
     )
+
+    username = models.CharField(max_length=64, unique=True)
+    email = models.EmailField(blank=True, null=True, unique=True)
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
