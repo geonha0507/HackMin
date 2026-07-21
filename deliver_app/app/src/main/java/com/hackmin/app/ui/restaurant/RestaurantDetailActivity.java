@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.cart.AddCartItemRequest;
 import com.hackmin.app.data.model.cart.CartDto;
+import com.hackmin.app.data.model.cart.CartItemDto;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.MenuOptionDto;
@@ -30,10 +31,12 @@ import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
 import com.hackmin.app.data.model.restaurant.RestaurantReviewDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
+import com.hackmin.app.util.CartRules;
 import com.hackmin.app.util.ImageLoader;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -253,6 +256,10 @@ public class RestaurantDetailActivity extends AppCompatActivity {
             if (qty[0] > 1) { qty[0]--; tvQty.setText(String.valueOf(qty[0])); }
         });
         btnPlus.setOnClickListener(v -> {
+            if (qty[0] >= CartRules.MAX_ITEM_QUANTITY) {
+                Toast.makeText(this, CartRules.MAX_QUANTITY_MESSAGE, Toast.LENGTH_SHORT).show();
+                return;
+            }
             qty[0]++; tvQty.setText(String.valueOf(qty[0]));
         });
 
@@ -316,7 +323,50 @@ public class RestaurantDetailActivity extends AppCompatActivity {
 
     // ── 장바구니 담기 (A→B 핸드오프) ───────────────────────
 
+    /**
+     * 담기 전 현재 장바구니를 조회해 "동일 메뉴+옵션"의 기존 수량 + 신규 수량이
+     * 50개를 넘으면 담지 않고 안내한다. (서버가 같은 메뉴+옵션을 합산하므로 선체크)
+     */
     private void addToCart(long menuId, List<Integer> optionIds, int quantity) {
+        ApiClient.cartApi(this).getCart().enqueue(new Callback<CartDto>() {
+            @Override
+            public void onResponse(Call<CartDto> call, Response<CartDto> response) {
+                int existing = (response.isSuccessful() && response.body() != null)
+                        ? existingQuantity(response.body(), menuId, optionIds) : 0;
+                if (existing + quantity > CartRules.MAX_ITEM_QUANTITY) {
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            CartRules.MAX_QUANTITY_MESSAGE, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                postAddToCart(menuId, optionIds, quantity);
+            }
+
+            @Override
+            public void onFailure(Call<CartDto> call, Throwable t) {
+                // 카트 조회 실패 시엔 담기를 시도한다(스테퍼 상한으로 단건은 이미 50 이하).
+                postAddToCart(menuId, optionIds, quantity);
+            }
+        });
+    }
+
+    /** 현재 장바구니에서 동일 메뉴 + 동일 옵션 조합의 수량 합계를 구한다(서버 합산 규칙과 동일). */
+    private int existingQuantity(CartDto cart, long menuId, List<Integer> optionIds) {
+        if (cart.getItems() == null) return 0;
+        List<Integer> want = new ArrayList<>(optionIds);
+        Collections.sort(want);
+        int sum = 0;
+        for (CartItemDto item : cart.getItems()) {
+            if (item.getMenu() != menuId) continue;
+            List<Integer> have = item.getOptions() == null
+                    ? new ArrayList<>() : new ArrayList<>(item.getOptions());
+            Collections.sort(have);
+            if (have.equals(want)) sum += item.getQuantity();
+        }
+        return sum;
+    }
+
+    /** 실제 담기 요청(POST /cart/items). */
+    private void postAddToCart(long menuId, List<Integer> optionIds, int quantity) {
         AddCartItemRequest request = new AddCartItemRequest(menuId, quantity, optionIds);
         ApiClient.cartApi(this).addItem(request).enqueue(new Callback<CartDto>() {
             @Override
@@ -359,7 +409,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<CartDto> call, Response<CartDto> response) {
                 if (response.isSuccessful()) {
-                    addToCart(menuId, optionIds, quantity); // 비운 뒤 재담기(이제 충돌 없음)
+                    // 비운 직후라 기존 수량 0 → 선체크 없이 바로 담는다.
+                    postAddToCart(menuId, optionIds, quantity);
                 } else {
                     Toast.makeText(RestaurantDetailActivity.this,
                             "장바구니 비우기에 실패했습니다.", Toast.LENGTH_SHORT).show();
