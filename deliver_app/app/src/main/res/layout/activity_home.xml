@@ -53,7 +53,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="8dp"
-                android:src="@android:drawable/ic_menu_save"
+                android:src="@drawable/ic_cart"
                 app:tint="@color/text_primary"/>
 
             <!-- 마이페이지 -->
