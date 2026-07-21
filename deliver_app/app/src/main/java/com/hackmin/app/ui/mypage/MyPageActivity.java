@@ -2,6 +2,7 @@ package com.hackmin.app.ui.mypage;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
@@ -49,6 +50,13 @@ public class MyPageActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // 내 정보 수정
+        View btnEditInfo = findViewById(R.id.btn_mypage_edit_info);
+        if (btnEditInfo != null) {
+            btnEditInfo.setOnClickListener(v ->
+                    startActivity(new Intent(this, EditProfileActivity.class)));
+        }
+
         // 배송지 관리
         findViewById(R.id.menu_addresses).setOnClickListener(v ->
                 startActivity(new Intent(this, AddressActivity.class)));
@@ -68,6 +76,13 @@ public class MyPageActivity extends AppCompatActivity {
         loadProfileFromSession(); // 동료(SessionManager) 기반 즉시 표시
         loadProfile();            // 서버에서 최신 정보(전화번호 등) 갱신
         // ===== [C] END =====
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 내 정보 수정 화면에서 돌아왔을 때 최신 값 반영.
+        loadProfile();
     }
 
     /** 회원 탈퇴: 확인 다이얼로그 → DELETE /me → 세션 정리 후 로그인 화면 이동. */

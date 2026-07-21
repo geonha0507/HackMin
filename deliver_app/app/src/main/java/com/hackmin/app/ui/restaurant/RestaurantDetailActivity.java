@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -43,6 +44,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";
 
     private long restaurantId;
+    private boolean isOpen = true;
 
     private TextView tvName, tvCuisine, tvMeta, tvAddress;
     private RecyclerView rvMenus;
@@ -117,7 +119,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                 + " · 최소주문 " + won.format(r.getMinOrderAmount()) + "원");
         String addr = r.getAddress();
         tvAddress.setText(addr == null || addr.isEmpty() ? "" : addr);
-        if (!r.isOpen()) {
+        isOpen = r.isOpen();
+        if (!isOpen) {
             tvName.setText(r.getName() + " (영업종료)");
         }
     }
@@ -152,6 +155,10 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     // ── 메뉴 선택 → 옵션 상세 조회 ─────────────────────────
 
     private void onMenuClicked(MenuDto menuFromList) {
+        if (!isOpen) {
+            Toast.makeText(this, "영업 종료된 매장입니다. 영업 시간에 다시 주문해주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
         // 목록 응답에는 옵션이 없으므로 상세를 다시 조회한다.
         ApiClient.restaurantApi(this).getMenuDetail(menuFromList.getId())
                 .enqueue(new Callback<MenuDto>() {
@@ -160,8 +167,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null) {
                             showOptionDialog(response.body());
                         } else {
-                            // 옵션 조회 실패 시 옵션 없이 담기 시도.
-                            addToCart(menuFromList.getId(), new ArrayList<>());
+                            // 옵션 조회 실패 시 옵션 없이 1개 담기 시도.
+                            addToCart(menuFromList.getId(), new ArrayList<>(), 1);
                         }
                     }
 
@@ -173,45 +180,74 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                 });
     }
 
-    /** 옵션 그룹을 체크박스로 표시하고, 선택된 MenuOption id를 모아 장바구니에 담는다. */
+    /** 수량 스테퍼 + 옵션 체크박스를 표시하고, 선택값을 모아 장바구니에 담는다. */
     private void showOptionDialog(MenuDto menu) {
-        List<MenuOptionGroupDto> groups = menu.getOptionGroups();
-        if (groups == null || groups.isEmpty()) {
-            addToCart(menu.getId(), new ArrayList<>());
-            return;
-        }
-
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(20);
         container.setPadding(pad, dp(8), pad, dp(8));
 
-        // 체크박스 ↔ MenuOption id 매핑
+        // ── 수량 스테퍼 ( − [n] + ) ──
+        final int[] qty = {1};
+        LinearLayout qtyRow = new LinearLayout(this);
+        qtyRow.setOrientation(LinearLayout.HORIZONTAL);
+        qtyRow.setPadding(0, 0, 0, dp(8));
+
+        TextView qtyLabel = new TextView(this);
+        qtyLabel.setText("수량");
+        qtyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+
+        Button btnMinus = new Button(this);
+        btnMinus.setText("−");
+        final TextView tvQty = new TextView(this);
+        tvQty.setText("1");
+        tvQty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        tvQty.setPadding(dp(16), 0, dp(16), 0);
+        Button btnPlus = new Button(this);
+        btnPlus.setText("+");
+
+        btnMinus.setOnClickListener(v -> {
+            if (qty[0] > 1) { qty[0]--; tvQty.setText(String.valueOf(qty[0])); }
+        });
+        btnPlus.setOnClickListener(v -> {
+            qty[0]++; tvQty.setText(String.valueOf(qty[0]));
+        });
+
+        qtyRow.addView(qtyLabel);
+        qtyRow.addView(btnMinus);
+        qtyRow.addView(tvQty);
+        qtyRow.addView(btnPlus);
+        container.addView(qtyRow);
+
+        // ── 옵션 그룹(있으면) ──
+        List<MenuOptionGroupDto> groups = menu.getOptionGroups();
         List<CheckBox> boxes = new ArrayList<>();
         List<Integer> boxOptionIds = new ArrayList<>();
 
-        for (MenuOptionGroupDto group : groups) {
-            TextView header = new TextView(this);
-            String title = group.getName();
-            if (group.isRequired()) {
-                title += " (필수)";
-            }
-            header.setText(title);
-            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-            header.setPadding(0, dp(12), 0, dp(4));
-            container.addView(header);
+        if (groups != null) {
+            for (MenuOptionGroupDto group : groups) {
+                TextView header = new TextView(this);
+                String title = group.getName();
+                if (group.isRequired()) {
+                    title += " (필수)";
+                }
+                header.setText(title);
+                header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+                header.setPadding(0, dp(12), 0, dp(4));
+                container.addView(header);
 
-            if (group.getOptions() != null) {
-                for (MenuOptionDto opt : group.getOptions()) {
-                    CheckBox cb = new CheckBox(this);
-                    String label = opt.getName();
-                    if (opt.getExtraPrice() > 0) {
-                        label += " (+" + won.format(opt.getExtraPrice()) + "원)";
+                if (group.getOptions() != null) {
+                    for (MenuOptionDto opt : group.getOptions()) {
+                        CheckBox cb = new CheckBox(this);
+                        String label = opt.getName();
+                        if (opt.getExtraPrice() > 0) {
+                            label += " (+" + won.format(opt.getExtraPrice()) + "원)";
+                        }
+                        cb.setText(label);
+                        container.addView(cb);
+                        boxes.add(cb);
+                        boxOptionIds.add((int) opt.getId());
                     }
-                    cb.setText(label);
-                    container.addView(cb);
-                    boxes.add(cb);
-                    boxOptionIds.add((int) opt.getId());
                 }
             }
         }
@@ -229,7 +265,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                             selected.add(boxOptionIds.get(i));
                         }
                     }
-                    addToCart(menu.getId(), selected);
+                    addToCart(menu.getId(), selected, qty[0]);
                 })
                 .setNegativeButton("취소", null)
                 .show();
@@ -237,8 +273,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
 
     // ── 장바구니 담기 (A→B 핸드오프) ───────────────────────
 
-    private void addToCart(long menuId, List<Integer> optionIds) {
-        AddCartItemRequest request = new AddCartItemRequest(menuId, 1, optionIds);
+    private void addToCart(long menuId, List<Integer> optionIds, int quantity) {
+        AddCartItemRequest request = new AddCartItemRequest(menuId, quantity, optionIds);
         ApiClient.cartApi(this).addItem(request).enqueue(new Callback<CartDto>() {
             @Override
             public void onResponse(Call<CartDto> call, Response<CartDto> response) {

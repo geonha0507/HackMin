@@ -14,6 +14,7 @@ class Coupon(models.Model):
     min_order_amount = models.PositiveIntegerField(default=0)
     valid_until = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_membership_only = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -67,6 +68,7 @@ class Membership(models.Model):
     )
     plan = models.CharField(max_length=16, choices=Plan.choices, default=Plan.BASIC)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    points = models.PositiveIntegerField(default=0)
     started_at = models.DateTimeField(auto_now_add=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
@@ -75,3 +77,26 @@ class MembershipPayment(models.Model):
     membership = models.ForeignKey(Membership, on_delete=models.CASCADE, related_name='payments')
     amount = models.PositiveIntegerField(default=0)
     paid_at = models.DateTimeField(auto_now_add=True)
+
+
+class MembershipPointTransaction(models.Model):
+    class Type(models.TextChoices):
+        EARN = 'earn', 'Earn'
+        SPEND = 'spend', 'Spend'
+
+    membership = models.ForeignKey(
+        Membership, on_delete=models.CASCADE, related_name='point_transactions',
+    )
+    order = models.ForeignKey(
+        'orders.Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    type = models.CharField(max_length=8, choices=Type.choices, default=Type.EARN)
+    amount = models.PositiveIntegerField(default=0)
+    balance_after = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.membership_id}:{self.type}:{self.amount}'

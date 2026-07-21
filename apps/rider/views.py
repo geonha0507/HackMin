@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from common.exceptions import error_response
 from common.permissions import IsRider
 from orders.models import Order
+from promotions.services import award_order_points
 from .models import Delivery
 from .serializers import DeliveryDetailSerializer, DeliveryListSerializer
 
@@ -71,5 +72,7 @@ def delivery_status(request, pk):
     if new_status in _STATUS_TO_ORDER:
         delivery.order.status = _STATUS_TO_ORDER[new_status]
         delivery.order.save(update_fields=['status'])
+        if new_status == Delivery.Status.DELIVERED:
+            award_order_points(delivery.order)
 
     return Response(DeliveryDetailSerializer(delivery).data)

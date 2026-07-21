@@ -57,7 +57,7 @@ public class AddressActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btnBack);
 
         rvAddresses.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new AddressAdapter(addressList, this::confirmDelete);
+        adapter = new AddressAdapter(addressList, this::confirmDelete, this::setDefaultAddress);
         rvAddresses.setAdapter(adapter);
 
         btnBack.setOnClickListener(v -> finish());
@@ -166,6 +166,64 @@ public class AddressActivity extends AppCompatActivity {
                                 "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    /**
+     * 기본 배송지로 설정. 서버(AddressDetailView)는 단일 기본배송지를 강제하지 않으므로,
+     * 클라이언트에서 대상 주소를 true로 저장한 뒤 기존 기본배송지를 false로 되돌린다.
+     */
+    private void setDefaultAddress(AddressDto target) {
+        AddressDto updated = new AddressDto(
+                target.getLabel(), target.getAddress(), target.getDetail(),
+                target.getPostalCode(), target.getLatitude(), target.getLongitude(), true);
+
+        ApiClient.userApi(this).updateAddress(target.getId(), updated)
+                .enqueue(new Callback<AddressDto>() {
+                    @Override
+                    public void onResponse(Call<AddressDto> call, Response<AddressDto> response) {
+                        if (response.isSuccessful()) {
+                            clearOtherDefaults(target.getId());
+                        } else {
+                            Toast.makeText(AddressActivity.this,
+                                    "기본 배송지 설정에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<AddressDto> call, Throwable t) {
+                        Toast.makeText(AddressActivity.this,
+                                "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void clearOtherDefaults(long newDefaultId) {
+        List<AddressDto> toClear = new ArrayList<>();
+        for (AddressDto a : addressList) {
+            if (a.isDefault() && a.getId() != newDefaultId) {
+                toClear.add(a);
+            }
+        }
+        if (toClear.isEmpty()) {
+            loadAddresses();
+            return;
+        }
+        for (AddressDto a : toClear) {
+            AddressDto cleared = new AddressDto(
+                    a.getLabel(), a.getAddress(), a.getDetail(),
+                    a.getPostalCode(), a.getLatitude(), a.getLongitude(), false);
+            ApiClient.userApi(this).updateAddress(a.getId(), cleared).enqueue(new Callback<AddressDto>() {
+                @Override
+                public void onResponse(Call<AddressDto> call, Response<AddressDto> response) {
+                    loadAddresses();
+                }
+
+                @Override
+                public void onFailure(Call<AddressDto> call, Throwable t) {
+                    loadAddresses();
+                }
+            });
+        }
     }
 
     private void confirmDelete(AddressDto address) {

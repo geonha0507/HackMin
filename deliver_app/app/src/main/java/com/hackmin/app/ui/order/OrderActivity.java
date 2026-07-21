@@ -282,16 +282,38 @@ public class OrderActivity extends AppCompatActivity {
                     startActivity(i);
                     finish();
                 } else {
-                    // 주문은 생성됐지만 결제 실패 — 주문 id 안내.
-                    fail("결제에 실패했습니다. (주문번호 " + order.getId() + ")");
+                    // 주문은 생성됐지만 결제 실패 — 같은 주문으로 재결제 제안.
+                    offerPaymentRetry(order, "결제에 실패했습니다.");
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<PaymentDto> call, @NonNull Throwable t) {
-                fail("결제 중 네트워크 오류가 발생했습니다. (주문번호 " + order.getId() + ")");
+                offerPaymentRetry(order, "결제 중 네트워크 오류가 발생했습니다.");
             }
         });
+    }
+
+    /**
+     * 결제 실패 시 재시도 다이얼로그.
+     * 주문은 이미 생성(PENDING)돼 있으므로, 주문을 다시 만들지 않고
+     * 같은 주문에 대해 결제(payForOrder)만 재시도한다.
+     */
+    private void offerPaymentRetry(OrderDto order, String message) {
+        // 재시도할 수 있도록 버튼/상태를 먼저 원복.
+        submitting = false;
+        btnPay.setEnabled(true);
+        new AlertDialog.Builder(this)
+                .setTitle("결제 실패")
+                .setMessage(message + "\n주문번호 " + order.getId() + " 로 다시 결제할까요?")
+                .setPositiveButton("결제 재시도", (d, w) -> {
+                    submitting = true;
+                    btnPay.setEnabled(false);
+                    payForOrder(order);
+                })
+                .setNegativeButton("닫기", null)
+                .setCancelable(false)
+                .show();
     }
 
     private void fail(String message) {

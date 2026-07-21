@@ -16,10 +16,16 @@ def _get_cart(user):
     return cart
 
 
-@api_view(['GET'])
+@api_view(['GET', 'DELETE'])
 @permission_classes([IsCustomer])
 def cart_detail(request):
     cart = _get_cart(request.user)
+    if request.method == 'DELETE':
+        # 장바구니 비우기. 다른 음식점 메뉴 담기 시 "기존 장바구니를 비우고 새로 담기" 플로우에 사용.
+        cart.items.all().delete()
+        cart.restaurant = None
+        cart.coupon = None
+        cart.save(update_fields=['restaurant', 'coupon'])
     return Response(CartSerializer(cart).data)
 
 
@@ -37,6 +43,13 @@ def add_item(request):
 
     if quantity < 1:
         return error_response('invalid_quantity', '수량은 1 이상이어야 합니다.', 400)
+    if menu.is_membership_only:
+        from promotions.models import Membership
+        is_member = Membership.objects.filter(
+            user=request.user, status=Membership.Status.ACTIVE,
+        ).exists()
+        if not is_member:
+            return error_response('membership_required', '멤버십 전용 상품입니다.', 403)
     if cart.restaurant and cart.restaurant_id != menu.restaurant_id and cart.items.exists():
         return error_response(
             'restaurant_conflict', '다른 음식점의 메뉴는 함께 담을 수 없습니다.', 409,
@@ -46,9 +59,17 @@ def add_item(request):
         cart.restaurant_id = menu.restaurant_id
         cart.save(update_fields=['restaurant'])
 
-    item = CartItem.objects.create(
-        cart=cart, menu=menu, quantity=quantity, options=options,
+    # 동일 메뉴 + 동일 옵션 조합이 이미 담겨 있으면 새 행을 만들지 않고 수량만 합산한다.
+    sorted_options = sorted(options)
+    existing = next(
+        (i for i in cart.items.filter(menu=menu) if sorted(i.options) == sorted_options),
+        None,
     )
+    if existing:
+        existing.quantity += quantity
+        existing.save(update_fields=['quantity'])
+    else:
+        CartItem.objects.create(cart=cart, menu=menu, quantity=quantity, options=options)
     return Response(CartSerializer(cart).data, status=201)
 
 

@@ -1,8 +1,11 @@
 """Mock payment endpoints (/api/v1/payments). Customer only."""
 
+from django.db import transaction
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from carts.models import Cart
 from common.exceptions import error_response
 from common.permissions import IsCustomer
 from orders.models import Order
@@ -13,7 +16,10 @@ from .serializers import PaymentCreateSerializer, PaymentSerializer, RefundSeria
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def create_payment(request):
-    """결제 생성(모의). 본인 주문 + 결제 금액이 주문 총액과 일치해야 한다."""
+    """결제 생성(모의). 본인 주문 + 결제 금액이 주문 총액과 일치해야 한다.
+    
+    수정: #1+#2 결제 성공 후 장바구니 비우기 + 쿠폰 사용 처리.
+    """
     serializer = PaymentCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
@@ -27,11 +33,31 @@ def create_payment(request):
     if amount != order.total:
         return error_response('amount_mismatch', '결제 금액이 주문 금액과 일치하지 않습니다.', 400)
 
-    payment = Payment.objects.create(
-        order=order, method=data['method'], amount=amount, status=Payment.Status.PAID,
-    )
-    order.status = Order.Status.PLACED
-    order.save(update_fields=['status'])
+    with transaction.atomic():
+        payment = Payment.objects.create(
+            order=order, method=data['method'], amount=amount, status=Payment.Status.PAID,
+        )
+        order.status = Order.Status.PLACED
+        order.save(update_fields=['status'])
+        
+        # #1+#2: 결제 성공 후에만 장바구니 정리 및 쿠폰 사용 처리
+        cart = Cart.objects.filter(user=request.user).first()
+        if cart:
+            # #2: 적용된 쿠폰을 '사용됨'으로 처리
+            if cart.coupon:
+                from promotions.models import UserCoupon
+                UserCoupon.objects.filter(
+                    user=request.user,
+                    coupon=cart.coupon,
+                    is_used=False,
+                ).update(is_used=True, used_at=timezone.now())
+            
+            # #1: 결제 성공 후에만 장바구니 비우기
+            cart.items.all().delete()
+            cart.coupon = None
+            cart.restaurant = None
+            cart.save(update_fields=['coupon', 'restaurant'])
+    
     return Response(PaymentSerializer(payment).data, status=201)
 
 
@@ -57,10 +83,21 @@ def cancel_payment(request, pk):
         return error_response('not_found', '결제 내역을 찾을 수 없습니다.', 404)
     if payment.status != Payment.Status.PAID:
         return error_response('not_cancellable', '취소할 수 없는 결제 상태입니다.', 409)
-    payment.status = Payment.Status.CANCELLED
-    payment.save(update_fields=['status'])
-    payment.order.status = Order.Status.CANCELLED
-    payment.order.save(update_fields=['status'])
+    
+    with transaction.atomic():
+        payment.status = Payment.Status.CANCELLED
+        payment.save(update_fields=['status'])
+        payment.order.status = Order.Status.CANCELLED
+        payment.order.save(update_fields=['status'])
+        
+        # 쿠폰 복구 (취소 시 사용 처리를 되돌림)
+        # is_used/used_at 는 Coupon 이 아니라 UserCoupon 의 필드다.
+        if payment.order.coupon:
+            from promotions.models import UserCoupon
+            UserCoupon.objects.filter(
+                user=payment.order.user, coupon=payment.order.coupon,
+            ).update(is_used=False, used_at=None)
+    
     return Response(PaymentSerializer(payment).data)
 
 
