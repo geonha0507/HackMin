@@ -70,6 +70,43 @@ class RestaurantEditRequest(models.Model):
         return f'{self.restaurant_id}:{self.status}'
 
 
+class RestaurantClosedDate(models.Model):
+    """점주가 지정한 특정 휴무일. 해당 날짜에는 앱에서 주문을 받지 않는다."""
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='closed_dates')
+    date = models.DateField()
+
+    class Meta:
+        ordering = ['date']
+        unique_together = ('restaurant', 'date')
+
+    def __str__(self):
+        return f'{self.restaurant_id}:{self.date}'
+
+
+class RestaurantRegularClosedDay(models.Model):
+    """매주 반복되는 정기휴무 요일. 해당 요일에는 앱에서 주문을 받지 않는다."""
+
+    class Weekday(models.IntegerChoices):
+        MONDAY = 0, '월요일'
+        TUESDAY = 1, '화요일'
+        WEDNESDAY = 2, '수요일'
+        THURSDAY = 3, '목요일'
+        FRIDAY = 4, '금요일'
+        SATURDAY = 5, '토요일'
+        SUNDAY = 6, '일요일'
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='regular_closed_days')
+    weekday = models.PositiveSmallIntegerField(choices=Weekday.choices)
+
+    class Meta:
+        ordering = ['weekday']
+        unique_together = ('restaurant', 'weekday')
+
+    def __str__(self):
+        return f'{self.restaurant_id}:{self.get_weekday_display()}'
+
+
 class MenuCategory(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='categories')
     name = models.CharField(max_length=64)

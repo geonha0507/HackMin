@@ -4,11 +4,18 @@
 관리자 승인 후에만 실제 Restaurant 레코드에 반영된다.
 """
 
+from datetime import date
+
 from django.contrib import messages
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from restaurants.models import Restaurant, RestaurantEditRequest
+from restaurants.models import (
+    Restaurant,
+    RestaurantClosedDate,
+    RestaurantEditRequest,
+    RestaurantRegularClosedDay,
+)
 from ..decorators import owner_required
 
 EDITABLE_FIELDS = [
@@ -112,12 +119,22 @@ def my_restaurant(request):
         selected_presets = [c for c in current if c in CUISINE_PRESETS]
         custom_cuisines = [c for c in current if c not in CUISINE_PRESETS]
 
+    closed_dates = (
+        restaurant.closed_dates.filter(date__gte=date.today()) if restaurant else []
+    )
+    regular_closed_weekdays = (
+        set(restaurant.regular_closed_days.values_list('weekday', flat=True)) if restaurant else set()
+    )
+
     return render(request, 'web/my_restaurant.html', {
         'restaurants': restaurants,
         'restaurant': restaurant, 'pending_edit': pending_edit,
         'cuisine_presets': CUISINE_PRESETS,
         'selected_presets': selected_presets,
         'custom_cuisines': custom_cuisines,
+        'closed_dates': closed_dates,
+        'weekday_choices': RestaurantRegularClosedDay.Weekday.choices,
+        'regular_closed_weekdays': regular_closed_weekdays,
     })
 
 
@@ -147,3 +164,55 @@ def add_restaurant(request):
         'custom_cuisines': [],
         'form': {},
     })
+
+
+@owner_required
+def closed_date_add(request):
+    """특정 휴무일 등록. 해당 날짜에는 앱에서 주문을 받지 않는다."""
+    if request.method != 'POST':
+        return redirect('web:my_restaurant')
+
+    restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    raw_date = request.POST.get('date', '').strip()
+    try:
+        closed_on = date.fromisoformat(raw_date)
+    except ValueError:
+        messages.error(request, '올바른 날짜를 선택하세요.')
+    else:
+        _, created = RestaurantClosedDate.objects.get_or_create(restaurant=restaurant, date=closed_on)
+        if created:
+            messages.success(request, '휴무일을 등록했습니다.')
+        else:
+            messages.info(request, '이미 등록된 휴무일입니다.')
+    return _redirect_to_restaurant(restaurant)
+
+
+@owner_required
+def closed_date_delete(request, pk):
+    """특정 휴무일 삭제."""
+    closed_date = get_object_or_404(RestaurantClosedDate, pk=pk, restaurant__owner=request.user)
+    restaurant = closed_date.restaurant
+    if request.method == 'POST':
+        closed_date.delete()
+        messages.success(request, '휴무일을 삭제했습니다.')
+    return _redirect_to_restaurant(restaurant)
+
+
+@owner_required
+def regular_closed_days_update(request):
+    """정기휴무 요일 저장 (선택된 요일 전체로 교체)."""
+    if request.method != 'POST':
+        return redirect('web:my_restaurant')
+
+    restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    valid_weekdays = {str(val) for val, _ in RestaurantRegularClosedDay.Weekday.choices}
+    selected = sorted({
+        int(w) for w in request.POST.getlist('weekday') if w in valid_weekdays
+    })
+
+    RestaurantRegularClosedDay.objects.filter(restaurant=restaurant).delete()
+    RestaurantRegularClosedDay.objects.bulk_create([
+        RestaurantRegularClosedDay(restaurant=restaurant, weekday=w) for w in selected
+    ])
+    messages.success(request, '정기휴무일을 저장했습니다.')
+    return _redirect_to_restaurant(restaurant)
