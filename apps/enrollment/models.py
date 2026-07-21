@@ -9,7 +9,7 @@ class EnrollmentRequest(models.Model):
     """입점 요청 (Owner → Admin 승인 대기)."""
     restaurant = models.OneToOneField(
         'restaurants.Restaurant',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='enrollment_request',
         null=True,
         blank=True,
