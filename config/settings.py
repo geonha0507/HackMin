@@ -1,9 +1,5 @@
 """
 Django settings for the HackMin delivery-order backend.
-
-This is a security-training backend: endpoints marked with the 🎯 symbol in the
-spec are implemented in two modes (Vulnerable / Secure). The active mode is
-controlled by HACKMIN_MODE (see the "HackMin lab" section at the bottom).
 """
 
 import os
@@ -185,11 +181,3 @@ SIMPLE_JWT = {
 # CORS – open for lab/dev convenience.
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-
-
-# --- HackMin lab -----------------------------------------------------------
-# Default mode for 🎯 dual-mode endpoints. Either 'vulnerable' or 'secure'.
-# Per-request override is allowed via the `X-Hackmin-Mode` header so a single
-# running server can demonstrate both behaviours.
-HACKMIN_MODE = os.environ.get('HACKMIN_MODE', 'vulnerable')
-HACKMIN_ALLOW_MODE_HEADER = True
