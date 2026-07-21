@@ -2,6 +2,7 @@
 
 import os
 
+from django.db.models import Avg
 from rest_framework import generics
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -13,6 +14,13 @@ from orders.models import Order
 from restaurants.models import Restaurant
 from .models import Review, ReviewImage
 from .serializers import ReviewCreateSerializer, ReviewSerializer
+
+
+def _recompute_restaurant_rating(restaurant):
+    """음식점 평점을 해당 음식점 리뷰의 평균으로 재계산해 저장한다."""
+    avg = Review.objects.filter(restaurant=restaurant).aggregate(a=Avg('rating'))['a']
+    restaurant.rating = round(avg, 1) if avg is not None else 0.0
+    restaurant.save(update_fields=['rating'])
 
 _ALLOWED_IMAGE_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -41,6 +49,12 @@ def create_review(request):
             'not_eligible', '해당 음식점의 완료된 주문이 있어야 리뷰를 작성할 수 있습니다.', 403,
         )
 
+    # 한 주문당 리뷰는 1개만 허용 (중복 작성 방지)
+    if Review.objects.filter(user=request.user, order=order).exists():
+        return error_response(
+            'already_reviewed', '이미 이 주문에 대한 리뷰를 작성했습니다.', 409,
+        )
+
     review = Review.objects.create(
         user=request.user,
         restaurant=restaurant,
@@ -48,6 +62,7 @@ def create_review(request):
         rating=data['rating'],
         content=data['content'],
     )
+    _recompute_restaurant_rating(restaurant)
     return Response(ReviewSerializer(review).data, status=201)
 
 
@@ -60,7 +75,9 @@ def review_detail(request, pk):
         return error_response('not_found', '리뷰를 찾을 수 없습니다.', 404)
 
     if request.method == 'DELETE':
+        restaurant = review.restaurant
         review.delete()
+        _recompute_restaurant_rating(restaurant)
         return Response(status=204)
 
     if 'rating' in request.data:
@@ -68,6 +85,7 @@ def review_detail(request, pk):
     if 'content' in request.data:
         review.content = request.data['content']
     review.save()
+    _recompute_restaurant_rating(review.restaurant)
     return Response(ReviewSerializer(review).data)
 
 

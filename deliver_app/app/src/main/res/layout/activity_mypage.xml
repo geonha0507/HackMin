@@ -119,7 +119,7 @@
             <TextView
                 android:id="@+id/menu_reviews"
                 style="@style/MyPageMenuItem"
-                android:text="작성한 리뷰"/>
+                android:text="리뷰 관리"/>
 
             <View style="@style/MyPageDivider"/>
 

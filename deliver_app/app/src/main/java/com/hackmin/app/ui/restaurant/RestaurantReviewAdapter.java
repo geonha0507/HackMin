@@ -1,4 +1,4 @@
-package com.hackmin.app.ui.mypage;
+package com.hackmin.app.ui.restaurant;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,27 +12,22 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.hackmin.app.R;
-import com.hackmin.app.data.model.review.ReviewDto;
-import com.hackmin.app.data.model.review.ReviewImageDto;
+import com.hackmin.app.data.model.restaurant.RestaurantReviewDto;
 import com.hackmin.app.util.RatingFormat;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.VH> {
+/**
+ * 음식점 상세의 리뷰 목록 어댑터.
+ * 다른 사용자가 작성한 리뷰까지 공개로 보여준다 (GET /restaurants/{id}/reviews).
+ * 사진은 로딩 라이브러리 없이 장수만 표시한다.
+ */
+public class RestaurantReviewAdapter extends RecyclerView.Adapter<RestaurantReviewAdapter.VH> {
 
-    public interface OnDeleteListener {
-        void onDelete(ReviewDto review);
-    }
+    private final List<RestaurantReviewDto> items = new ArrayList<>();
 
-    private final List<ReviewDto> items = new ArrayList<>();
-    private final OnDeleteListener deleteListener;
-
-    public ReviewAdapter(OnDeleteListener deleteListener) {
-        this.deleteListener = deleteListener;
-    }
-
-    public void submit(List<ReviewDto> newItems) {
+    public void submit(List<RestaurantReviewDto> newItems) {
         items.clear();
         if (newItems != null) {
             items.addAll(newItems);
@@ -44,32 +39,29 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.VH> {
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_review, parent, false);
+                .inflate(R.layout.item_restaurant_review, parent, false);
         return new VH(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        ReviewDto r = items.get(position);
+        RestaurantReviewDto r = items.get(position);
 
+        h.author.setText(r.getAuthorName() != null ? r.getAuthorName() : "익명");
         h.rating.setText(RatingFormat.stars(r.getRating()));
         h.content.setText(r.getContent());
-        h.date.setText(r.getCreatedAt() != null ? r.getCreatedAt().substring(0, Math.min(10, r.getCreatedAt().length())) : "");
+        h.date.setText(r.getCreatedAt() != null
+                ? r.getCreatedAt().substring(0, Math.min(10, r.getCreatedAt().length()))
+                : "");
 
-        bindImages(h.images, r.getImages());
+        bindImages(h.images, r.getImageUrls());
 
-        if (r.getReply() != null && r.getReply().getContent() != null) {
+        if (r.getOwnerReply() != null && !r.getOwnerReply().isEmpty()) {
             h.reply.setVisibility(View.VISIBLE);
-            h.reply.setText("사장님 답변: " + r.getReply().getContent());
+            h.reply.setText("사장님 답변: " + r.getOwnerReply());
         } else {
             h.reply.setVisibility(View.GONE);
         }
-
-        h.delete.setOnClickListener(v -> {
-            if (deleteListener != null) {
-                deleteListener.onDelete(r);
-            }
-        });
     }
 
     @Override
@@ -77,25 +69,25 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.VH> {
         return items.size();
     }
 
-    /** 리뷰 첨부 사진 썸네일을 가로로 렌더링한다. */
-    private void bindImages(LinearLayout container, List<ReviewImageDto> images) {
+    /** 리뷰 사진 URL 목록을 가로 썸네일로 렌더링한다. */
+    private void bindImages(LinearLayout container, List<String> urls) {
         container.removeAllViews();
-        if (images == null || images.isEmpty()) {
+        if (urls == null || urls.isEmpty()) {
             container.setVisibility(View.GONE);
             return;
         }
         container.setVisibility(View.VISIBLE);
         int sizePx = dp(container, 88);
         int marginPx = dp(container, 8);
-        for (ReviewImageDto img : images) {
-            if (img.getImage() == null) continue;
+        for (String url : urls) {
+            if (url == null) continue;
             ImageView iv = new ImageView(container.getContext());
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(sizePx, sizePx);
             lp.setMarginEnd(marginPx);
             iv.setLayoutParams(lp);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             Glide.with(container.getContext())
-                    .load(img.getImage())
+                    .load(url)
                     .into(iv);
             container.addView(iv);
         }
@@ -106,17 +98,17 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        final TextView rating, content, date, reply, delete;
+        final TextView author, date, rating, content, reply;
         final LinearLayout images;
 
         VH(@NonNull View v) {
             super(v);
-            rating = v.findViewById(R.id.tvReviewRating);
-            content = v.findViewById(R.id.tvReviewContent);
-            date = v.findViewById(R.id.tvReviewDate);
-            reply = v.findViewById(R.id.tvReviewReply);
-            delete = v.findViewById(R.id.tvReviewDelete);
-            images = v.findViewById(R.id.llReviewImages);
+            author = v.findViewById(R.id.tv_review_author);
+            date = v.findViewById(R.id.tv_review_date);
+            rating = v.findViewById(R.id.tv_review_rating);
+            content = v.findViewById(R.id.tv_review_content);
+            reply = v.findViewById(R.id.tv_review_reply);
+            images = v.findViewById(R.id.ll_review_images);
         }
     }
 }
