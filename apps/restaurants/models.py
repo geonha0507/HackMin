@@ -1,25 +1,34 @@
 from pathlib import Path
 from uuid import uuid4
-
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 
 def business_license_upload_to(instance, filename):
+    """
+    비즈니스 라이선스 업로드 경로
+    licenses/{user_id}_{filename}
+    
+    예: licenses/date/12345678-1234-5678-1234-567812345678_business_license.pdf
+    """
     extension = Path(filename).suffix.lower()
     file_id = uuid4().hex
     now = timezone.now()
+    owner_user_id = instance.owner.user_id
+    return f'licenses/{now:%Y/%m}/{owner_user_id}_{file_id}{extension}'
+ 
+ 
+def menu_image_upload_to(instance, filename):
+    """
+    메뉴 이미지 업로드 경로
+    menus/{user_id}_{restaurant_id}_{filename}
+    
+    예: menus/12345678-1234-5678-1234-567812345678_1_tteokbokki.jpg
+    """
+    owner_user_id = instance.restaurant.owner.user_id
+    return f'menus/{owner_user_id}_{filename}'
 
-    return f'licenses/{now:%Y/%m}/{file_id}{extension}'
-
-
-def restaurant_image_upload_to(instance, filename):
-    extension = Path(filename).suffix.lower()
-    file_id = uuid4().hex
-    now = timezone.now()
-
-    return f'restaurants/{now:%Y/%m}/{file_id}{extension}'
 
 class Restaurant(models.Model):
     owner = models.ForeignKey(
@@ -27,7 +36,7 @@ class Restaurant(models.Model):
         related_name='restaurants', null=True, blank=True,
     )
     name = models.CharField(max_length=128)
-    cuisine_type = models.CharField(max_length=255, blank=True)   # 종류(콤마구분, 복수가능): 한식,중식...
+    cuisine_type = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
     phone = models.CharField(max_length=32, blank=True)
     address = models.CharField(max_length=255, blank=True)
@@ -37,14 +46,8 @@ class Restaurant(models.Model):
     delivery_fee = models.PositiveIntegerField(default=0)
     rating = models.FloatField(default=0.0)
     is_open = models.BooleanField(default=True)
-    # 음식점 대표 이미지(점주 웹에서 업로드). 앱 목록/상세에서 표시.
-    image = models.ImageField(
-        upload_to=restaurant_image_upload_to,
-        null=True,
-        blank=True,
-    )
     business_license = models.FileField(
-        upload_to=business_license_upload_to,
+        upload_to=business_license_upload_to,  # ✅ owner.user_id 사용
         null=True,
         blank=True,
     )
@@ -146,7 +149,11 @@ class Menu(models.Model):
     name = models.CharField(max_length=128)
     description = models.TextField(blank=True)
     price = models.PositiveIntegerField(default=0)
-    image = models.ImageField(upload_to='menus/', null=True, blank=True)
+    image = models.ImageField(
+        upload_to=menu_image_upload_to,  # ✅ owner.user_id 사용
+        null=True,
+        blank=True
+    )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ON_SALE)
     is_membership_only = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -160,7 +167,7 @@ class Menu(models.Model):
 
 class MenuOptionGroup(models.Model):
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='option_groups')
-    name = models.CharField(max_length=64)                 # e.g. "맵기", "사이즈"
+    name = models.CharField(max_length=64)  # e.g. "맵기", "사이즈"
     is_required = models.BooleanField(default=False)
     max_select = models.PositiveIntegerField(default=1)
 
