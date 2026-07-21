@@ -3,6 +3,7 @@ package com.hackmin.app.ui.mypage;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
@@ -26,6 +27,10 @@ public class MyPageActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 마이페이지는 개인정보 화면이므로 스크린샷/화면녹화 방지(FLAG_SECURE).
+        // 최근앱 미리보기에서도 내용이 가려지고, 다른 화면에는 적용되지 않는다.
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE);
         setContentView(R.layout.activity_mypage);
 
         session = SessionManager.getInstance(this);
