@@ -63,6 +63,8 @@ public class CouponAdapter extends RecyclerView.Adapter<CouponAdapter.VH> {
         }
 
         h.used.setVisibility(uc.isUsed() ? View.VISIBLE : View.GONE);
+        // 사용 완료 쿠폰은 카드를 흐리게 표시해 사용 불가임을 시각적으로 강조한다.
+        h.itemView.setAlpha(uc.isUsed() ? 0.45f : 1.0f);
     }
 
     @Override

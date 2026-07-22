@@ -92,7 +92,7 @@ def refresh_token(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_duplicate(request):
-    """이메일/아이디 중복 검사. ?username= 또는 ?email= 지원."""
+    """이메일/아이디/닉네임 중복 검사. ?username= 또는 ?email= 또는 ?nickname= 지원."""
     username = request.query_params.get('username')
     nickname = request.query_params.get('nickname')
     email = request.query_params.get('email')

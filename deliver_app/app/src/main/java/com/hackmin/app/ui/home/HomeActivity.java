@@ -94,6 +94,15 @@ public class HomeActivity extends AppCompatActivity {
 
         setupCategoryListeners();
 
+        // 추천메뉴: 검색/카테고리 해제하고 추천 목록(평점순)으로 초기화
+        View recommend = findViewById(R.id.category_recommend);
+        if (recommend != null) {
+            recommend.setOnClickListener(v -> {
+                etHomeSearch.setText("");
+                loadRestaurants(null, null);
+            });
+        }
+
         // 뒤로가기 두 번 연속(2초 이내)이면 앱 종료, 한 번이면 안내 토스트.
         setupDoubleBackToExit();
 

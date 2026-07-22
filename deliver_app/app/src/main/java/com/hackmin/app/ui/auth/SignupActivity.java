@@ -5,6 +5,8 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -46,6 +48,9 @@ public class SignupActivity extends AppCompatActivity {
 
         // 나가기 버튼 (뒤로가기)
         findViewById(R.id.tv_back).setOnClickListener(v -> finish());
+
+        // 약관 전체동의 ↔ 개별항목 동기화
+        setupAgreementCheckboxes();
 
         // 0. 닉네임 중복 확인 통신
         btnCheckNicknameDuplicate.setOnClickListener(v -> {
@@ -195,6 +200,45 @@ public class SignupActivity extends AppCompatActivity {
                 }
             });
         });
+    }
+
+    /**
+     * "전체 동의" 체크박스와 개별 약관 체크박스를 양방향 동기화한다.
+     * - 전체동의 탭 → 모든 개별 항목을 같은 상태로 설정
+     * - 개별 항목 변경 → 모두 체크됐을 때만 전체동의 체크
+     */
+    private void setupAgreementCheckboxes() {
+        CheckBox cbAll = findViewById(R.id.cb_agree_all);
+        CheckBox[] subs = {
+                findViewById(R.id.cb_agree_terms),
+                findViewById(R.id.cb_agree_privacy),
+                findViewById(R.id.cb_agree_age),
+                findViewById(R.id.cb_agree_marketing),
+                findViewById(R.id.cb_agree_event),
+        };
+
+        // 전체동의 탭 → 개별 항목 일괄 설정 (사용자 탭에만 반응하도록 클릭 리스너 사용)
+        cbAll.setOnClickListener(v -> {
+            boolean checked = cbAll.isChecked();
+            for (CheckBox cb : subs) {
+                cb.setChecked(checked);
+            }
+        });
+
+        // 개별 항목 변경 → 모두 체크됐는지에 따라 전체동의 상태 갱신
+        CompoundButton.OnCheckedChangeListener syncAll = (btn, isChecked) -> {
+            boolean allChecked = true;
+            for (CheckBox cb : subs) {
+                if (!cb.isChecked()) {
+                    allChecked = false;
+                    break;
+                }
+            }
+            cbAll.setChecked(allChecked);
+        };
+        for (CheckBox cb : subs) {
+            cb.setOnCheckedChangeListener(syncAll);
+        }
     }
 
     private void showNicknameResult(String message, boolean available) {
