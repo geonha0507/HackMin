@@ -203,6 +203,43 @@
   </table>
 </div>
 
+<div class="panel">
+  <h2>공지사항</h2>
+  <p class="muted" style="margin-bottom:14px">고객 앱에 노출되는 매장 공지사항입니다. 이모지도 그대로 사용할 수 있습니다.</p>
+
+  <form method="post" action="{% url 'web:notice_add' %}" style="margin-bottom:16px">
+    {% csrf_token %}
+    <input type="hidden" name="rid" value="{{ restaurant.id }}">
+    <div class="field">
+      <label>제목</label>
+      <input name="title" maxlength="200" placeholder="예: 🎉 신메뉴 출시 안내" required>
+    </div>
+    <div class="field">
+      <label>내용</label>
+      <textarea name="content" rows="3" placeholder="고객에게 전달할 내용을 입력하세요." required></textarea>
+    </div>
+    <button class="btn btn-primary" type="submit">공지 등록</button>
+  </form>
+
+  {% for n in notices %}
+    <div class="panel" style="background:#f8fafc;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <strong>{{ n.title }}</strong>
+          <div class="muted" style="font-size:12px;margin-top:2px">{{ n.created_at|date:'Y-m-d H:i' }}</div>
+        </div>
+        <form method="post" action="{% url 'web:notice_delete' n.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('공지사항을 삭제하시겠습니까?')">삭제</button>
+        </form>
+      </div>
+      <p style="margin:10px 0 0;white-space:pre-wrap">{{ n.content }}</p>
+    </div>
+  {% empty %}
+    <p class="muted">등록된 공지사항이 없습니다.</p>
+  {% endfor %}
+</div>
+
 <div
   id="postcode-overlay"
   style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999"

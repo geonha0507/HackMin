@@ -32,6 +32,9 @@ def signup(request):
     serializer = SignupSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
+    # 회원가입 축하 쿠폰 4종 지급.
+    from promotions.services import grant_signup_coupons
+    grant_signup_coupons(user)
     tokens = _issue_tokens(user)
     return Response(
         {'user': UserSerializer(user).data, **tokens},

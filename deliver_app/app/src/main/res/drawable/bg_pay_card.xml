@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 등록된 카드 타일 배경. 선택 시 테두리 강조. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#4A5CF0"
+                android:endColor="#8A5CF6"
+                android:angle="45" />
+            <corners android:radius="16dp" />
+            <stroke android:width="3dp" android:color="#1A1A1A" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#4A5CF0"
+                android:endColor="#8A5CF6"
+                android:angle="45" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</selector>

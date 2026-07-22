@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant
+from .models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant, RestaurantNotice
 
 
 class RestaurantListSerializer(serializers.ModelSerializer):
@@ -78,3 +78,10 @@ class RestaurantReviewSerializer(serializers.Serializer):
             return obj.reply.content
         except Exception:
             return None
+
+
+class RestaurantNoticeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantNotice
+        fields = ['id', 'restaurant', 'title', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'restaurant', 'created_at', 'updated_at']

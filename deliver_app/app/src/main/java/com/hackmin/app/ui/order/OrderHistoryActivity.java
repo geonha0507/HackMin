@@ -114,7 +114,18 @@ public class OrderHistoryActivity extends AppCompatActivity {
                 ? dto.getCreatedAt().substring(0, 10)
                 : "";
         return new OrderSummary((int) dto.getId(), restaurantId, name,
-                buildMenuSummary(dto), date, dto.getTotal(), statusLabel(dto.getStatus()));
+                buildMenuSummary(dto), date, dto.getTotal(), statusLabel(dto.getStatus()),
+                firstItemImage(dto));
+    }
+
+    /** 주문 대표 썸네일: 이미지가 있는 첫 메뉴 항목의 사진 URL(없으면 null). */
+    private String firstItemImage(OrderDto dto) {
+        if (dto.getItems() == null) return null;
+        for (OrderItemDto item : dto.getItems()) {
+            String img = item.getMenuImage();
+            if (img != null && !img.trim().isEmpty()) return img;
+        }
+        return null;
     }
 
     /** 주문 항목들을 "메뉴명 N개, 메뉴명 …" 형태로 요약. */

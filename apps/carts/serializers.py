@@ -7,12 +7,18 @@ from .services import compute_line_total, compute_unit_price
 
 class CartItemSerializer(serializers.ModelSerializer):
     menu_name = serializers.CharField(source='menu.name', read_only=True)
+    menu_image = serializers.SerializerMethodField()
     unit_price = serializers.SerializerMethodField()
     line_total = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'menu', 'menu_name', 'quantity', 'options', 'unit_price', 'line_total']
+        fields = ['id', 'menu', 'menu_name', 'menu_image', 'quantity', 'options', 'unit_price', 'line_total']
+
+    def get_menu_image(self, obj):
+        if obj.menu and obj.menu.image:
+            return obj.menu.image.url
+        return None
 
     def get_unit_price(self, obj):
         return compute_unit_price(obj.menu, obj.options)

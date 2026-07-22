@@ -18,10 +18,12 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
+import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.notice.NoticeActivity;
+import com.hackmin.app.util.ImageLoader;
 import com.hackmin.app.ui.restaurant.RestaurantDetailActivity;
 
 import java.util.List;
@@ -42,6 +44,9 @@ public class HomeActivity extends AppCompatActivity {
     // 뒤로가기 두 번 눌러 종료: 마지막 뒤로가기 시각(ms)과 허용 간격.
     private static final long BACK_EXIT_INTERVAL_MS = 2000L;
     private long lastBackPressedTime = 0L;
+
+    // 이미지 프리로드는 앱 실행 초기 1회만 수행(검색/카테고리 재로드마다 반복 금지).
+    private boolean imagesPrefetched = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -134,11 +139,12 @@ public class HomeActivity extends AppCompatActivity {
 
     private void setupCategoryListeners() {
         int[] categoryIds = {
-                R.id.category_chinese, R.id.category_chicken,
-                R.id.category_cafe, R.id.category_stew, R.id.category_korean
+                R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
+                R.id.category_cafe, R.id.category_stew, R.id.category_korean,
+                R.id.category_bunsik
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "카페", "찜", "한식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];
@@ -167,6 +173,11 @@ public class HomeActivity extends AppCompatActivity {
                             List<RestaurantSummaryDto> results = response.body().getResults();
                             adapter.submit(results);
                             showResult(results == null || results.isEmpty());
+                            // 앱 실행 초기 1회: 음식점/메뉴 사진을 미리 받아 캐시에 채운다.
+                            if (!imagesPrefetched) {
+                                imagesPrefetched = true;
+                                prefetchImages(results);
+                            }
                         } else {
                             showResult(true);
                             Toast.makeText(HomeActivity.this,
@@ -179,6 +190,39 @@ public class HomeActivity extends AppCompatActivity {
                         showResult(true);
                         Toast.makeText(HomeActivity.this,
                                 "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    /**
+     * 음식점 썸네일과 각 음식점 메뉴 사진을 백그라운드로 미리 받아 Glide 캐시에 채운다.
+     * → 메뉴창을 눌렀을 때 사진이 즉시 표시된다(로딩 지연 해소).
+     */
+    private void prefetchImages(List<RestaurantSummaryDto> restaurants) {
+        if (restaurants == null) return;
+        for (RestaurantSummaryDto r : restaurants) {
+            ImageLoader.preload(this, r.getImage());   // 음식점 썸네일
+            prefetchMenuImages(r.getId());             // 해당 음식점의 메뉴 사진들
+        }
+    }
+
+    private void prefetchMenuImages(long restaurantId) {
+        ApiClient.restaurantApi(this).getRestaurantMenus(restaurantId)
+                .enqueue(new Callback<PagedResponse<MenuDto>>() {
+                    @Override
+                    public void onResponse(Call<PagedResponse<MenuDto>> call,
+                                           Response<PagedResponse<MenuDto>> response) {
+                        if (response.isSuccessful() && response.body() != null
+                                && response.body().getResults() != null) {
+                            for (MenuDto m : response.body().getResults()) {
+                                ImageLoader.preload(HomeActivity.this, m.getImage());
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<PagedResponse<MenuDto>> call, Throwable t) {
+                        // 프리로드 실패는 무시(실제 진입 시 다시 로드됨).
                     }
                 });
     }

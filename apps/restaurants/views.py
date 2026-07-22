@@ -14,6 +14,7 @@ from .serializers import (
     MenuListSerializer,
     RestaurantDetailSerializer,
     RestaurantListSerializer,
+    RestaurantNoticeSerializer,
     RestaurantReviewSerializer,
 )
 
@@ -111,3 +112,14 @@ class RestaurantReviewListView(generics.ListAPIView):
             .select_related('user', 'reply')
             .prefetch_related('images')
         )
+
+
+class RestaurantNoticeListView(generics.ListAPIView):
+    """매장이 고객에게 보내는 공지사항 (관리자 전체 공지 Notice 와는 별개)."""
+
+    serializer_class = RestaurantNoticeSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        from .models import RestaurantNotice
+        return RestaurantNotice.objects.filter(restaurant_id=self.kwargs['pk'])

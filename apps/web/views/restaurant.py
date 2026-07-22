@@ -15,6 +15,7 @@ from restaurants.models import (
     Restaurant,
     RestaurantClosedDate,
     RestaurantEditRequest,
+    RestaurantNotice,
     RestaurantRegularClosedDay,
 )
 from ..decorators import owner_required
@@ -155,6 +156,7 @@ def my_restaurant(request):
     regular_closed_weekdays = (
         set(restaurant.regular_closed_days.values_list('weekday', flat=True)) if restaurant else set()
     )
+    notices = restaurant.notices.all() if restaurant else []
 
     return render(request, 'web/my_restaurant.html', {
         'restaurants': restaurants,
@@ -165,6 +167,7 @@ def my_restaurant(request):
         'closed_dates': closed_dates,
         'weekday_choices': RestaurantRegularClosedDay.Weekday.choices,
         'regular_closed_weekdays': regular_closed_weekdays,
+        'notices': notices,
     })
 
 
@@ -278,4 +281,35 @@ def restaurant_image_upload(request):
         restaurant.image = image
         restaurant.save(update_fields=['image'])
         messages.success(request, '매장 사진을 변경했습니다.')
+    return _redirect_to_restaurant(restaurant)
+
+
+@owner_required
+def notice_add(request):
+    """매장 공지사항 등록. 고객 앱에 즉시 노출된다."""
+    if request.method != 'POST':
+        return redirect('web:my_restaurant')
+
+    restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    title = request.POST.get('title', '').strip()
+    content = request.POST.get('content', '').strip()
+
+    if not title:
+        messages.error(request, '제목을 입력하세요.')
+    elif not content:
+        messages.error(request, '내용을 입력하세요.')
+    else:
+        RestaurantNotice.objects.create(restaurant=restaurant, title=title, content=content)
+        messages.success(request, '공지사항을 등록했습니다.')
+    return _redirect_to_restaurant(restaurant)
+
+
+@owner_required
+def notice_delete(request, pk):
+    """매장 공지사항 삭제."""
+    notice = get_object_or_404(RestaurantNotice, pk=pk, restaurant__owner=request.user)
+    restaurant = notice.restaurant
+    if request.method == 'POST':
+        notice.delete()
+        messages.success(request, '공지사항을 삭제했습니다.')
     return _redirect_to_restaurant(restaurant)

@@ -20,6 +20,8 @@ urlpatterns = [
     path('me/restaurant/closed-dates/<int:pk>/delete', restaurant.closed_date_delete, name='closed_date_delete'),
     path('me/restaurant/regular-closed-days', restaurant.regular_closed_days_update, name='regular_closed_days_update'),
     path('me/restaurant/image', restaurant.restaurant_image_upload, name='restaurant_image_upload'),
+    path('me/restaurant/notices/add', restaurant.notice_add, name='notice_add'),
+    path('me/restaurant/notices/<int:pk>/delete', restaurant.notice_delete, name='notice_delete'),
 
     # 점주
     path('owner/', owner.dashboard, name='owner_dashboard'),
