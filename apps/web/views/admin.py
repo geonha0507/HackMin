@@ -357,8 +357,13 @@ def order_list(request):
     status = request.GET.get('status', '')
     if status:
         orders = orders.filter(status=status)
+    restaurant_id = request.GET.get('restaurant_id', '')
+    if restaurant_id.isdigit():
+        orders = orders.filter(restaurant_id=restaurant_id)
     return render(request, 'web/admin/orders.html', {
         'orders': orders[:300], 'status': status, 'status_choices': Order.Status.choices,
+        'restaurants': Restaurant.objects.order_by('name'),
+        'selected_restaurant_id': restaurant_id,
     })
 
 
@@ -368,8 +373,13 @@ def payment_list(request):
     status = request.GET.get('status', '')
     if status:
         payments = payments.filter(status=status)
+    restaurant_id = request.GET.get('restaurant_id', '')
+    if restaurant_id.isdigit():
+        payments = payments.filter(order__restaurant_id=restaurant_id)
     return render(request, 'web/admin/payments.html', {
         'payments': payments[:300], 'status': status, 'status_choices': Payment.Status.choices,
+        'restaurants': Restaurant.objects.order_by('name'),
+        'selected_restaurant_id': restaurant_id,
     })
 
 

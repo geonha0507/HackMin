@@ -100,11 +100,19 @@ def order_detail(request, pk):
 # ------------------------------------------------------------------ 상품
 @owner_required
 def product_list(request):
-    ids = _owned_ids(request.user)
+    owned_ids = _owned_ids(request.user)
+    try:
+        selected_id = int(request.GET.get('restaurant_id', ''))
+    except ValueError:
+        selected_id = None
+    ids = [selected_id] if selected_id in owned_ids else owned_ids
+
     menus = Menu.objects.filter(restaurant_id__in=ids).select_related('restaurant', 'category')
     return render(request, 'web/owner/products.html', {
         'menus': menus,
         'status_labels': MENU_STATUS_LABELS,
+        'restaurants': _owned_restaurants(request.user),
+        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
     })
 
 
@@ -241,7 +249,12 @@ def category_list(request):
 # ------------------------------------------------------------------ 매출
 @owner_required
 def sales(request):
-    ids = _owned_ids(request.user)
+    owned_ids = _owned_ids(request.user)
+    try:
+        selected_id = int(request.GET.get('restaurant_id', ''))
+    except ValueError:
+        selected_id = None
+    ids = [selected_id] if selected_id in owned_ids else owned_ids
     today = date.today()
     start = request.GET.get('start') or str(today - timedelta(days=29))
     end = request.GET.get('end') or str(today)
@@ -269,6 +282,7 @@ def sales(request):
         'order_count': qs.count(),
         'max_amount': max_amount,
         'restaurants': _owned_restaurants(request.user),
+        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
     }
     return render(request, 'web/owner/sales.html', ctx)
 
@@ -276,9 +290,9 @@ def sales(request):
 # ------------------------------------------------------------------ 리뷰
 @owner_required
 def review_list(request):
-    ids = _owned_ids(request.user)
+    owned_ids = _owned_ids(request.user)
     if request.method == 'POST':
-        review = Review.objects.filter(pk=request.POST.get('review_id'), restaurant_id__in=ids).first()
+        review = Review.objects.filter(pk=request.POST.get('review_id'), restaurant_id__in=owned_ids).first()
         content = request.POST.get('content', '').strip()
         if review and content:
             ReviewReply.objects.update_or_create(
@@ -286,9 +300,20 @@ def review_list(request):
             )
             messages.success(request, '답변을 등록했습니다.')
         return redirect('web:owner_reviews')
+
+    try:
+        selected_id = int(request.GET.get('restaurant_id', ''))
+    except ValueError:
+        selected_id = None
+    ids = [selected_id] if selected_id in owned_ids else owned_ids
+
     reviews = (
         Review.objects.filter(restaurant_id__in=ids)
         .select_related('restaurant', 'user')
         .prefetch_related('reply', 'images')
     )
-    return render(request, 'web/owner/reviews.html', {'reviews': reviews})
+    return render(request, 'web/owner/reviews.html', {
+        'reviews': reviews,
+        'restaurants': _owned_restaurants(request.user),
+        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+    })

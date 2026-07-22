@@ -2,10 +2,19 @@
 {% block title %}상품 관리{% endblock %}
 {% block heading %}상품 관리{% endblock %}
 {% block content %}
-<div class="toolbar" style="justify-content:space-between">
-  <div class="muted">총 {{ menus|length }}개 상품</div>
+<form class="toolbar" method="get" style="justify-content:space-between">
+  <div>
+    <label>매장</label>
+    <select name="restaurant_id" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for r in restaurants %}
+        <option value="{{ r.pk }}" {% if selected_restaurant_id == r.pk %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+    <span class="muted">총 {{ menus|length }}개 상품</span>
+  </div>
   <a class="btn btn-primary" href="{% url 'web:owner_product_new' %}">+ 상품 등록</a>
-</div>
+</form>
 
 <div class="panel">
   <table>

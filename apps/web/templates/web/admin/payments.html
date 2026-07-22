@@ -4,6 +4,15 @@
 {% block content %}
 <form class="toolbar" method="get">
   <div>
+    <label>매장</label>
+    <select name="restaurant_id" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for r in restaurants %}
+        <option value="{{ r.pk }}" {% if selected_restaurant_id == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
     <label>상태</label>
     <select name="status" onchange="this.form.submit()">
       <option value="">전체</option>
