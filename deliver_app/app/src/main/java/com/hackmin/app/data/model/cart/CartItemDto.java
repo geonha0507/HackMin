@@ -7,6 +7,7 @@ public class CartItemDto {
     @SerializedName("id") private long id;
     @SerializedName("menu") private long menu;
     @SerializedName("menu_name") private String menuName;
+    @SerializedName("menu_image") private String menuImage;
     @SerializedName("quantity") private int quantity;
     @SerializedName("options") private List<Integer> options;
     @SerializedName("unit_price") private int unitPrice;
@@ -15,6 +16,7 @@ public class CartItemDto {
     public long getId() { return id; }
     public long getMenu() { return menu; }
     public String getMenuName() { return menuName; }
+    public String getMenuImage() { return menuImage; }
     public int getQuantity() { return quantity; }
     public List<Integer> getOptions() { return options; }
     public int getUnitPrice() { return unitPrice; }
