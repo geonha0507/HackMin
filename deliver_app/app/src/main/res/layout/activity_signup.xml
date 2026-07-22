@@ -294,6 +294,18 @@
                     android:textColor="@color/text_primary"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- 전화번호 형식 안내 -->
+            <TextView
+                android:id="@+id/tv_phone_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+
             <!-- ===== 약관 동의 ===== -->
             <LinearLayout
                 android:layout_width="match_parent"

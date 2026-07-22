@@ -34,6 +34,7 @@ public class SignupActivity extends AppCompatActivity {
     private TextView tvIdCheckResult;
     private TextView tvPwCondition;
     private TextView tvPwConfirmResult;
+    private TextView tvPhoneResult;
     private boolean isNicknameChecked = false;
     private boolean isDuplicateChecked = false;
 
@@ -52,6 +53,7 @@ public class SignupActivity extends AppCompatActivity {
         tvIdCheckResult = findViewById(R.id.tv_id_check_result);
         tvPwCondition = findViewById(R.id.tv_pw_condition);
         tvPwConfirmResult = findViewById(R.id.tv_pw_confirm_result);
+        tvPhoneResult = findViewById(R.id.tv_phone_result);
         Button btnCheckNicknameDuplicate = findViewById(R.id.btn_check_nickname_duplicate);
         Button btnCheckDuplicate = findViewById(R.id.btn_check_duplicate);
         Button btnSignupSubmit = findViewById(R.id.btn_signup_submit);
@@ -199,6 +201,32 @@ public class SignupActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
+        // 전화번호 입력 시 010-XXXX-XXXX 형식으로 자동 정리 + 형식 검증 안내
+        etSignupPhone.addTextChangedListener(new TextWatcher() {
+            private boolean editing = false;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (editing) return;
+                editing = true;
+                String digits = s.toString().replaceAll("[^0-9]", "");
+                if (digits.length() > 11) {
+                    digits = digits.substring(0, 11);
+                }
+                String formatted = formatPhone(digits);
+                s.replace(0, s.length(), formatted);
+                etSignupPhone.setSelection(formatted.length());
+                editing = false;
+                updatePhoneResult(digits);
+            }
+        });
+
         // 2. 회원가입 완료 통신
         btnSignupSubmit.setOnClickListener(v -> {
             String nickname = etSignupNickname.getText() != null ? etSignupNickname.getText().toString().trim() : "";
@@ -226,6 +254,11 @@ public class SignupActivity extends AppCompatActivity {
 
             if (!pw.equals(pwConfirm)) {
                 Toast.makeText(this, "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 전화번호 형식 검사 (010으로 시작하는 11자리)
+            if (!isPhoneValid(phone.replaceAll("[^0-9]", ""))) {
+                Toast.makeText(this, "전화번호는 010으로 시작하는 11자리로 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (!isNicknameChecked) {
@@ -377,6 +410,38 @@ public class SignupActivity extends AppCompatActivity {
         } else {
             tvPwConfirmResult.setText("비밀번호가 일치하지 않습니다.");
             tvPwConfirmResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        }
+    }
+
+    // 숫자열을 010-XXXX-XXXX 형식으로 변환한다.
+    private String formatPhone(String digits) {
+        if (digits.length() <= 3) {
+            return digits;
+        }
+        if (digits.length() <= 7) {
+            return digits.substring(0, 3) + "-" + digits.substring(3);
+        }
+        return digits.substring(0, 3) + "-" + digits.substring(3, 7) + "-" + digits.substring(7);
+    }
+
+    // 010으로 시작하는 11자리(숫자)인지 검증한다.
+    private boolean isPhoneValid(String digits) {
+        return digits.length() == 11 && digits.startsWith("010");
+    }
+
+    // 전화번호 형식 충족 여부를 아래 안내 문구로 표시한다.
+    private void updatePhoneResult(String digits) {
+        if (digits.isEmpty()) {
+            tvPhoneResult.setVisibility(View.GONE);
+            return;
+        }
+        tvPhoneResult.setVisibility(View.VISIBLE);
+        if (isPhoneValid(digits)) {
+            tvPhoneResult.setText("올바른 형식입니다.");
+            tvPhoneResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+        } else {
+            tvPhoneResult.setText("010으로 시작하는 11자리 번호를 입력해주세요.");
+            tvPhoneResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
         }
     }
 }
