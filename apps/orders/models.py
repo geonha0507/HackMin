@@ -10,15 +10,15 @@ def generate_order_number():
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending payment'
-        PLACED = 'placed', 'Placed'
-        ACCEPTED = 'accepted', 'Accepted'
-        REJECTED = 'rejected', 'Rejected'
-        COOKING = 'cooking', 'Cooking'
-        COOKED = 'cooked', 'Cooked'
-        DELIVERING = 'delivering', 'Delivering'
-        DELIVERED = 'delivered', 'Delivered'
-        CANCELLED = 'cancelled', 'Cancelled'
+        PENDING = 'pending', '결제대기'
+        PLACED = 'placed', '점주확인대기'
+        ACCEPTED = 'accepted', '주문접수'
+        REJECTED = 'rejected', '주문거절'
+        COOKING = 'cooking', '조리중'
+        COOKED = 'cooked', '조리완료'
+        DELIVERING = 'delivering', '배달중'
+        DELIVERED = 'delivered', '배달완료'
+        CANCELLED = 'cancelled', '주문취소'
 
     order_number = models.CharField(max_length=32, unique=True, default=generate_order_number)
     user = models.ForeignKey(
