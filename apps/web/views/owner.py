@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from django.contrib import messages
 from django.db.models import Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from orders.models import Order
 from restaurants.models import Menu, MenuCategory, Restaurant
@@ -30,6 +31,16 @@ def _owned_restaurants(user):
 
 def _owned_ids(user):
     return owned_restaurant_ids(user)
+
+
+def _filter_owned(request, owned_ids):
+    """GET 파라미터 restaurant_id로 매장 필터링. 소유하지 않은 ID는 무시."""
+    try:
+        sel = int(request.GET.get('restaurant_id', ''))
+    except ValueError:
+        sel = None
+    ids = [sel] if sel in owned_ids else owned_ids
+    return ids, sel if sel in owned_ids else ''
 
 
 @owner_required
@@ -101,18 +112,14 @@ def order_detail(request, pk):
 @owner_required
 def product_list(request):
     owned_ids = _owned_ids(request.user)
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
 
     menus = Menu.objects.filter(restaurant_id__in=ids).select_related('restaurant', 'category')
     return render(request, 'web/owner/products.html', {
         'menus': menus,
         'status_labels': MENU_STATUS_LABELS,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     })
 
 
@@ -250,11 +257,7 @@ def category_list(request):
 @owner_required
 def sales(request):
     owned_ids = _owned_ids(request.user)
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
     today = date.today()
     start = request.GET.get('start') or str(today - timedelta(days=29))
     end = request.GET.get('end') or str(today)
@@ -282,7 +285,7 @@ def sales(request):
         'order_count': qs.count(),
         'max_amount': max_amount,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     }
     return render(request, 'web/owner/sales.html', ctx)
 
@@ -299,13 +302,13 @@ def review_list(request):
                 review=review, defaults={'owner': request.user, 'content': content},
             )
             messages.success(request, '답변을 등록했습니다.')
-        return redirect('web:owner_reviews')
+        restaurant_id = request.GET.get('restaurant_id', '')
+        url = reverse('web:owner_reviews')
+        if restaurant_id:
+            url += f'?restaurant_id={restaurant_id}'
+        return redirect(url)
 
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
 
     reviews = (
         Review.objects.filter(restaurant_id__in=ids)
@@ -315,5 +318,5 @@ def review_list(request):
     return render(request, 'web/owner/reviews.html', {
         'reviews': reviews,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     })
