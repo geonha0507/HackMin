@@ -25,10 +25,6 @@ def restaurant_image_upload_to(instance, filename):
     return f'restaurants/{owner_id}/{filename}'
 
 
-def restaurant_image_upload_to(instance, filename):
-    owner_id = instance.owner.user_id if instance.owner else 0
-    return f'restaurants/{owner_id}/{filename}'
-
 def menu_image_upload_to(instance, filename):
     """
     메뉴 이미지 업로드 경로

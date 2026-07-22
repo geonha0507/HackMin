@@ -6,11 +6,22 @@
 <div class="panel">
   <h2>새 매장 등록</h2>
   <p class="muted" style="margin:0 0 14px">추가하는 매장은 즉시 등록되며, 매장 관리 화면 상단의 목록에서 전환할 수 있습니다.</p>
-  <form method="post" action="{% url 'web:restaurant_add' %}">
+  <form method="post" action="{% url 'web:restaurant_add' %}" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="field">
       <label>매장명</label>
       <input name="name" value="{{ form.name }}" required>
+    </div>
+    <div class="field">
+      <label>매장 사진 (선택)</label>
+      <input type="file" name="image" accept="image/*">
+    </div>
+    <div class="field">
+      <label>사업자등록증</label>
+      <input type="file" name="business_license" accept=".pdf,.jpg,.jpeg,.png" required>
+      <div style="color:#9ca3af;font-size:12px;margin-top:5px">
+        PDF, JPG, JPEG, PNG · 최대 10MB
+      </div>
     </div>
     <div class="field">
       <label>종류 (복수 선택 가능)</label>

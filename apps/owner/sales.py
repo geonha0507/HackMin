@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from common.permissions import IsOwner
 from orders.models import Order, OrderItem
-from restaurants.models import Restaurant
+from restaurants.selectors import owned_restaurant_ids
 
 # 매출로 집계할 주문 상태.
 _SALES_STATUSES = (Order.Status.DELIVERED, Order.Status.DELIVERING, Order.Status.PLACED,
@@ -17,7 +17,7 @@ _SALES_STATUSES = (Order.Status.DELIVERED, Order.Status.DELIVERING, Order.Status
 
 
 def _owned_ids(user):
-    return list(Restaurant.objects.filter(owner=user).values_list('id', flat=True))
+    return owned_restaurant_ids(user)
 
 
 @api_view(['GET'])

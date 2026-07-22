@@ -38,7 +38,6 @@ public class AuthApiRealBackendTest {
         OkHttpClient client = new OkHttpClient.Builder()
                 .addInterceptor(chain -> chain.proceed(
                         chain.request().newBuilder()
-                                .header("X-Hackmin-Mode", "secure")
                                 .build()))
                 .build();
 

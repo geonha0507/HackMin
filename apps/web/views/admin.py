@@ -43,12 +43,12 @@ def _restaurant_diff_rows(edit_request):
 @admin_required
 def dashboard(request):
     ctx = {
-        'user_count': User.objects.filter(role='customer').count(),
-        'owner_count': User.objects.filter(role='owner').count(),
+        'user_count': User.objects.filter(role=User.Role.CUSTOMER).count(),
+        'owner_count': User.objects.filter(role=User.Role.OWNER).count(),
         'restaurant_count': Restaurant.objects.count(),
         'order_count': Order.objects.count(),
-        'suspended_count': User.objects.filter(status='suspended').count(),
-        'total_sales': Payment.objects.filter(status='paid').aggregate(s=Sum('amount'))['s'] or 0,
+        'suspended_count': User.objects.filter(status=User.Status.SUSPENDED).count(),
+        'total_sales': Payment.objects.filter(status=Payment.Status.PAID).aggregate(s=Sum('amount'))['s'] or 0,
         'recent_orders': Order.objects.select_related('restaurant', 'user')[:8],
         'recent_users': User.objects.order_by('-date_joined')[:8],
     }
@@ -79,7 +79,7 @@ def user_detail(request, pk):
         new_status = request.POST.get('status')
         if new_status in USER_STATUS:
             user.status = new_status
-            user.is_active = new_status == 'active'
+            user.is_active = new_status == User.Status.ACTIVE
             user.save(update_fields=['status', 'is_active'])
             messages.success(request, '회원 상태를 변경했습니다.')
         return redirect('web:admin_user_detail', pk=pk)
@@ -91,7 +91,7 @@ def user_detail(request, pk):
 
 @admin_required
 def owner_list(request):
-    owners = User.objects.filter(role='owner').order_by('-date_joined')
+    owners = User.objects.filter(role=User.Role.OWNER).order_by('-date_joined')
     q = request.GET.get('q', '').strip()
     if q:
         owners = owners.filter(Q(username__icontains=q) | Q(email__icontains=q))
@@ -106,12 +106,12 @@ def owner_list(request):
 
 @admin_required
 def owner_status(request, pk):
-    owner = get_object_or_404(User, pk=pk, role='owner')
+    owner = get_object_or_404(User, pk=pk, role=User.Role.OWNER)
     if request.method == 'POST':
         new_status = request.POST.get('status')
         if new_status in USER_STATUS:
             owner.status = new_status
-            owner.is_active = new_status == 'active'
+            owner.is_active = new_status == User.Status.ACTIVE
             owner.save(update_fields=['status', 'is_active'])
             messages.success(request, '점주 상태를 변경했습니다.')
     return redirect('web:admin_owners')
