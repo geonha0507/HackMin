@@ -232,6 +232,18 @@
                     android:textColor="@color/text_primary"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- 비밀번호 일치 여부 -->
+            <TextView
+                android:id="@+id/tv_pw_confirm_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+
             <!-- 이름 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
