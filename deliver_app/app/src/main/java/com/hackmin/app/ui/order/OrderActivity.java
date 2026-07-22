@@ -1,14 +1,16 @@
 package com.hackmin.app.ui.order;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,10 +47,16 @@ public class OrderActivity extends AppCompatActivity {
     public static final String EXTRA_ORDER_ID = "order_id";
 
     private TextView tvSelectedAddress, tvTotalPayment;
+    private TextView tvMenuPrice, tvDeliveryFee, tvDiscount;
     private Button btnChangeAddress, btnPay;
     private EditText etRequestMessage;
-    private RadioGroup rgPaymentMethod;
     private LinearLayout containerOrderItems;
+
+    // 결제수단 카드/간편결제 뷰 + 현재 선택값(card | kakao | naver)
+    private LinearLayout cardListContainer;
+    private View cardAddTile, payKakao, payNaver;
+    private View selectedCardTile;
+    private String selectedPayment = "card";
 
     private CartApi cartApi;
     private OrderApi orderApi;
@@ -67,6 +75,9 @@ public class OrderActivity extends AppCompatActivity {
 
         initApi();
         initViews();
+
+        // 저장된 기본 배송지가 있으면 자동으로 채운다.
+        applySavedDefaultAddress();
 
         btnChangeAddress.setOnClickListener(v -> selectAddress());
         btnPay.setOnClickListener(v -> submitOrder());
@@ -89,11 +100,424 @@ public class OrderActivity extends AppCompatActivity {
     private void initViews() {
         tvSelectedAddress = findViewById(R.id.tvSelectedAddress);
         tvTotalPayment = findViewById(R.id.tvTotalPayment);
+        tvMenuPrice = findViewById(R.id.tvMenuPrice);
+        tvDeliveryFee = findViewById(R.id.tvDeliveryFee);
+        tvDiscount = findViewById(R.id.tvDiscount);
         btnChangeAddress = findViewById(R.id.btnChangeAddress);
         btnPay = findViewById(R.id.btnPay);
         etRequestMessage = findViewById(R.id.etRequestMessage);
-        rgPaymentMethod = findViewById(R.id.rgPaymentMethod);
+        setupRequestNote();
         containerOrderItems = findViewById(R.id.containerOrderItems);
+        setupPaymentMethods();
+    }
+
+    /** 결제수단(카드/카카오/네이버) 선택 UI 초기화. */
+    private void setupPaymentMethods() {
+        cardListContainer = findViewById(R.id.cardListContainer);
+        cardAddTile = findViewById(R.id.cardAdd);
+        payKakao = findViewById(R.id.payKakao);
+        payNaver = findViewById(R.id.payNaver);
+
+        cardAddTile.setOnClickListener(v -> showAddCardDialog());
+        payKakao.setOnClickListener(v -> selectPayment("kakao"));
+        payNaver.setOnClickListener(v -> selectPayment("naver"));
+
+        // 저장된 카드 불러오기(없으면 기본 루키즈카드 1장 생성).
+        loadCards();
+    }
+
+    /** 간편결제(카카오/네이버) 선택 처리 + 안내 토스트. */
+    private void selectPayment(String type) {
+        selectedPayment = type;
+        selectedCardTile = null;
+        refreshCardBorders();
+        payKakao.setSelected("kakao".equals(type));
+        payNaver.setSelected("naver".equals(type));
+        if ("kakao".equals(type)) {
+            Toast.makeText(this, "카카오로 선택되었습니다.", Toast.LENGTH_SHORT).show();
+        } else if ("naver".equals(type)) {
+            Toast.makeText(this, "네이버로 선택되었습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** 카드 타일 선택 처리(간편결제 선택 해제). */
+    private void selectCard(View card) {
+        selectedPayment = "card";
+        selectedCardTile = card;
+        payKakao.setSelected(false);
+        payNaver.setSelected(false);
+        refreshCardBorders();
+    }
+
+    /** 새 카드를 랜덤 색상으로 추가하고 저장한다(카드 추가 다이얼로그에서 호출). */
+    private void addCardTile(String cardNo) {
+        int[] colors = randomGradientColors();
+        buildCardTile(new CardData(cardNo, colors[0], colors[1]), true);
+        persistCards();
+    }
+
+    /** CardData로 카드 타일을 생성해 화면에 추가한다(cardAdd 앞에 삽입). */
+    private void buildCardTile(CardData data, boolean select) {
+        float density = getResources().getDisplayMetrics().density;
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                (int) (260 * density), (int) (150 * density));
+        lp.setMarginEnd((int) (12 * density));
+        card.setLayoutParams(lp);
+        int p = (int) (20 * density);
+        card.setPadding(p, p, p, p);
+
+        // 저장된 색상으로 그라데이션 배경 구성. 테두리는 refreshCardBorders에서 stroke로 처리.
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR, new int[]{data.color1, data.color2});
+        bg.setCornerRadius(16 * density);
+        card.setBackground(bg);
+        data.drawable = bg;
+        card.setTag(data);
+
+        // 상단: "MY CARD" + 우측 X(삭제) 버튼
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView title = new TextView(this);
+        title.setText("MY CARD");
+        title.setTextColor(Color.WHITE);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        title.setTextSize(14);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView btnDelete = new TextView(this);
+        btnDelete.setText("✕");
+        btnDelete.setTextColor(Color.WHITE);
+        btnDelete.setTextSize(16);
+        int xp = (int) (4 * density);
+        btnDelete.setPadding(xp, 0, xp, xp);
+
+        top.addView(title);
+        top.addView(btnDelete);
+        card.addView(top);
+
+        // 가운데 여백
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        card.addView(spacer);
+
+        // 카드번호(마스킹) + 카드명
+        TextView num = new TextView(this);
+        num.setText(maskCardNumber(data.number));
+        num.setTextColor(Color.WHITE);
+        num.setTextSize(16);
+        card.addView(num);
+
+        TextView name = new TextView(this);
+        name.setText("루키즈카드");
+        name.setTextColor(Color.parseColor("#F0F0F0"));
+        name.setTextSize(12);
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        nameLp.topMargin = (int) (4 * density);
+        name.setLayoutParams(nameLp);
+        card.addView(name);
+
+        card.setOnClickListener(v -> selectCard(card));
+        btnDelete.setOnClickListener(v -> confirmDeleteCard(card));
+
+        // cardAdd 타일 바로 앞에 삽입.
+        int addIndex = cardListContainer.indexOfChild(cardAddTile);
+        cardListContainer.addView(card, addIndex);
+
+        if (select) {
+            selectCard(card);
+        } else {
+            refreshCardBorders();
+        }
+    }
+
+    /** 카드 삭제 확인 다이얼로그. */
+    private void confirmDeleteCard(View card) {
+        new AlertDialog.Builder(this)
+                .setMessage("등록된 카드를 지우겠습니까?")
+                .setPositiveButton("삭제", (d, w) -> {
+                    boolean wasSelected = (card == selectedCardTile);
+                    cardListContainer.removeView(card);
+                    if (wasSelected) {
+                        selectedCardTile = null;
+                        selectFirstCardOrNone();
+                    }
+                    persistCards();
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    /** 남아있는 첫 카드를 선택. 없으면 선택 해제. */
+    private void selectFirstCardOrNone() {
+        for (int i = 0; i < cardListContainer.getChildCount(); i++) {
+            View child = cardListContainer.getChildAt(i);
+            if (child != cardAddTile) {
+                selectCard(child);
+                return;
+            }
+        }
+        selectedCardTile = null;
+        refreshCardBorders();
+    }
+
+    /** 카드 타일들의 선택 테두리를 갱신한다(선택된 카드만 진한 테두리). */
+    private void refreshCardBorders() {
+        float density = getResources().getDisplayMetrics().density;
+        for (int i = 0; i < cardListContainer.getChildCount(); i++) {
+            View child = cardListContainer.getChildAt(i);
+            if (child == cardAddTile) continue;
+            Object tag = child.getTag();
+            if (tag instanceof CardData && ((CardData) tag).drawable != null) {
+                GradientDrawable gd = ((CardData) tag).drawable;
+                if (child == selectedCardTile) {
+                    gd.setStroke((int) (3 * density), Color.parseColor("#1A1A1A"));
+                } else {
+                    gd.setStroke(0, Color.TRANSPARENT);
+                }
+            }
+        }
+    }
+
+    /** 금액을 천 단위 콤마 + "원" 형식으로 변환한다. (예: 108000 → "108,000원") */
+    private String won(int amount) {
+        return String.format(java.util.Locale.KOREA, "%,d원", amount);
+    }
+
+    /** 카드번호를 "****  ****  ****  1234" 형태로 마스킹(뒤 4자리만 노출). */
+    private String maskCardNumber(String cardNo) {
+        String last4 = cardNo.length() >= 4 ? cardNo.substring(cardNo.length() - 4) : cardNo;
+        return "****  ****  ****  " + last4;
+    }
+
+    /** 카드 배경용 랜덤 그라데이션 색상 2개 생성. */
+    private int[] randomGradientColors() {
+        java.util.Random r = new java.util.Random();
+        float hue = r.nextInt(360);
+        int c1 = Color.HSVToColor(new float[]{hue, 0.55f, 0.85f});
+        int c2 = Color.HSVToColor(new float[]{(hue + 40f) % 360f, 0.7f, 0.6f});
+        return new int[]{c1, c2};
+    }
+
+    // 등록 카드는 SharedPreferences에 JSON으로 저장 → 화면 재진입/앱 재시작 후에도 유지.
+    private static final String PREF_CARDS = "payment_cards";
+    private static final String KEY_CARDS = "cards_json";
+
+    /** 저장된 카드 목록을 불러와 화면에 그린다. 없으면 기본 루키즈카드 1장을 생성·저장한다. */
+    private void loadCards() {
+        String json = getSharedPreferences(PREF_CARDS, MODE_PRIVATE).getString(KEY_CARDS, null);
+        List<CardData> list = null;
+        if (json != null) {
+            try {
+                list = new com.google.gson.Gson().fromJson(
+                        json, new com.google.gson.reflect.TypeToken<List<CardData>>() {}.getType());
+            } catch (Exception ignored) {
+            }
+        }
+        if (list == null || list.isEmpty()) {
+            // 최초 실행: 기본 루키즈카드 1장 생성.
+            int[] colors = randomGradientColors();
+            buildCardTile(new CardData("1234", colors[0], colors[1]), true);
+            persistCards();
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            buildCardTile(list.get(i), i == 0);  // 첫 카드를 선택 상태로.
+        }
+    }
+
+    /** 현재 화면의 카드 타일들을 JSON으로 직렬화해 저장한다. */
+    private void persistCards() {
+        List<CardData> list = new ArrayList<>();
+        for (int i = 0; i < cardListContainer.getChildCount(); i++) {
+            View child = cardListContainer.getChildAt(i);
+            if (child == cardAddTile) continue;
+            Object tag = child.getTag();
+            if (tag instanceof CardData) {
+                list.add((CardData) tag);
+            }
+        }
+        getSharedPreferences(PREF_CARDS, MODE_PRIVATE).edit()
+                .putString(KEY_CARDS, new com.google.gson.Gson().toJson(list))
+                .apply();
+    }
+
+    /** 등록 카드 1장의 저장 데이터. drawable은 런타임 참조라 저장 대상에서 제외(transient). */
+    private static class CardData {
+        String number;
+        int color1;
+        int color2;
+        transient GradientDrawable drawable;
+
+        CardData(String number, int color1, int color2) {
+            this.number = number;
+            this.color1 = color1;
+            this.color2 = color2;
+        }
+    }
+
+    /**
+     * 카드 추가 다이얼로그. 카드번호 16자리 + CVC 3자리 + 비밀번호 앞 2자리를 입력받는다.
+     * 실제 결제사 연동은 없고(임의번호), 형식이 맞으면 바로 등록 처리한다.
+     */
+    private void showAddCardDialog() {
+        float density = getResources().getDisplayMetrics().density;
+        int pad = (int) (20 * density);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad, pad, 0);
+
+        // 카드번호: 4자리씩 4칸. 뒤 8자리(3·4번째 칸)는 *로 마스킹.
+        addFieldLabel(box, "카드번호", density);
+        LinearLayout cardRow = new LinearLayout(this);
+        cardRow.setOrientation(LinearLayout.HORIZONTAL);
+        final EditText[] segs = new EditText[4];
+        for (int i = 0; i < 4; i++) {
+            EditText seg = new EditText(this);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            int m = (int) (4 * density);
+            lp.setMargins(m, 0, m, 0);
+            seg.setLayoutParams(lp);
+            seg.setGravity(android.view.Gravity.CENTER);
+            seg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            seg.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(4)});
+            if (i >= 2) {
+                // 뒤 8자리는 입력값을 * 로 표시.
+                seg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                        | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+                seg.setTransformationMethod(new StarPasswordTransformation());
+            }
+            segs[i] = seg;
+            cardRow.addView(seg);
+        }
+        // 4자리 채우면 다음 칸으로, 빈 칸에서 지우면 이전 칸으로 포커스 이동.
+        for (int i = 0; i < 4; i++) {
+            final int idx = i;
+            segs[i].addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                @Override
+                public void afterTextChanged(android.text.Editable s) {
+                    if (s.length() == 4 && idx < 3) {
+                        segs[idx + 1].requestFocus();
+                    }
+                }
+            });
+            segs[i].setOnKeyListener((v, keyCode, event) -> {
+                if (keyCode == android.view.KeyEvent.KEYCODE_DEL
+                        && event.getAction() == android.view.KeyEvent.ACTION_DOWN
+                        && segs[idx].getText().length() == 0 && idx > 0) {
+                    segs[idx - 1].requestFocus();
+                    segs[idx - 1].setSelection(segs[idx - 1].getText().length());
+                }
+                return false;
+            });
+        }
+        box.addView(cardRow);
+
+        // CVC
+        addFieldLabel(box, "CVC", density);
+        final EditText etCvc = new EditText(this);
+        etCvc.setHint("3자리");
+        etCvc.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        etCvc.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
+        box.addView(etCvc);
+
+        // 비밀번호 앞 2자리
+        addFieldLabel(box, "비밀번호 앞 2자리", density);
+        final EditText etPwd = new EditText(this);
+        etPwd.setHint("2자리");
+        etPwd.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        etPwd.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(2)});
+        box.addView(etPwd);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("카드 추가")
+                .setView(box)
+                .setPositiveButton("등록", null)  // 검증 후 수동 dismiss 위해 리스너는 아래에서 설정.
+                .setNegativeButton("취소", null)
+                .create();
+
+        // 형식이 틀리면 다이얼로그가 닫히지 않도록 setOnShowListener에서 버튼을 직접 처리.
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            StringBuilder cn = new StringBuilder();
+            for (EditText seg : segs) cn.append(seg.getText().toString().trim());
+            String cardNo = cn.toString();
+            String cvc = etCvc.getText().toString().trim();
+            String pwd = etPwd.getText().toString().trim();
+
+            if (cardNo.length() != 16) {
+                Toast.makeText(this, "카드번호를 16자리로 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (cvc.length() != 3) {
+                Toast.makeText(this, "CVC를 3자리로 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (pwd.length() != 2) {
+                Toast.makeText(this, "비밀번호 앞 2자리를 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 임의번호이므로 별도 검증 없이 즉시 등록 처리 → 카드 타일 추가.
+            addCardTile(cardNo);
+            Toast.makeText(this, "카드가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        }));
+
+        dialog.show();
+    }
+
+    /** 카드 추가 다이얼로그의 입력 항목 라벨을 추가한다. */
+    private void addFieldLabel(LinearLayout parent, String text, float density) {
+        TextView label = new TextView(this);
+        label.setText(text);
+        label.setTextSize(13);
+        label.setPadding(0, (int) (12 * density), 0, (int) (4 * density));
+        parent.addView(label);
+    }
+
+    /** 입력값을 '*' 문자로 마스킹하는 변환기(기본 ● 대신 별표 사용). */
+    private static class StarPasswordTransformation extends android.text.method.PasswordTransformationMethod {
+        @Override
+        public CharSequence getTransformation(CharSequence source, View view) {
+            return new StarCharSequence(source);
+        }
+
+        private static class StarCharSequence implements CharSequence {
+            private final CharSequence source;
+
+            StarCharSequence(CharSequence source) {
+                this.source = source;
+            }
+
+            @Override
+            public char charAt(int index) {
+                return '*';
+            }
+
+            @Override
+            public int length() {
+                return source.length();
+            }
+
+            @Override
+            public CharSequence subSequence(int start, int end) {
+                return source.subSequence(start, end);
+            }
+        }
     }
 
     /** 주문 내역·금액은 서버 장바구니에서 가져온다. (주문 생성도 서버 장바구니 기준) */
@@ -128,7 +552,7 @@ public class OrderActivity extends AppCompatActivity {
 
             ImageLoader.load(iv, item.getMenuImage());
             name.setText(item.getMenuName() + " x" + item.getQuantity());
-            price.setText(item.getLineTotal() + "원");
+            price.setText(won(item.getLineTotal()));
 
             containerOrderItems.addView(row);
         }
@@ -139,7 +563,12 @@ public class OrderActivity extends AppCompatActivity {
             @Override
             public void onResponse(@NonNull Call<CartSummaryDto> call, @NonNull Response<CartSummaryDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    tvTotalPayment.setText(response.body().getTotal() + "원");
+                    CartSummaryDto s = response.body();
+                    tvMenuPrice.setText(won(s.getSubtotal()));
+                    tvDeliveryFee.setText(won(s.getDeliveryFee()));
+                    // 할인 금액이 있으면 -N원 형태로 표시.
+                    tvDiscount.setText(s.getDiscount() > 0 ? "-" + won(s.getDiscount()) : won(0));
+                    tvTotalPayment.setText(won(s.getTotal()));
                 }
             }
 
@@ -213,13 +642,28 @@ public class OrderActivity extends AppCompatActivity {
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         box.setPadding(pad, pad, pad, 0);
 
+        // 주소는 직접 입력 대신 우편번호 검색으로 채운다(직접 수정 방지).
         EditText etAddr = new EditText(this);
-        etAddr.setHint("주소 (예: 서울시 강남구 테헤란로 123)");
+        etAddr.setHint("주소 (주소 검색으로 선택)");
         etAddr.setText(selectedAddress);
+        etAddr.setFocusable(false);
+        etAddr.setClickable(true);
+
+        Button btnSearchAddress = new Button(this);
+        btnSearchAddress.setText("주소 검색");
+
         EditText etDetail = new EditText(this);
         etDetail.setHint("상세주소 (예: 101동 1001호)");
         etDetail.setText(selectedAddressDetail);
+
+        // 주소 검색 버튼/주소칸 탭 → 다음 우편번호 검색 → 도로명 주소 채움.
+        View.OnClickListener openSearch = v -> com.hackmin.app.util.PostcodeSearch.show(this,
+                (zonecode, address) -> etAddr.setText(address));
+        btnSearchAddress.setOnClickListener(openSearch);
+        etAddr.setOnClickListener(openSearch);
+
         box.addView(etAddr);
+        box.addView(btnSearchAddress);
         box.addView(etDetail);
 
         new AlertDialog.Builder(this)
@@ -228,14 +672,110 @@ public class OrderActivity extends AppCompatActivity {
                 .setPositiveButton("확인", (d, w) -> {
                     selectedAddress = etAddr.getText().toString().trim();
                     selectedAddressDetail = etDetail.getText().toString().trim();
-                    if (TextUtils.isEmpty(selectedAddress)) {
-                        tvSelectedAddress.setText("배송지를 선택해주세요");
-                    } else {
-                        tvSelectedAddress.setText(
-                                selectedAddress
-                                        + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+                    updateAddressDisplay();
+                    // 주소가 입력되면 기본 주소로 저장할지 확인한다.
+                    if (!TextUtils.isEmpty(selectedAddress)) {
+                        confirmSetDefaultAddress();
                     }
                 })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    /** 상단 배송지 표시를 현재 선택값으로 갱신한다. */
+    private void updateAddressDisplay() {
+        if (TextUtils.isEmpty(selectedAddress)) {
+            tvSelectedAddress.setText("배송지를 선택해주세요");
+        } else {
+            tvSelectedAddress.setText(
+                    selectedAddress
+                            + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+        }
+    }
+
+    /** "이 주소를 기본 주소로 설정하시겠습니까?" — 예 선택 시 로컬에 저장(다음 진입 시 자동 적용). */
+    private void confirmSetDefaultAddress() {
+        new AlertDialog.Builder(this)
+                .setMessage("이 주소를 기본 주소로 설정하시겠습니까?")
+                .setPositiveButton("예", (d, w) -> {
+                    saveDefaultAddress(selectedAddress, selectedAddressDetail);
+                    Toast.makeText(this, "기본 주소로 설정되었습니다.", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("아니오", null)
+                .show();
+    }
+
+    // 기본 배송지는 로컬(SharedPreferences)에 저장 → 다음 주문서 진입 시 자동 적용.
+    private static final String PREF_ADDR = "default_address";
+    private static final String KEY_ADDR = "address";
+    private static final String KEY_ADDR_DETAIL = "address_detail";
+
+    /** 기본 배송지를 저장한다. */
+    private void saveDefaultAddress(String address, String detail) {
+        getSharedPreferences(PREF_ADDR, MODE_PRIVATE).edit()
+                .putString(KEY_ADDR, address)
+                .putString(KEY_ADDR_DETAIL, detail)
+                .apply();
+    }
+
+    /** 저장된 기본 배송지가 있으면 선택값·상단 표시에 반영한다. */
+    private void applySavedDefaultAddress() {
+        android.content.SharedPreferences p = getSharedPreferences(PREF_ADDR, MODE_PRIVATE);
+        String addr = p.getString(KEY_ADDR, "");
+        String detail = p.getString(KEY_ADDR_DETAIL, "");
+        if (!TextUtils.isEmpty(addr)) {
+            selectedAddress = addr;
+            selectedAddressDetail = detail;
+            updateAddressDisplay();
+        }
+    }
+
+    // 요청사항 프리셋(마지막 "직접 입력"은 사용자가 직접 타이핑).
+    private static final String[] REQUEST_NOTE_OPTIONS = {
+            "문 앞에 놓아주세요",
+            "경비실에 놓아주세요",
+            "벨 누르지 말고 노크해 주세요",
+            "직접 받을게요",
+            "전화주시면 마중 나갈게요",
+            "직접 입력",
+    };
+
+    /** 요청사항 칸을 탭하면 프리셋 선택 다이얼로그가 뜨도록 설정(직접 입력만 타이핑). */
+    private void setupRequestNote() {
+        etRequestMessage.setFocusable(false);
+        etRequestMessage.setClickable(true);
+        etRequestMessage.setOnClickListener(v -> showRequestNoteOptions());
+    }
+
+    /** 요청사항 프리셋 목록을 보여준다. */
+    private void showRequestNoteOptions() {
+        new AlertDialog.Builder(this)
+                .setTitle("요청사항")
+                .setItems(REQUEST_NOTE_OPTIONS, (d, which) -> {
+                    if (which == REQUEST_NOTE_OPTIONS.length - 1) {
+                        showCustomRequestNoteDialog();  // 직접 입력
+                    } else {
+                        etRequestMessage.setText(REQUEST_NOTE_OPTIONS[which]);
+                    }
+                })
+                .show();
+    }
+
+    /** "직접 입력" 선택 시 자유 입력 다이얼로그. */
+    private void showCustomRequestNoteDialog() {
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(pad, pad, pad, 0);
+
+        EditText et = new EditText(this);
+        et.setHint("요청사항을 입력해주세요");
+        et.setText(etRequestMessage.getText().toString());
+        box.addView(et);
+
+        new AlertDialog.Builder(this)
+                .setTitle("직접 입력")
+                .setView(box)
+                .setPositiveButton("확인", (d, w) -> etRequestMessage.setText(et.getText().toString().trim()))
                 .setNegativeButton("취소", null)
                 .show();
     }
@@ -295,8 +835,8 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     private void payForOrder(OrderDto order) {
-        // 라디오 선택 → 서버가 허용하는 결제수단 코드로 매핑.
-        String method = rgPaymentMethod.getCheckedRadioButtonId() == R.id.rbEasyPay ? "easy_pay" : "card";
+        // 선택 결제수단 → 서버가 허용하는 코드로 매핑(카카오/네이버는 간편결제).
+        String method = "card".equals(selectedPayment) ? "card" : "easy_pay";
         // amount 는 생략 — 서버가 주문 총액을 사용(전달 시 정확히 일치해야 함).
         PaymentCreateRequest req = new PaymentCreateRequest(order.getId(), method);
 

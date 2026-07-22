@@ -21,6 +21,7 @@ import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.user.AddressDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.util.PostcodeSearch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,16 +110,28 @@ public class AddressActivity extends AppCompatActivity {
         etLabel.setHint("배송지 이름 (예: 집, 회사)");
         etLabel.setInputType(InputType.TYPE_CLASS_TEXT);
 
+        // 주소는 직접 입력 대신 우편번호 검색으로 채운다(직접 수정 방지).
         EditText etAddress = new EditText(this);
-        etAddress.setHint("주소");
-        etAddress.setInputType(InputType.TYPE_CLASS_TEXT);
+        etAddress.setHint("주소 (주소 검색으로 선택)");
+        etAddress.setFocusable(false);
+        etAddress.setClickable(true);
+
+        Button btnSearchAddress = new Button(this);
+        btnSearchAddress.setText("주소 검색");
 
         EditText etDetail = new EditText(this);
         etDetail.setHint("상세 주소");
         etDetail.setInputType(InputType.TYPE_CLASS_TEXT);
 
+        // 주소 검색 버튼/주소칸 탭 → 다음 우편번호 검색 → 도로명 주소 채움.
+        View.OnClickListener openSearch = v -> PostcodeSearch.show(this,
+                (zonecode, address) -> etAddress.setText(address));
+        btnSearchAddress.setOnClickListener(openSearch);
+        etAddress.setOnClickListener(openSearch);
+
         container.addView(etLabel);
         container.addView(etAddress);
+        container.addView(btnSearchAddress);
         container.addView(etDetail);
 
         new AlertDialog.Builder(this)
