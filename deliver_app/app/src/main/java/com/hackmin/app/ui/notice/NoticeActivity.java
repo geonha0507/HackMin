@@ -1,8 +1,10 @@
 package com.hackmin.app.ui.notice;
 
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +19,7 @@ import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.notice.NoticeDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.common.BottomNav;
+import com.hackmin.app.util.ImageLoader;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -100,9 +103,23 @@ public class NoticeActivity extends AppCompatActivity {
     }
 
     private void showNoticeDialog(NoticeDto notice) {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_notice_detail, null);
+        ImageView ivImage = view.findViewById(R.id.iv_notice_detail_image);
+        TextView tvContent = view.findViewById(R.id.tv_notice_detail_content);
+
+        tvContent.setText(notice.getContent());
+
+        String image = notice.getImage();
+        if (image == null || image.trim().isEmpty()) {
+            ivImage.setVisibility(View.GONE);
+        } else {
+            ivImage.setVisibility(View.VISIBLE);
+            ImageLoader.load(ivImage, image);
+        }
+
         new AlertDialog.Builder(this)
                 .setTitle(notice.getTitle())
-                .setMessage(notice.getContent())
+                .setView(view)
                 .setPositiveButton("닫기", null)
                 .show();
     }

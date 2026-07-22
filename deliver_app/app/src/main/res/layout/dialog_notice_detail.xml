@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxHeight="480dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <ImageView
+            android:id="@+id/iv_notice_detail_image"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:scaleType="centerCrop"
+            android:background="#F1F3F5"
+            android:contentDescription="공지 사진"
+            android:layout_marginBottom="14dp"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/tv_notice_detail_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="#212529"
+            android:text="공지 내용"/>
+
+    </LinearLayout>
+
+</ScrollView>
