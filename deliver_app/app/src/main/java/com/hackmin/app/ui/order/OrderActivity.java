@@ -106,6 +106,7 @@ public class OrderActivity extends AppCompatActivity {
         btnChangeAddress = findViewById(R.id.btnChangeAddress);
         btnPay = findViewById(R.id.btnPay);
         etRequestMessage = findViewById(R.id.etRequestMessage);
+        setupRequestNote();
         containerOrderItems = findViewById(R.id.containerOrderItems);
         setupPaymentMethods();
     }
@@ -727,6 +728,56 @@ public class OrderActivity extends AppCompatActivity {
             selectedAddressDetail = detail;
             updateAddressDisplay();
         }
+    }
+
+    // 요청사항 프리셋(마지막 "직접 입력"은 사용자가 직접 타이핑).
+    private static final String[] REQUEST_NOTE_OPTIONS = {
+            "문 앞에 놓아주세요",
+            "경비실에 놓아주세요",
+            "벨 누르지 말고 노크해 주세요",
+            "직접 받을게요",
+            "전화주시면 마중 나갈게요",
+            "직접 입력",
+    };
+
+    /** 요청사항 칸을 탭하면 프리셋 선택 다이얼로그가 뜨도록 설정(직접 입력만 타이핑). */
+    private void setupRequestNote() {
+        etRequestMessage.setFocusable(false);
+        etRequestMessage.setClickable(true);
+        etRequestMessage.setOnClickListener(v -> showRequestNoteOptions());
+    }
+
+    /** 요청사항 프리셋 목록을 보여준다. */
+    private void showRequestNoteOptions() {
+        new AlertDialog.Builder(this)
+                .setTitle("요청사항")
+                .setItems(REQUEST_NOTE_OPTIONS, (d, which) -> {
+                    if (which == REQUEST_NOTE_OPTIONS.length - 1) {
+                        showCustomRequestNoteDialog();  // 직접 입력
+                    } else {
+                        etRequestMessage.setText(REQUEST_NOTE_OPTIONS[which]);
+                    }
+                })
+                .show();
+    }
+
+    /** "직접 입력" 선택 시 자유 입력 다이얼로그. */
+    private void showCustomRequestNoteDialog() {
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(pad, pad, pad, 0);
+
+        EditText et = new EditText(this);
+        et.setHint("요청사항을 입력해주세요");
+        et.setText(etRequestMessage.getText().toString());
+        box.addView(et);
+
+        new AlertDialog.Builder(this)
+                .setTitle("직접 입력")
+                .setView(box)
+                .setPositiveButton("확인", (d, w) -> etRequestMessage.setText(et.getText().toString().trim()))
+                .setNegativeButton("취소", null)
+                .show();
     }
 
     /** 결제하기: 주문 생성(POST /orders) → 결제(POST /payments) → 주문추적 이동. */
