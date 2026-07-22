@@ -37,6 +37,7 @@ public class MyReviewsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_reviews);
+        com.hackmin.app.ui.common.BottomNav.setup(this, com.hackmin.app.ui.common.BottomNav.Tab.NONE);
 
         ImageButton btnBack = findViewById(R.id.btnBack);
         rvReviews = findViewById(R.id.rvReviews);

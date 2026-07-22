@@ -20,8 +20,7 @@ import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
-import com.hackmin.app.ui.cart.CartActivity;
-import com.hackmin.app.ui.mypage.MyPageActivity;
+import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.ui.restaurant.RestaurantDetailActivity;
 
@@ -55,22 +54,21 @@ public class HomeActivity extends AppCompatActivity {
         pbLoading = findViewById(R.id.pb_loading);
         tvEmpty = findViewById(R.id.tv_empty);
 
-        // 상단 아이콘 버튼
+        // 상단 아이콘 버튼(공지사항)
         ImageButton btnNotification = findViewById(R.id.btn_notification);
-        ImageButton btnCart = findViewById(R.id.btn_cart);
-        ImageButton btnMypage = findViewById(R.id.btn_mypage);
         if (btnNotification != null) {
             btnNotification.setOnClickListener(v ->
                     startActivity(new Intent(this, NoticeActivity.class)));
         }
-        if (btnCart != null) {
-            btnCart.setOnClickListener(v ->
-                    startActivity(new Intent(this, CartActivity.class)));
-        }
-        if (btnMypage != null) {
-            btnMypage.setOnClickListener(v ->
-                    startActivity(new Intent(this, MyPageActivity.class)));
-        }
+
+        // 하단 네비게이션 바 (공용): 장바구니/마이페이지 이동 + 현재 탭(홈) 강조
+        BottomNav.setup(this, BottomNav.Tab.HOME);
+        // 홈 탭은 현재 화면 — 탭하면 검색/카테고리 필터 해제하고 전체 목록으로 리셋
+        findViewById(R.id.nav_home).setOnClickListener(v -> {
+            etHomeSearch.setText("");
+            loadRestaurants(null, null);
+            rvRestaurants.smoothScrollToPosition(0);
+        });
 
         // 음식점 목록
         adapter = new RestaurantAdapter(restaurant -> {

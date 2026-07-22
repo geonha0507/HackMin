@@ -12,11 +12,18 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.order.OrderDto;
+import com.hackmin.app.data.model.order.OrderItemDto;
 import com.hackmin.app.data.model.order.OrderSummary;
+import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.common.BottomNav;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -30,6 +37,8 @@ public class OrderHistoryActivity extends AppCompatActivity {
     // ===== [C] START: 주문내역 GET /me/orders 연동 =====
     private OrderHistoryAdapter adapter;
     private final List<OrderSummary> orderList = new ArrayList<>();
+    /** 음식점 id → 이름 캐시 (주문 응답엔 id만 오므로 상세조회로 보강) */
+    private final Map<Long, String> restaurantNameCache = new HashMap<>();
     // ===== [C] END =====
 
     @Override
@@ -55,6 +64,7 @@ public class OrderHistoryActivity extends AppCompatActivity {
         // ===== [C] END =====
 
         btnBack.setOnClickListener(v -> finish());
+        BottomNav.setup(this, BottomNav.Tab.ORDERS);
     }
 
     // ===== [C] START: 주문내역 GET /me/orders 연동 =====
@@ -72,6 +82,7 @@ public class OrderHistoryActivity extends AppCompatActivity {
                                 orderList.add(toSummary(dto));
                             }
                             adapter.notifyDataSetChanged();
+                            resolveRestaurantNames();
                             if (orderList.isEmpty()) {
                                 Toast.makeText(OrderHistoryActivity.this,
                                         "주문 내역이 없습니다.", Toast.LENGTH_SHORT).show();
@@ -92,15 +103,75 @@ public class OrderHistoryActivity extends AppCompatActivity {
 
     /**
      * OrderDto(서버) → OrderSummary(목록 표시용) 변환.
-     * 참고: /me/orders 응답에는 식당명이 없고 restaurant(id)만 오므로,
-     *       목록 제목은 주문번호를 사용한다. (식당명 필요 시 상세조회에서 보강)
+     * 응답엔 식당명이 없고 restaurant(id)만 오므로, 식당명은 우선 임시값을 넣고
+     * {@link #resolveRestaurantNames()}에서 상세조회로 보강한다. 메뉴는 items에서 바로 구성.
      */
     private OrderSummary toSummary(OrderDto dto) {
-        String title = dto.getOrderNumber() != null ? dto.getOrderNumber() : ("주문 #" + dto.getId());
+        long restaurantId = dto.getRestaurant() != null ? dto.getRestaurant() : -1L;
+        String cachedName = restaurantNameCache.get(restaurantId);
+        String name = cachedName != null ? cachedName : "주문 #" + dto.getId();
         String date = dto.getCreatedAt() != null && dto.getCreatedAt().length() >= 10
                 ? dto.getCreatedAt().substring(0, 10)
                 : "";
-        return new OrderSummary((int) dto.getId(), title, date, dto.getTotal(), statusLabel(dto.getStatus()));
+        return new OrderSummary((int) dto.getId(), restaurantId, name,
+                buildMenuSummary(dto), date, dto.getTotal(), statusLabel(dto.getStatus()));
+    }
+
+    /** 주문 항목들을 "메뉴명 N개, 메뉴명 …" 형태로 요약. */
+    private String buildMenuSummary(OrderDto dto) {
+        if (dto.getItems() == null || dto.getItems().isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (OrderItemDto item : dto.getItems()) {
+            if (item.getMenuName() == null) continue;
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(item.getMenuName());
+            if (item.getQuantity() > 1) sb.append(" ").append(item.getQuantity()).append("개");
+        }
+        return sb.toString();
+    }
+
+    /** 주문들에 등장한 음식점 id를 상세조회해 이름을 채운다(중복 id는 한 번만 조회, 캐시). */
+    private void resolveRestaurantNames() {
+        applyCachedNames();
+        Set<Long> pending = new HashSet<>();
+        for (OrderSummary s : orderList) {
+            long rid = s.getRestaurantId();
+            if (rid > 0 && !restaurantNameCache.containsKey(rid)) {
+                pending.add(rid);
+            }
+        }
+        for (Long rid : pending) {
+            ApiClient.restaurantApi(this).getRestaurantDetail(rid)
+                    .enqueue(new Callback<RestaurantDetailDto>() {
+                        @Override
+                        public void onResponse(Call<RestaurantDetailDto> call,
+                                               Response<RestaurantDetailDto> response) {
+                            if (response.isSuccessful() && response.body() != null
+                                    && response.body().getName() != null) {
+                                restaurantNameCache.put(rid, response.body().getName());
+                                applyCachedNames();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<RestaurantDetailDto> call, Throwable t) {
+                            // 이름 보강 실패는 무시(임시 제목 유지).
+                        }
+                    });
+        }
+    }
+
+    /** 캐시에 있는 음식점 이름을 목록에 반영. */
+    private void applyCachedNames() {
+        boolean changed = false;
+        for (OrderSummary s : orderList) {
+            String name = restaurantNameCache.get(s.getRestaurantId());
+            if (name != null && !name.equals(s.getRestaurantName())) {
+                s.setRestaurantName(name);
+                changed = true;
+            }
+        }
+        if (changed) adapter.notifyDataSetChanged();
     }
 
     /** 서버 상태코드 → 한글 라벨 */

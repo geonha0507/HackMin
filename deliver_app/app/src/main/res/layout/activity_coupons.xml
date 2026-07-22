@@ -72,4 +72,6 @@
         android:textColor="#888888"
         android:visibility="gone" />
 
+    <include layout="@layout/bottom_nav"/>
+
 </LinearLayout>

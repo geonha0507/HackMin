@@ -50,6 +50,7 @@ public class AddressActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_address);
+        com.hackmin.app.ui.common.BottomNav.setup(this, com.hackmin.app.ui.common.BottomNav.Tab.NONE);
 
         rvAddresses = findViewById(R.id.rvAddresses);
         tvEmpty = findViewById(R.id.tvEmpty);
