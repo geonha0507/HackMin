@@ -21,7 +21,7 @@ class EnrollmentRequest(models.Model):
     ]
     
     # Owner 정보
-    username = models.CharField(max_length=150, unique=True)
+    username = models.CharField(max_length=150)
     password = models.CharField(max_length=255)  # Hashed
     phone = models.CharField(max_length=20)
     owner_name = models.CharField(max_length=100)  # 점주명
