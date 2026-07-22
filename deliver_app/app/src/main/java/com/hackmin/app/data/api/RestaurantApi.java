@@ -43,6 +43,12 @@ public interface RestaurantApi {
             @Query("page") Integer page
     );
 
+    @GET("restaurants/{id}/notices")
+    Call<PagedResponse<RestaurantNoticeDto>> getRestaurantNotices(
+            @Path("id") long restaurantId,
+            @Query("page") Integer page
+    );
+
     @GET("menus/{id}")
     Call<MenuDto> getMenuDetail(@Path("id") long menuId);
 }
