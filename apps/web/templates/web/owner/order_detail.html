@@ -52,7 +52,7 @@
       <button class="btn btn-danger" type="submit">주문 거절</button>
     </form>
   {% endif %}
-  <form method="post" class="row" style="margin-top:14px">{% csrf_token %}
+  <form id="statusForm" method="post" class="row" style="margin-top:14px">{% csrf_token %}
     <input type="hidden" name="action" value="status">
     <div style="min-width:200px">
       <label>진행 상태 직접 변경</label>
@@ -65,4 +65,31 @@
     <button class="btn" type="submit">변경</button>
   </form>
 </div>
+
+<div id="statusConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,.45);align-items:center;justify-content:center;z-index:100">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;width:280px;box-shadow:0 12px 28px rgba(0,0,0,.18)">
+    <h3 style="margin:0 0 10px;font-size:15px">변경 확인</h3>
+    <p style="margin:0 0 18px;font-size:13px;color:var(--muted)">정말 변경하시겠습니까?</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button type="button" class="btn" id="statusConfirmCancel">취소</button>
+      <button type="button" class="btn btn-primary" id="statusConfirmOk">확인</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('statusForm');
+  var overlay = document.getElementById('statusConfirmOverlay');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    overlay.style.display = 'flex';
+  });
+  document.getElementById('statusConfirmOk').addEventListener('click', function () {
+    form.submit();
+  });
+  document.getElementById('statusConfirmCancel').addEventListener('click', function () {
+    overlay.style.display = 'none';
+  });
+})();
+</script>
 {% endblock %}

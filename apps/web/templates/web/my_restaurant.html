@@ -33,6 +33,27 @@
 {% endif %}
 
 <div class="panel">
+  <h2>매장 사진</h2>
+  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    {% if restaurant.image %}
+      <img src="{{ restaurant.image.url }}" alt="{{ restaurant.name }}"
+           style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">
+    {% else %}
+      <div style="width:160px;height:120px;border-radius:8px;background:#f1f5f9;
+                  display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px">
+        등록된 사진 없음
+      </div>
+    {% endif %}
+    <form method="post" action="{% url 'web:restaurant_image_upload' %}" enctype="multipart/form-data" class="row" style="align-items:center">
+      {% csrf_token %}
+      <input type="hidden" name="rid" value="{{ restaurant.id }}">
+      <input type="file" name="image" accept="image/*" required>
+      <button class="btn btn-primary" type="submit">사진 변경</button>
+    </form>
+  </div>
+</div>
+
+<div class="panel">
   <h2>매장 정보</h2>
   {% if pending_edit %}
     <p class="muted" style="margin-bottom:14px">승인 대기 중인 요청이 있어 새 수정 요청을 보낼 수 없습니다.</p>
