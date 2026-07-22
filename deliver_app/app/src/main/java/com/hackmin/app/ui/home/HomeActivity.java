@@ -139,11 +139,12 @@ public class HomeActivity extends AppCompatActivity {
 
     private void setupCategoryListeners() {
         int[] categoryIds = {
-                R.id.category_chinese, R.id.category_chicken,
-                R.id.category_cafe, R.id.category_stew, R.id.category_korean
+                R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
+                R.id.category_cafe, R.id.category_stew, R.id.category_korean,
+                R.id.category_bunsik
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "카페", "찜", "한식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];
