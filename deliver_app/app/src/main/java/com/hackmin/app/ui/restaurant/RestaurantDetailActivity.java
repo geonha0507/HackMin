@@ -28,6 +28,7 @@ import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.MenuOptionDto;
 import com.hackmin.app.data.model.restaurant.MenuOptionGroupDto;
 import com.hackmin.app.data.model.restaurant.RestaurantDetailDto;
+import com.hackmin.app.data.model.restaurant.RestaurantNoticeDto;
 import com.hackmin.app.data.model.restaurant.RestaurantReviewDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.cart.CartActivity;
@@ -53,7 +54,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private boolean isOpen = true;
     private String restaurantName;
 
-    private TextView tvName, tvCuisine, tvMeta, tvAddress;
+    private TextView tvName, tvCuisine, tvMeta, tvAddress, tvNoticesBannerLabel;
+    private View noticesBanner;
     private ImageView ivImage;
     private RecyclerView rvMenus;
     private ProgressBar pbLoading;
@@ -97,6 +99,12 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         findViewById(R.id.btn_view_reviews).setOnClickListener(v ->
                 startActivity(RestaurantReviewsActivity.newIntent(this, restaurantId, restaurantName)));
 
+        noticesBanner = findViewById(R.id.btn_view_notices);
+        tvNoticesBannerLabel = findViewById(R.id.tv_notices_banner_label);
+        noticesBanner.setOnClickListener(v ->
+                startActivity(RestaurantNoticesActivity.newIntent(this, restaurantId, restaurantName)));
+        noticesBanner.setVisibility(View.GONE); // 공지가 있을 때만 표시(loadNotices에서 갱신)
+
         adapter = new MenuAdapter(this::onMenuClicked);
         rvMenus.setLayoutManager(new LinearLayoutManager(this));
         rvMenus.setAdapter(adapter);
@@ -104,6 +112,28 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         loadDetail();
         loadMenus();
         loadReviewAverage();
+        loadNotices();
+    }
+
+    /** 매장 공지사항 유무를 확인해 배너에 최신 공지 제목을 보여준다. 공지가 없으면 배너를 숨긴다. */
+    private void loadNotices() {
+        ApiClient.restaurantApi(this).getRestaurantNotices(restaurantId, null)
+                .enqueue(new Callback<PagedResponse<RestaurantNoticeDto>>() {
+                    @Override
+                    public void onResponse(Call<PagedResponse<RestaurantNoticeDto>> call,
+                                           Response<PagedResponse<RestaurantNoticeDto>> response) {
+                        if (!response.isSuccessful() || response.body() == null) return;
+                        List<RestaurantNoticeDto> notices = response.body().getResults();
+                        if (notices == null || notices.isEmpty()) return;
+                        tvNoticesBannerLabel.setText(notices.get(0).getTitle());
+                        noticesBanner.setVisibility(View.VISIBLE);
+                    }
+
+                    @Override
+                    public void onFailure(Call<PagedResponse<RestaurantNoticeDto>> call, Throwable t) {
+                        // 공지 배너는 부가 기능이므로 실패해도 화면에 영향 없음(숨김 유지).
+                    }
+                });
     }
 
     // ── 음식점 상세 헤더 ──────────────────────────────────

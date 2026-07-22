@@ -82,6 +82,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.restaurant.RestaurantNoticesActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.order.OrderActivity"
             android:exported="false" />
 

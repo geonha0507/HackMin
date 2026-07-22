@@ -108,10 +108,40 @@ def delete_favorite(request, pk):
 
 
 # --- Membership ------------------------------------------------------------
+
+# 멤버십 가입 시 지급하는 웰컴 쿠폰 5종. (code, name, 할인액, 최소주문액)
+# UserCoupon(user, coupon) 유니크 제약 때문에 "5장"은 서로 다른 쿠폰으로 지급한다.
+MEMBERSHIP_WELCOME_COUPONS = [
+    ('MEMBERSHIP_WELCOME_1', '멤버십 가입 축하 쿠폰', 3000, 15000),
+    ('MEMBERSHIP_WELCOME_2', '멤버십 가입 축하 쿠폰', 3000, 15000),
+    ('MEMBERSHIP_WELCOME_3', '멤버십 가입 축하 쿠폰', 3000, 15000),
+    ('MEMBERSHIP_WELCOME_4', '멤버십 가입 축하 쿠폰', 3000, 15000),
+    ('MEMBERSHIP_WELCOME_5', '멤버십 가입 축하 쿠폰', 3000, 15000),
+]
+
+
+def _grant_membership_coupons(user):
+    """멤버십 가입 시 웰컴 쿠폰 5장을 지급한다. 이미 보유한 쿠폰은 재지급하지 않는다."""
+    for code, name, discount_value, min_order_amount in MEMBERSHIP_WELCOME_COUPONS:
+        coupon, _ = Coupon.objects.get_or_create(
+            code=code,
+            defaults={
+                'name': name,
+                'discount_type': Coupon.DiscountType.FIXED,
+                'discount_value': discount_value,
+                'min_order_amount': min_order_amount,
+                'is_active': True,
+                'is_membership_only': True,
+            },
+        )
+        # 사용 여부/사용시각은 UserCoupon이 관리 → 사용완료/중복적용 방지는 기존 로직을 그대로 탄다.
+        UserCoupon.objects.get_or_create(user=user, coupon=coupon)
+
+
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def membership_subscribe(request):
-    """멤버십 가입. 모의 결제 기록을 남기고 basic 플랜으로 가입한다."""
+    """멤버십 가입. 모의 결제 기록을 남기고 basic 플랜으로 가입하며, 웰컴 쿠폰 5장을 지급한다."""
     membership, _ = Membership.objects.get_or_create(user=request.user)
 
     membership.plan = Membership.Plan.BASIC
@@ -119,6 +149,7 @@ def membership_subscribe(request):
     membership.cancelled_at = None
     membership.save()
     MembershipPayment.objects.create(membership=membership, amount=MEMBERSHIP_PRICE)
+    _grant_membership_coupons(request.user)
     return Response(MembershipSerializer(membership).data, status=201)
 
 
