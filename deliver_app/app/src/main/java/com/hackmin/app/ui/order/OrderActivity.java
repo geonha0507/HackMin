@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -29,6 +30,7 @@ import com.hackmin.app.data.model.payment.PaymentCreateRequest;
 import com.hackmin.app.data.model.payment.PaymentDto;
 import com.hackmin.app.data.model.user.AddressDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.util.ImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,10 +120,17 @@ public class OrderActivity extends AppCompatActivity {
         containerOrderItems.removeAllViews();
         if (cart.getItems() == null) return;
         for (CartItemDto item : cart.getItems()) {
-            TextView tv = new TextView(this);
-            tv.setText(item.getMenuName() + " x" + item.getQuantity() + "   " + item.getLineTotal() + "원");
-            tv.setPadding(0, 8, 0, 8);
-            containerOrderItems.addView(tv);
+            View row = getLayoutInflater()
+                    .inflate(R.layout.item_order_line, containerOrderItems, false);
+            ImageView iv = row.findViewById(R.id.ivLineThumb);
+            TextView name = row.findViewById(R.id.tvLineName);
+            TextView price = row.findViewById(R.id.tvLinePrice);
+
+            ImageLoader.load(iv, item.getMenuImage());
+            name.setText(item.getMenuName() + " x" + item.getQuantity());
+            price.setText(item.getLineTotal() + "원");
+
+            containerOrderItems.addView(row);
         }
     }
 

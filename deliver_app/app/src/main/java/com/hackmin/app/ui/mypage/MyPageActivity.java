@@ -12,6 +12,7 @@ import com.hackmin.app.R;
 import com.hackmin.app.data.model.user.UserProfileDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.network.SessionManager;
+import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.auth.LoginActivity;
 import com.hackmin.app.ui.order.OrderHistoryActivity;
 
@@ -37,6 +38,7 @@ public class MyPageActivity extends AppCompatActivity {
 
         // 뒤로가기
         findViewById(R.id.tv_mypage_back).setOnClickListener(v -> finish());
+        BottomNav.setup(this, BottomNav.Tab.MYPAGE);
 
         // 프로필 영역
         tvNickname = findViewById(R.id.tv_mypage_nickname);

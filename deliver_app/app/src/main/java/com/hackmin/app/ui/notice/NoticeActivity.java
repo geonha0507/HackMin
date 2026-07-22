@@ -16,6 +16,7 @@ import com.hackmin.app.R;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.notice.NoticeDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.common.BottomNav;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -43,6 +44,7 @@ public class NoticeActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tv_notice_empty);
 
         findViewById(R.id.btn_notice_back).setOnClickListener(v -> finish());
+        BottomNav.setup(this, BottomNav.Tab.NONE);
 
         adapter = new NoticeAdapter(this::showDetail);
         rvNotices.setLayoutManager(new LinearLayoutManager(this));

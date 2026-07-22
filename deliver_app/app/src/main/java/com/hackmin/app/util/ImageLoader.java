@@ -1,5 +1,6 @@
 package com.hackmin.app.util;
 
+import android.content.Context;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
@@ -34,6 +35,20 @@ public final class ImageLoader {
                 .error(R.drawable.ic_image_placeholder)
                 .centerCrop()
                 .into(view);
+    }
+
+    /**
+     * 이미지를 화면에 표시하지 않고 Glide 캐시에만 미리 받아둔다(프리로드).
+     * 앱 실행 초기에 호출해두면 이후 목록/상세에서 즉시 표시된다.
+     */
+    public static void preload(Context context, String url) {
+        String resolved = resolve(url);
+        if (resolved == null) {
+            return;
+        }
+        Glide.with(context.getApplicationContext())
+                .load(toModel(resolved))
+                .preload();
     }
 
     /** 상대경로면 서버 오리진을 붙여 절대 URL로 변환한다. 비었으면 null. */

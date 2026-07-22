@@ -23,6 +23,7 @@ import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.promotion.CouponDto;
 import com.hackmin.app.data.model.promotion.UserCouponDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.order.OrderActivity;
 
 import java.text.NumberFormat;
@@ -65,6 +66,8 @@ public class CartActivity extends AppCompatActivity {
         if (btnBack != null) {
             btnBack.setOnClickListener(v -> finish());
         }
+
+        BottomNav.setup(this, BottomNav.Tab.CART);
     }
 
     @Override
