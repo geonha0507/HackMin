@@ -28,6 +28,8 @@ public class SignupActivity extends AppCompatActivity {
     private TextInputEditText etSignupId;
     private TextInputEditText etSignupPw;
     private TextInputEditText etSignupPwConfirm;
+    private TextInputEditText etSignupName;
+    private TextInputEditText etSignupPhone;
     private TextView tvNicknameCheckResult;
     private TextView tvIdCheckResult;
     private TextView tvPwCondition;
@@ -44,6 +46,8 @@ public class SignupActivity extends AppCompatActivity {
         etSignupId = findViewById(R.id.et_signup_id);
         etSignupPw = findViewById(R.id.et_signup_pw);
         etSignupPwConfirm = findViewById(R.id.et_signup_pw_confirm);
+        etSignupName = findViewById(R.id.et_signup_name);
+        etSignupPhone = findViewById(R.id.et_signup_phone);
         tvNicknameCheckResult = findViewById(R.id.tv_nickname_check_result);
         tvIdCheckResult = findViewById(R.id.tv_id_check_result);
         tvPwCondition = findViewById(R.id.tv_pw_condition);
@@ -201,8 +205,11 @@ public class SignupActivity extends AppCompatActivity {
             String id = etSignupId.getText() != null ? etSignupId.getText().toString().trim() : "";
             String pw = etSignupPw.getText() != null ? etSignupPw.getText().toString().trim() : "";
             String pwConfirm = etSignupPwConfirm.getText() != null ? etSignupPwConfirm.getText().toString().trim() : "";
+            String name = etSignupName.getText() != null ? etSignupName.getText().toString().trim() : "";
+            String phone = etSignupPhone.getText() != null ? etSignupPhone.getText().toString().trim() : "";
 
-            if (nickname.isEmpty() || id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty()) {
+            if (nickname.isEmpty() || id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty()
+                    || name.isEmpty() || phone.isEmpty()) {
                 Toast.makeText(this, "모든 정보를 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -230,10 +237,8 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            // 아이디가 이메일 형식일 때만 email로 전송(아니면 빈값). 서버가 email 형식을
-            // 검증하므로, 비이메일 아이디를 email로 보내면 400으로 가입이 거절된다.
-            String email = android.util.Patterns.EMAIL_ADDRESS.matcher(id).matches() ? id : "";
-            SignupRequest request = new SignupRequest(id, email, pw, nickname, "010-0000-0000", true);
+            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호
+            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, true);
 
             ApiClient.authApi(this).signup(request).enqueue(new Callback<UserDto>() {
                 @Override
