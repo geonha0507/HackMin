@@ -140,4 +140,7 @@ def apply_coupon(request):
 @permission_classes([IsCustomer])
 def cart_summary(request):
     cart = _get_cart(request.user)
-    return Response(cart_totals(cart))
+    data = cart_totals(cart)
+    # 장바구니 화면의 최소주문금액 검증(배달비 제외 subtotal 기준)에 사용.
+    data['min_order_amount'] = cart.restaurant.min_order_amount if cart.restaurant else 0
+    return Response(data)
