@@ -20,6 +20,9 @@ db.sqlite3-journal
 .env
 .env.*
 
+# Payload encryption — 공개키만 커밋, 개인키는 절대 커밋 금지
+keys/*private*.pem
+
 # OS / editor
 .DS_Store
 Thumbs.db

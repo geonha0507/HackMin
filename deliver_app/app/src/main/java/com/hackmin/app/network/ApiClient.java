@@ -60,6 +60,10 @@ public final class ApiClient {
             OkHttpClient client = new OkHttpClient.Builder()
                     .addInterceptor(new AuthInterceptor(tokenProvider))
                     .addInterceptor(logging)
+                    // CryptoInterceptor는 반드시 마지막(소켓에 가장 가깝게) — 소켓으로 나가는
+                    // 바이트가 암호문이 되어 Burp 등 프록시엔 암호문만 잡힌다. logging은 그 앞이라
+                    // logcat에는 평문이 남는다(로컬 디버깅용, 릴리스에선 로깅 레벨을 낮출 것).
+                    .addInterceptor(new CryptoInterceptor())
                     .connectTimeout(15, TimeUnit.SECONDS)
                     .readTimeout(15, TimeUnit.SECONDS)
                     .build();
