@@ -156,6 +156,18 @@
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
             </LinearLayout>
 
+            <!-- 아이디 중복확인 결과 메시지 -->
+            <TextView
+                android:id="@+id/tv_id_check_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+
             <!-- 비밀번호 입력 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
@@ -182,6 +194,18 @@
                     android:textColor="@color/text_primary"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- 비밀번호 조건 안내 -->
+            <TextView
+                android:id="@+id/tv_pw_condition"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="8자 이상 · 영문 · 숫자 · 특수문자 포함"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"/>
+
             <!-- 비밀번호 확인 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
@@ -207,6 +231,18 @@
                     android:inputType="textPassword"
                     android:textColor="@color/text_primary"/>
             </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 비밀번호 일치 여부 -->
+            <TextView
+                android:id="@+id/tv_pw_confirm_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
 
             <!-- ===== 약관 동의 ===== -->
             <LinearLayout
@@ -324,8 +360,7 @@
                 android:textSize="16sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:backgroundTint="#CCCCCC"
-                android:enabled="false"
+                android:backgroundTint="@color/coral_primary"
                 app:cornerRadius="12dp"
                 android:elevation="4dp"/>
 
