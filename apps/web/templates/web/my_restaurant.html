@@ -31,6 +31,19 @@
   <span class="badge b-amber">승인 대기중</span>
 </div>
 {% endif %}
+{% if restaurant_pending_review %}
+<div class="panel" style="border-color:#fde68a;background:#fffbeb">
+  <h2>입점 승인 대기중</h2>
+  <p class="muted" style="margin:0">이 매장은 관리자 승인 후 고객에게 노출됩니다.</p>
+</div>
+{% endif %}
+{% if restaurant_rejected %}
+<div class="panel" style="border-color:#fecaca;background:#fef2f2">
+  <h2>입점 신청이 반려되었습니다</h2>
+  <p class="muted" style="margin:0 0 8px">사유: {{ restaurant_rejection_reason }}</p>
+  <p class="muted" style="margin:0">이 매장은 재사용할 수 없습니다. 새 매장으로 다시 신청해주세요.</p>
+</div>
+{% endif %}
 
 <div class="panel">
   <h2>매장 사진</h2>
@@ -44,16 +57,19 @@
         등록된 사진 없음
       </div>
     {% endif %}
+    {% if restaurant_reviewable %}
     <form method="post" action="{% url 'web:restaurant_image_upload' %}" enctype="multipart/form-data" class="row" style="align-items:center">
       {% csrf_token %}
       <input type="hidden" name="rid" value="{{ restaurant.id }}">
       <input type="file" name="image" accept="image/*" required>
       <button class="btn btn-primary" type="submit">사진 변경</button>
     </form>
+    {% endif %}
   </div>
 </div>
 
 <div class="panel">
+  {% if restaurant_reviewable %}
   <h2>매장 정보</h2>
   {% if pending_edit %}
     <p class="muted" style="margin-bottom:14px">승인 대기 중인 요청이 있어 새 수정 요청을 보낼 수 없습니다.</p>
@@ -142,9 +158,14 @@
     <button class="btn btn-primary" type="submit">수정 요청 보내기</button>
   </form>
   </fieldset>
+  {% else %}
+  <h2>매장 정보</h2>
+  <p class="muted" style="margin:0">심사 대기 또는 반려 중인 매장은 정보를 수정할 수 없습니다.</p>
+  {% endif %}
 </div>
 
 <div class="panel">
+  {% if restaurant_reviewable %}
   <h2>정기휴무일</h2>
   <p class="muted" style="margin-bottom:14px">매주 반복되는 휴무 요일을 선택하세요. 해당 요일에는 앱에서 주문을 받지 않습니다.</p>
 
@@ -167,12 +188,17 @@
     </div>
     <button class="btn btn-primary" type="submit">정기휴무일 저장</button>
   </form>
+  {% else %}
+  <h2>정기휴무일</h2>
+  <p class="muted" style="margin:0">심사 대기 또는 반려 중인 매장은 정기휴무일을 설정할 수 없습니다.</p>
+  {% endif %}
 </div>
 
 <div class="panel">
   <h2>휴무일</h2>
   <p class="muted" style="margin-bottom:14px">특정 날짜를 휴무일로 등록하면 그 날에는 앱에서 주문을 받지 않습니다.</p>
 
+  {% if restaurant_reviewable %}
   <form method="post" action="{% url 'web:closed_date_add' %}" class="row" style="margin-bottom:16px">
     {% csrf_token %}
     <input type="hidden" name="rid" value="{{ restaurant.id }}">
@@ -182,6 +208,9 @@
     </div>
     <button class="btn btn-primary" type="submit">추가</button>
   </form>
+  {% else %}
+  <p class="muted" style="margin-bottom:16px">심사 대기 또는 반려 중인 매장은 휴무일을 등록할 수 없습니다.</p>
+  {% endif %}
 
   <table>
     <thead><tr><th>날짜</th><th></th></tr></thead>
@@ -207,6 +236,7 @@
   <h2>공지사항</h2>
   <p class="muted" style="margin-bottom:14px">고객 앱에 노출되는 매장 공지사항입니다. 이모지도 그대로 사용할 수 있습니다.</p>
 
+  {% if restaurant_reviewable %}
   <form method="post" action="{% url 'web:notice_add' %}" style="margin-bottom:16px">
     {% csrf_token %}
     <input type="hidden" name="rid" value="{{ restaurant.id }}">
@@ -220,6 +250,9 @@
     </div>
     <button class="btn btn-primary" type="submit">공지 등록</button>
   </form>
+  {% else %}
+  <p class="muted" style="margin-bottom:16px">심사 대기 또는 반려 중인 매장은 공지사항을 등록할 수 없습니다.</p>
+  {% endif %}
 
   {% for n in notices %}
     <div class="panel" style="background:#f8fafc;margin-bottom:10px">
