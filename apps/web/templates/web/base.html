@@ -93,6 +93,8 @@
           <div class="sec">거래</div>
           <a href="{% url 'web:admin_orders' %}" class="{% if url_name == 'admin_orders' %}active{% endif %}">주문 조회</a>
           <a href="{% url 'web:admin_payments' %}" class="{% if url_name == 'admin_payments' %}active{% endif %}">결제 조회</a>
+          <div class="sec">공지</div>
+          <a href="{% url 'web:admin_notices' %}" class="{% if url_name == 'admin_notices' or url_name == 'admin_notice_create' or url_name == 'admin_notice_edit' %}active{% endif %}">공지사항 관리</a>
           <div class="sec">마이페이지</div>
           <a href="{% url 'web:mypage' %}" class="{% if url_name == 'mypage' %}active{% endif %}">내 정보 변경</a>
         {% else %}

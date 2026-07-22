@@ -1,5 +1,7 @@
 """관리자(Admin) 웹 화면 - 회원/점주/주문/결제 관리."""
 
+import os
+
 from django.db import transaction
 from enrollment.models import EnrollmentRequest
 
@@ -10,11 +12,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.models import WithdrawalRequest
+from adminpanel.models import Notice
 from orders.models import Order
 from payments.models import Payment
 from restaurants.models import Restaurant, RestaurantEditRequest
 
 from ..decorators import admin_required
+
+_ALLOWED_NOTICE_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+_MAX_NOTICE_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _valid_notice_image(upload):
+    extension = os.path.splitext(upload.name)[1].lower()
+    return extension in _ALLOWED_NOTICE_IMAGE_EXTENSIONS and upload.size <= _MAX_NOTICE_IMAGE_SIZE
 
 User = get_user_model()
 USER_STATUS = dict(User.Status.choices)
@@ -346,3 +357,73 @@ def payment_list(request):
     return render(request, 'web/admin/payments.html', {
         'payments': payments[:300], 'status': status, 'status_choices': Payment.Status.choices,
     })
+
+
+# ------------------------------------------------------------------ 공지사항
+@admin_required
+def notice_list(request):
+    """앱 전체 사용자에게 노출되는 공지사항 목록."""
+    notices = Notice.objects.all()
+    return render(request, 'web/admin/notices.html', {'notices': notices})
+
+
+@admin_required
+def notice_create(request):
+    """공지사항 작성. 사진은 선택 사항."""
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        content = request.POST.get('content', '').strip()
+        image = request.FILES.get('image')
+        is_pinned = request.POST.get('is_pinned') == 'on'
+
+        if not title:
+            messages.error(request, '제목을 입력하세요.')
+        elif not content:
+            messages.error(request, '내용을 입력하세요.')
+        elif image and not _valid_notice_image(image):
+            messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+        else:
+            Notice.objects.create(
+                title=title, content=content, image=image, is_pinned=is_pinned,
+                created_by=request.user,
+            )
+            messages.success(request, '공지사항을 등록했습니다.')
+            return redirect('web:admin_notices')
+    return render(request, 'web/admin/notice_form.html', {'notice': None})
+
+
+@admin_required
+def notice_edit(request, pk):
+    """공지사항 수정. 사진을 새로 첨부하지 않으면 기존 사진을 유지한다."""
+    notice = get_object_or_404(Notice, pk=pk)
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        content = request.POST.get('content', '').strip()
+        image = request.FILES.get('image')
+        is_pinned = request.POST.get('is_pinned') == 'on'
+
+        if not title:
+            messages.error(request, '제목을 입력하세요.')
+        elif not content:
+            messages.error(request, '내용을 입력하세요.')
+        elif image and not _valid_notice_image(image):
+            messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+        else:
+            notice.title = title
+            notice.content = content
+            notice.is_pinned = is_pinned
+            if image:
+                notice.image = image
+            notice.save()
+            messages.success(request, '공지사항을 수정했습니다.')
+            return redirect('web:admin_notices')
+    return render(request, 'web/admin/notice_form.html', {'notice': notice})
+
+
+@admin_required
+def notice_delete(request, pk):
+    notice = get_object_or_404(Notice, pk=pk)
+    if request.method == 'POST':
+        notice.delete()
+        messages.success(request, '공지사항을 삭제했습니다.')
+    return redirect('web:admin_notices')
