@@ -235,13 +235,13 @@ def store_decide(request, pk):
                 'reviewed_by': request.user,
             }
 
-            if action == 'reject':
-                defaults['rejection_reason'] = rejection_reason
+        if action == 'reject':
+            defaults['rejection_reason'] = rejection_reason
 
-            EnrollmentRequest.objects.update_or_create(
-                username=owner.username,
-                defaults=defaults,
-            )
+        EnrollmentRequest.objects.update_or_create(
+            username=owner.username,
+            defaults=defaults,
+        )
 
     if action == 'approve':
         messages.success(
