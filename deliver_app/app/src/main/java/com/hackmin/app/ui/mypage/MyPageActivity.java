@@ -2,18 +2,13 @@ package com.hackmin.app.ui.mypage;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.hackmin.app.R;
-import com.hackmin.app.data.model.auth.LoginRequest;
-import com.hackmin.app.data.model.auth.LoginResponse;
 import com.hackmin.app.data.model.user.UserProfileDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.network.SessionManager;
@@ -54,7 +49,13 @@ public class MyPageActivity extends AppCompatActivity {
         findViewById(R.id.menu_orders).setOnClickListener(v ->
                 startActivity(new Intent(this, OrderHistoryActivity.class)));
 
-        findViewById(R.id.menu_logout).setOnClickListener(v -> confirmLogout());
+        findViewById(R.id.menu_logout).setOnClickListener(v -> {
+            session.clear();
+            Toast.makeText(this, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+        });
 
         // 내 정보 수정
         View btnEditInfo = findViewById(R.id.btn_mypage_edit_info);
@@ -89,77 +90,14 @@ public class MyPageActivity extends AppCompatActivity {
         loadProfile();
     }
 
-    /** 로그아웃: 확인 다이얼로그 후 세션 정리 → 로그인 화면. */
-    private void confirmLogout() {
+    /** 회원 탈퇴: 확인 다이얼로그 → DELETE /me → 세션 정리 후 로그인 화면 이동. */
+    private void confirmWithdraw() {
         new AlertDialog.Builder(this)
-                .setTitle("로그아웃")
-                .setMessage("로그아웃 하시겠습니까?")
-                .setPositiveButton("로그아웃", (d, w) -> doLogout())
+                .setTitle("회원 탈퇴")
+                .setMessage("정말 탈퇴하시겠어요? 탈퇴 후에는 계정을 복구할 수 없습니다.")
+                .setPositiveButton("탈퇴", (d, w) -> withdraw())
                 .setNegativeButton("취소", null)
                 .show();
-    }
-
-    private void doLogout() {
-        session.clear();
-        Toast.makeText(this, "로그아웃 되었습니다.", Toast.LENGTH_SHORT).show();
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-    }
-
-    /** 회원 탈퇴: 비밀번호 입력 → 검증 성공 시 DELETE /me → 세션 정리 후 로그인 화면 이동. */
-    private void confirmWithdraw() {
-        int pad = (int) (16 * getResources().getDisplayMetrics().density);
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(pad, pad, pad, 0);
-
-        EditText etPw = new EditText(this);
-        etPw.setHint("비밀번호 입력");
-        etPw.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        box.addView(etPw);
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("회원 탈퇴")
-                .setMessage("정말 탈퇴하시겠어요? 탈퇴 후에는 계정을 복구할 수 없습니다.\n비밀번호를 입력해주세요.")
-                .setView(box)
-                .setPositiveButton("탈퇴", null)  // 비밀번호 검증 후 수동 처리(즉시 닫히지 않게).
-                .setNegativeButton("취소", null)
-                .create();
-
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String pw = etPw.getText().toString().trim();
-            if (pw.isEmpty()) {
-                Toast.makeText(this, "비밀번호를 입력해주세요.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            verifyPasswordThenWithdraw(pw, dialog);
-        }));
-        dialog.show();
-    }
-
-    /** 현재 아이디+입력 비밀번호로 로그인 시도해 검증 → 성공 시 탈퇴 진행. */
-    private void verifyPasswordThenWithdraw(String password, AlertDialog dialog) {
-        String username = session.getUsername();
-        ApiClient.authApi(this).login(new LoginRequest(username, password))
-                .enqueue(new Callback<LoginResponse>() {
-                    @Override
-                    public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                        if (response.isSuccessful()) {
-                            dialog.dismiss();
-                            withdraw();
-                        } else {
-                            Toast.makeText(MyPageActivity.this,
-                                    "비밀번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Call<LoginResponse> call, Throwable t) {
-                        Toast.makeText(MyPageActivity.this,
-                                "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_LONG).show();
-                    }
-                });
     }
 
     private void withdraw() {

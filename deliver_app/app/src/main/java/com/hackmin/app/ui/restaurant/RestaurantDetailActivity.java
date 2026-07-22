@@ -106,7 +106,6 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         noticesBanner.setVisibility(View.GONE); // 공지가 있을 때만 표시(loadNotices에서 갱신)
 
         adapter = new MenuAdapter(this::onMenuClicked);
-        adapter.setRestaurantName(restaurantName);  // 유의사항 문구용(이후 상세 로드 시 갱신)
         rvMenus.setLayoutManager(new LinearLayoutManager(this));
         rvMenus.setAdapter(adapter);
 
@@ -160,7 +159,6 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private void bindHeader(RestaurantDetailDto r) {
         detail = r;
         restaurantName = r.getName();
-        adapter.setRestaurantName(restaurantName);  // 유의사항 문구를 실제 매장명으로 갱신
         String cuisine = r.getCuisineType();
         tvCuisine.setText(cuisine == null || cuisine.isEmpty() ? "음식점" : cuisine);
         String addr = r.getAddress();

@@ -18,10 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class RestaurantAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
-    private static final int TYPE_ITEM = 0;
-    private static final int TYPE_FOOTER = 1;  // 목록 맨 아래 회사정보 푸터.
+public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.VH> {
 
     public interface OnRestaurantClickListener {
         void onClick(RestaurantSummaryDto restaurant);
@@ -44,29 +41,16 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         notifyDataSetChanged();
     }
 
-    @Override
-    public int getItemViewType(int position) {
-        return position == items.size() ? TYPE_FOOTER : TYPE_ITEM;
-    }
-
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == TYPE_FOOTER) {
-            View v = inflater.inflate(R.layout.item_home_footer, parent, false);
-            return new FooterVH(v);
-        }
-        View v = inflater.inflate(R.layout.item_restaurant, parent, false);
+    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_restaurant, parent, false);
         return new VH(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        if (!(holder instanceof VH)) {
-            return;  // 푸터는 바인딩할 데이터 없음.
-        }
-        VH h = (VH) holder;
+    public void onBindViewHolder(@NonNull VH h, int position) {
         RestaurantSummaryDto r = items.get(position);
 
         h.name.setText(r.getName());
@@ -92,8 +76,7 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
 
     @Override
     public int getItemCount() {
-        // 목록이 있을 때만 푸터를 1개 붙인다(빈 목록엔 푸터 없음).
-        return items.isEmpty() ? 0 : items.size() + 1;
+        return items.size();
     }
 
     static class VH extends RecyclerView.ViewHolder {
@@ -107,12 +90,6 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             meta = v.findViewById(R.id.tv_item_meta);
             closed = v.findViewById(R.id.tv_item_closed);
             thumb = v.findViewById(R.id.iv_item_thumb);
-        }
-    }
-
-    static class FooterVH extends RecyclerView.ViewHolder {
-        FooterVH(@NonNull View v) {
-            super(v);
         }
     }
 }

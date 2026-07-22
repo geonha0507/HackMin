@@ -18,10 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
-    private static final int TYPE_ITEM = 0;
-    private static final int TYPE_FOOTER = 1;  // 메뉴 목록 맨 아래 "유의사항" 푸터.
+public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.VH> {
 
     public interface OnMenuClickListener {
         void onClick(MenuDto menu);
@@ -30,7 +27,6 @@ public class MenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final List<MenuDto> items = new ArrayList<>();
     private final OnMenuClickListener listener;
     private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
-    private String restaurantName = "";
 
     public MenuAdapter(OnMenuClickListener listener) {
         this.listener = listener;
@@ -44,36 +40,16 @@ public class MenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         notifyDataSetChanged();
     }
 
-    /** 유의사항 문구에 넣을 매장 이름을 설정한다. */
-    public void setRestaurantName(String name) {
-        this.restaurantName = name == null ? "" : name;
-        notifyDataSetChanged();
-    }
-
-    @Override
-    public int getItemViewType(int position) {
-        return position == items.size() ? TYPE_FOOTER : TYPE_ITEM;
-    }
-
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == TYPE_FOOTER) {
-            View v = inflater.inflate(R.layout.item_menu_footer, parent, false);
-            return new FooterVH(v);
-        }
-        View v = inflater.inflate(R.layout.item_menu, parent, false);
+    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_menu, parent, false);
         return new VH(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        if (holder instanceof FooterVH) {
-            ((FooterVH) holder).bind(restaurantName);
-            return;
-        }
-        VH h = (VH) holder;
+    public void onBindViewHolder(@NonNull VH h, int position) {
         MenuDto m = items.get(position);
 
         h.name.setText(m.getName());
@@ -100,8 +76,7 @@ public class MenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        // 메뉴가 있을 때만 유의사항 푸터를 1개 붙인다.
-        return items.isEmpty() ? 0 : items.size() + 1;
+        return items.size();
     }
 
     static class VH extends RecyclerView.ViewHolder {
@@ -115,31 +90,6 @@ public class MenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             price = v.findViewById(R.id.tv_menu_price);
             soldOut = v.findViewById(R.id.tv_menu_soldout);
             thumb = v.findViewById(R.id.iv_menu_thumb);
-        }
-    }
-
-    static class FooterVH extends RecyclerView.ViewHolder {
-        final TextView disclaimer;
-
-        FooterVH(@NonNull View v) {
-            super(v);
-            disclaimer = v.findViewById(R.id.tv_notice_disclaimer);
-        }
-
-        void bind(String restaurantName) {
-            String name = restaurantName == null || restaurantName.isEmpty() ? "본 매장" : restaurantName;
-            String josa = hasFinalConsonant(name) ? "은" : "는";
-            disclaimer.setText("• " + name + josa + " 상품거래에 대한 통신판매중개자이며, 통신판매의 당사자가 아닙니다. "
-                    + "따라서 " + name + josa + " 상품·거래정보 및 거래에 대하여 책임을 지지 않습니다.");
-        }
-
-        /** 한글 이름 끝 글자에 받침이 있으면 true(은/는 조사 선택용). */
-        private boolean hasFinalConsonant(String name) {
-            char last = name.charAt(name.length() - 1);
-            if (last < 0xAC00 || last > 0xD7A3) {
-                return true;  // 한글이 아니면 기본 "은".
-            }
-            return (last - 0xAC00) % 28 != 0;
         }
     }
 }
