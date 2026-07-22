@@ -40,6 +40,7 @@ public class CouponsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_coupons);
+        com.hackmin.app.ui.common.BottomNav.setup(this, com.hackmin.app.ui.common.BottomNav.Tab.NONE);
 
         ImageButton btnBack = findViewById(R.id.btnBack);
         Button btnRegister = findViewById(R.id.btnRegister);

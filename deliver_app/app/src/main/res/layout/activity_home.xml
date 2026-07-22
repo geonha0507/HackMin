@@ -4,10 +4,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/bg_deep"
-    android:paddingTop="24dp"
-    android:paddingStart="20dp"
-    android:paddingEnd="20dp">
+    android:background="@color/bg_deep">
+
+    <!-- ===================== 콘텐츠 영역(하단 바 위) ===================== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingTop="24dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
 
     <!-- ===================== 상단 헤더 ===================== -->
 
@@ -35,36 +42,14 @@
             android:layout_centerVertical="true"
             android:orientation="horizontal">
 
-            <!-- 알림 -->
+            <!-- 알림(공지사항) -->
             <ImageButton
                 android:id="@+id/btn_notification"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="8dp"
-                android:src="@android:drawable/ic_popup_reminder"
-                app:tint="@color/text_primary"/>
-
-            <!-- 장바구니 -->
-            <ImageButton
-                android:id="@+id/btn_cart"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@drawable/ic_cart"
-                app:tint="@color/text_primary"/>
-
-            <!-- 마이페이지 -->
-            <ImageButton
-                android:id="@+id/btn_mypage"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_menu_myplaces"
+                android:src="@drawable/ic_bell"
                 app:tint="@color/text_primary"/>
 
         </LinearLayout>
@@ -347,5 +332,11 @@
             android:visibility="gone"/>
 
     </FrameLayout>
+
+    </LinearLayout>
+    <!-- ===================== 콘텐츠 영역 끝 ===================== -->
+
+    <!-- ===================== 하단 네비게이션 바 (공용) ===================== -->
+    <include layout="@layout/bottom_nav"/>
 
 </LinearLayout>

@@ -39,6 +39,13 @@ public class OrderHistoryAdapter extends RecyclerView.Adapter<OrderHistoryAdapte
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
         OrderSummary order = orderList.get(position);
         holder.tvRestaurantName.setText(order.getRestaurantName());
+        String menus = order.getMenuSummary();
+        if (menus == null || menus.isEmpty()) {
+            holder.tvOrderMenus.setVisibility(View.GONE);
+        } else {
+            holder.tvOrderMenus.setVisibility(View.VISIBLE);
+            holder.tvOrderMenus.setText(menus);
+        }
         holder.tvOrderDate.setText(order.getOrderDate());
         holder.tvTotalPrice.setText(order.getTotalPrice() + "원");
         holder.tvStatus.setText(order.getStatus());
@@ -52,11 +59,12 @@ public class OrderHistoryAdapter extends RecyclerView.Adapter<OrderHistoryAdapte
     }
 
     static class OrderViewHolder extends RecyclerView.ViewHolder {
-        TextView tvRestaurantName, tvOrderDate, tvTotalPrice, tvStatus;
+        TextView tvRestaurantName, tvOrderMenus, tvOrderDate, tvTotalPrice, tvStatus;
 
         OrderViewHolder(@NonNull View itemView) {
             super(itemView);
             tvRestaurantName = itemView.findViewById(R.id.tvRestaurantName);
+            tvOrderMenus = itemView.findViewById(R.id.tvOrderMenus);
             tvOrderDate = itemView.findViewById(R.id.tvOrderDate);
             tvTotalPrice = itemView.findViewById(R.id.tvTotalPrice);
             tvStatus = itemView.findViewById(R.id.tvStatus);

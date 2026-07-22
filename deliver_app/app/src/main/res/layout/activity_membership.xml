@@ -88,4 +88,6 @@
         android:backgroundTint="@color/coral_primary"
         android:textColor="#FFFFFF" />
 
+    <include layout="@layout/bottom_nav"/>
+
 </LinearLayout>

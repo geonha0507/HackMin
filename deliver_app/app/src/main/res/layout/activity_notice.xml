@@ -62,4 +62,6 @@
 
     </FrameLayout>
 
+    <include layout="@layout/bottom_nav"/>
+
 </LinearLayout>

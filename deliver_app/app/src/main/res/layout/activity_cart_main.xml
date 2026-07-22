@@ -134,4 +134,6 @@
         android:layout_margin="16dp"
         android:text="주문하기" />
 
+    <include layout="@layout/bottom_nav"/>
+
 </LinearLayout>

@@ -43,6 +43,7 @@ public class MembershipActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_membership);
+        com.hackmin.app.ui.common.BottomNav.setup(this, com.hackmin.app.ui.common.BottomNav.Tab.NONE);
 
         ImageButton btnBack = findViewById(R.id.btnBack);
         tvStatus = findViewById(R.id.tvMembershipStatus);
