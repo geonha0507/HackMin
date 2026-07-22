@@ -47,6 +47,10 @@ urlpatterns = [
     path('admin/restaurant-edits/<int:pk>/decide', admin.restaurant_edit_decide, name='admin_restaurant_edit_decide'),
     path('admin/orders', admin.order_list, name='admin_orders'),
     path('admin/payments', admin.payment_list, name='admin_payments'),
+    path('admin/notices', admin.notice_list, name='admin_notices'),
+    path('admin/notices/new', admin.notice_create, name='admin_notice_create'),
+    path('admin/notices/<int:pk>/edit', admin.notice_edit, name='admin_notice_edit'),
+    path('admin/notices/<int:pk>/delete', admin.notice_delete, name='admin_notice_delete'),
     path(
         'admin/store',
         admin.store_list,
