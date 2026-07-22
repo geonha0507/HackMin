@@ -282,6 +282,11 @@ public class OrderActivity extends AppCompatActivity {
         }
     }
 
+    /** 금액을 천 단위 콤마 + "원" 형식으로 변환한다. (예: 108000 → "108,000원") */
+    private String won(int amount) {
+        return String.format(java.util.Locale.KOREA, "%,d원", amount);
+    }
+
     /** 카드번호를 "****  ****  ****  1234" 형태로 마스킹(뒤 4자리만 노출). */
     private String maskCardNumber(String cardNo) {
         String last4 = cardNo.length() >= 4 ? cardNo.substring(cardNo.length() - 4) : cardNo;
@@ -543,7 +548,7 @@ public class OrderActivity extends AppCompatActivity {
 
             ImageLoader.load(iv, item.getMenuImage());
             name.setText(item.getMenuName() + " x" + item.getQuantity());
-            price.setText(item.getLineTotal() + "원");
+            price.setText(won(item.getLineTotal()));
 
             containerOrderItems.addView(row);
         }
@@ -555,11 +560,11 @@ public class OrderActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<CartSummaryDto> call, @NonNull Response<CartSummaryDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     CartSummaryDto s = response.body();
-                    tvMenuPrice.setText(s.getSubtotal() + "원");
-                    tvDeliveryFee.setText(s.getDeliveryFee() + "원");
+                    tvMenuPrice.setText(won(s.getSubtotal()));
+                    tvDeliveryFee.setText(won(s.getDeliveryFee()));
                     // 할인 금액이 있으면 -N원 형태로 표시.
-                    tvDiscount.setText(s.getDiscount() > 0 ? "-" + s.getDiscount() + "원" : "0원");
-                    tvTotalPayment.setText(s.getTotal() + "원");
+                    tvDiscount.setText(s.getDiscount() > 0 ? "-" + won(s.getDiscount()) : won(0));
+                    tvTotalPayment.setText(won(s.getTotal()));
                 }
             }
 
