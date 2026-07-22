@@ -137,13 +137,6 @@
             <View style="@style/MyPageDivider"/>
 
             <TextView
-                android:id="@+id/menu_membership"
-                style="@style/MyPageMenuItem"
-                android:text="멤버십 등급"/>
-
-            <View style="@style/MyPageDivider"/>
-
-            <TextView
                 android:id="@+id/menu_change_password"
                 style="@style/MyPageMenuItem"
                 android:text="비밀번호 변경"/>
