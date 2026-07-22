@@ -50,7 +50,7 @@ public class OrderHistoryAdapter extends RecyclerView.Adapter<OrderHistoryAdapte
             holder.tvOrderMenus.setText(menus);
         }
         holder.tvOrderDate.setText(order.getOrderDate());
-        holder.tvTotalPrice.setText(order.getTotalPrice() + "원");
+        holder.tvTotalPrice.setText(String.format(java.util.Locale.KOREA, "%,d원", order.getTotalPrice()));
         holder.tvStatus.setText(order.getStatus());
 
         holder.itemView.setOnClickListener(v -> listener.onOrderClick(order));
