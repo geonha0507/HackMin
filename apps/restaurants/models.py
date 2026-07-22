@@ -135,6 +135,22 @@ class RestaurantRegularClosedDay(models.Model):
         return f'{self.restaurant_id}:{self.get_weekday_display()}'
 
 
+class RestaurantNotice(models.Model):
+    """점주가 자기 매장 고객에게 보내는 공지사항 (관리자 전체 공지 Notice 와는 별개)."""
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='notices')
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.restaurant_id}:{self.title}'
+
+
 class MenuCategory(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='categories')
     name = models.CharField(max_length=64)

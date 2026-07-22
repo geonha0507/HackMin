@@ -10,6 +10,7 @@ urlpatterns = [
     path('restaurants/<int:pk>', views.RestaurantDetailView.as_view(), name='detail'),
     path('restaurants/<int:pk>/menus', views.RestaurantMenuListView.as_view(), name='menus'),
     path('restaurants/<int:pk>/reviews', views.RestaurantReviewListView.as_view(), name='reviews'),
+    path('restaurants/<int:pk>/notices', views.RestaurantNoticeListView.as_view(), name='notices'),
 
     # /api/v1/menus/{id}
     path('menus/<int:pk>', views.MenuDetailView.as_view(), name='menu-detail'),
