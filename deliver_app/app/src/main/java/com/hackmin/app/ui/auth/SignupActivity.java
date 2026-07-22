@@ -28,6 +28,8 @@ public class SignupActivity extends AppCompatActivity {
     private TextInputEditText etSignupId;
     private TextInputEditText etSignupPw;
     private TextInputEditText etSignupPwConfirm;
+    private TextInputEditText etSignupName;
+    private TextInputEditText etSignupPhone;
     private TextView tvNicknameCheckResult;
     private boolean isNicknameChecked = false;
     private boolean isDuplicateChecked = false;
@@ -41,6 +43,8 @@ public class SignupActivity extends AppCompatActivity {
         etSignupId = findViewById(R.id.et_signup_id);
         etSignupPw = findViewById(R.id.et_signup_pw);
         etSignupPwConfirm = findViewById(R.id.et_signup_pw_confirm);
+        etSignupName = findViewById(R.id.et_signup_name);
+        etSignupPhone = findViewById(R.id.et_signup_phone);
         tvNicknameCheckResult = findViewById(R.id.tv_nickname_check_result);
         Button btnCheckNicknameDuplicate = findViewById(R.id.btn_check_nickname_duplicate);
         Button btnCheckDuplicate = findViewById(R.id.btn_check_duplicate);
@@ -146,8 +150,11 @@ public class SignupActivity extends AppCompatActivity {
             String id = etSignupId.getText() != null ? etSignupId.getText().toString().trim() : "";
             String pw = etSignupPw.getText() != null ? etSignupPw.getText().toString().trim() : "";
             String pwConfirm = etSignupPwConfirm.getText() != null ? etSignupPwConfirm.getText().toString().trim() : "";
+            String name = etSignupName.getText() != null ? etSignupName.getText().toString().trim() : "";
+            String phone = etSignupPhone.getText() != null ? etSignupPhone.getText().toString().trim() : "";
 
-            if (nickname.isEmpty() || id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty()) {
+            if (nickname.isEmpty() || id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty()
+                    || name.isEmpty() || phone.isEmpty()) {
                 Toast.makeText(this, "모든 정보를 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -180,8 +187,8 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            // API 모델 매핑 (닉네임을 이름 자리에 반영 - 실제 DTO 필드 의미에 맞게 조정 필요)
-            SignupRequest request = new SignupRequest(id, id, pw, nickname, "010-0000-0000", true);
+            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호
+            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, true);
 
             ApiClient.authApi(this).signup(request).enqueue(new Callback<UserDto>() {
                 @Override
