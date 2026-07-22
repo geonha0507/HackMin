@@ -44,6 +44,8 @@ public class CartActivity extends AppCompatActivity {
     private CartItemAdapter adapter;
     private CartApi cartApi;
     private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
+    /** 최근 요약(금액·최소주문금액). 주문하기 시 최소금액 검증에 사용. */
+    private CartSummaryDto lastSummary;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +59,18 @@ public class CartActivity extends AppCompatActivity {
         btnOrder.setOnClickListener(v -> {
             if (adapter.getItemCount() == 0) {
                 Toast.makeText(this, "장바구니가 비어 있습니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 최소 주문금액 검증(배달비 제외 subtotal 기준). 미달이면 주문서로 넘어가지 않는다.
+            if (lastSummary != null && lastSummary.getSubtotal() < lastSummary.getMinOrderAmount()) {
+                int shortfall = lastSummary.getMinOrderAmount() - lastSummary.getSubtotal();
+                new AlertDialog.Builder(this)
+                        .setTitle("최소 주문금액 미달")
+                        .setMessage("최소 주문금액은 " + won.format(lastSummary.getMinOrderAmount()) + "원입니다.\n"
+                                + "현재 " + won.format(lastSummary.getSubtotal()) + "원(배달비 제외) · "
+                                + won.format(shortfall) + "원 더 담아주세요.")
+                        .setPositiveButton("확인", null)
+                        .show();
                 return;
             }
             startActivity(new Intent(this, OrderActivity.class));
@@ -136,6 +150,7 @@ public class CartActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<CartSummaryDto> call, @NonNull Response<CartSummaryDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     CartSummaryDto s = response.body();
+                    lastSummary = s;
                     tvDeliveryFee.setText(won.format(s.getDeliveryFee()) + "원");
                     tvTotalPrice.setText(won.format(s.getTotal()) + "원");
                     tvDiscount.setText("-" + won.format(s.getDiscount()) + "원");
