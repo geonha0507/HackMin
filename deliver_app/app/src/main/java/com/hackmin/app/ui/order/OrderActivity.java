@@ -76,6 +76,9 @@ public class OrderActivity extends AppCompatActivity {
         initApi();
         initViews();
 
+        // 저장된 기본 배송지가 있으면 자동으로 채운다.
+        applySavedDefaultAddress();
+
         btnChangeAddress.setOnClickListener(v -> selectAddress());
         btnPay.setOnClickListener(v -> submitOrder());
 
@@ -668,16 +671,62 @@ public class OrderActivity extends AppCompatActivity {
                 .setPositiveButton("확인", (d, w) -> {
                     selectedAddress = etAddr.getText().toString().trim();
                     selectedAddressDetail = etDetail.getText().toString().trim();
-                    if (TextUtils.isEmpty(selectedAddress)) {
-                        tvSelectedAddress.setText("배송지를 선택해주세요");
-                    } else {
-                        tvSelectedAddress.setText(
-                                selectedAddress
-                                        + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+                    updateAddressDisplay();
+                    // 주소가 입력되면 기본 주소로 저장할지 확인한다.
+                    if (!TextUtils.isEmpty(selectedAddress)) {
+                        confirmSetDefaultAddress();
                     }
                 })
                 .setNegativeButton("취소", null)
                 .show();
+    }
+
+    /** 상단 배송지 표시를 현재 선택값으로 갱신한다. */
+    private void updateAddressDisplay() {
+        if (TextUtils.isEmpty(selectedAddress)) {
+            tvSelectedAddress.setText("배송지를 선택해주세요");
+        } else {
+            tvSelectedAddress.setText(
+                    selectedAddress
+                            + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+        }
+    }
+
+    /** "이 주소를 기본 주소로 설정하시겠습니까?" — 예 선택 시 로컬에 저장(다음 진입 시 자동 적용). */
+    private void confirmSetDefaultAddress() {
+        new AlertDialog.Builder(this)
+                .setMessage("이 주소를 기본 주소로 설정하시겠습니까?")
+                .setPositiveButton("예", (d, w) -> {
+                    saveDefaultAddress(selectedAddress, selectedAddressDetail);
+                    Toast.makeText(this, "기본 주소로 설정되었습니다.", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("아니오", null)
+                .show();
+    }
+
+    // 기본 배송지는 로컬(SharedPreferences)에 저장 → 다음 주문서 진입 시 자동 적용.
+    private static final String PREF_ADDR = "default_address";
+    private static final String KEY_ADDR = "address";
+    private static final String KEY_ADDR_DETAIL = "address_detail";
+
+    /** 기본 배송지를 저장한다. */
+    private void saveDefaultAddress(String address, String detail) {
+        getSharedPreferences(PREF_ADDR, MODE_PRIVATE).edit()
+                .putString(KEY_ADDR, address)
+                .putString(KEY_ADDR_DETAIL, detail)
+                .apply();
+    }
+
+    /** 저장된 기본 배송지가 있으면 선택값·상단 표시에 반영한다. */
+    private void applySavedDefaultAddress() {
+        android.content.SharedPreferences p = getSharedPreferences(PREF_ADDR, MODE_PRIVATE);
+        String addr = p.getString(KEY_ADDR, "");
+        String detail = p.getString(KEY_ADDR_DETAIL, "");
+        if (!TextUtils.isEmpty(addr)) {
+            selectedAddress = addr;
+            selectedAddressDetail = detail;
+            updateAddressDisplay();
+        }
     }
 
     /** 결제하기: 주문 생성(POST /orders) → 결제(POST /payments) → 주문추적 이동. */
