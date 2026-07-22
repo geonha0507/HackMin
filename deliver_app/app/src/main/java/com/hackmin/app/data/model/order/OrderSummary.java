@@ -8,9 +8,12 @@ public class OrderSummary {
     private String orderDate;
     private int totalPrice;
     private String status;
+    /** 주문 대표 썸네일(첫 항목 메뉴 사진) URL. 없으면 null → placeholder 표시. */
+    private String thumbnailUrl;
 
     public OrderSummary(int id, long restaurantId, String restaurantName,
-                        String menuSummary, String orderDate, int totalPrice, String status) {
+                        String menuSummary, String orderDate, int totalPrice, String status,
+                        String thumbnailUrl) {
         this.id = id;
         this.restaurantId = restaurantId;
         this.restaurantName = restaurantName;
@@ -18,6 +21,7 @@ public class OrderSummary {
         this.orderDate = orderDate;
         this.totalPrice = totalPrice;
         this.status = status;
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     public int getId() { return id; }
@@ -28,4 +32,5 @@ public class OrderSummary {
     public String getOrderDate() { return orderDate; }
     public int getTotalPrice() { return totalPrice; }
     public String getStatus() { return status; }
+    public String getThumbnailUrl() { return thumbnailUrl; }
 }
