@@ -638,13 +638,28 @@ public class OrderActivity extends AppCompatActivity {
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         box.setPadding(pad, pad, pad, 0);
 
+        // 주소는 직접 입력 대신 우편번호 검색으로 채운다(직접 수정 방지).
         EditText etAddr = new EditText(this);
-        etAddr.setHint("주소 (예: 서울시 강남구 테헤란로 123)");
+        etAddr.setHint("주소 (주소 검색으로 선택)");
         etAddr.setText(selectedAddress);
+        etAddr.setFocusable(false);
+        etAddr.setClickable(true);
+
+        Button btnSearchAddress = new Button(this);
+        btnSearchAddress.setText("주소 검색");
+
         EditText etDetail = new EditText(this);
         etDetail.setHint("상세주소 (예: 101동 1001호)");
         etDetail.setText(selectedAddressDetail);
+
+        // 주소 검색 버튼/주소칸 탭 → 다음 우편번호 검색 → 도로명 주소 채움.
+        View.OnClickListener openSearch = v -> com.hackmin.app.util.PostcodeSearch.show(this,
+                (zonecode, address) -> etAddr.setText(address));
+        btnSearchAddress.setOnClickListener(openSearch);
+        etAddr.setOnClickListener(openSearch);
+
         box.addView(etAddr);
+        box.addView(btnSearchAddress);
         box.addView(etDetail);
 
         new AlertDialog.Builder(this)
