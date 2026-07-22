@@ -214,7 +214,6 @@ def store_decide(request, pk):
             owner.is_active = True
 
             enrollment_status = 'approved'
-            rejection_reason = ''
 
         else:
             owner.status = User.Status.SUSPENDED
@@ -226,19 +225,23 @@ def store_decide(request, pk):
             update_fields=['status', 'is_active'],
         )
 
-        EnrollmentRequest.objects.update_or_create(
-            username=owner.username,
-            defaults={
+        defaults = {
                 'restaurant': store,
                 'phone': (owner.phone or '')[:20],
                 'owner_name': owner.nickname or owner.username,
                 'restaurant_name': store.name,
                 'status': enrollment_status,
-                'rejection_reason': rejection_reason,
                 'reviewed_at': timezone.now(),
                 'reviewed_by': request.user,
-            },
-        )
+            }
+
+            if action == 'reject':
+                defaults['rejection_reason'] = rejection_reason
+
+            EnrollmentRequest.objects.update_or_create(
+                username=owner.username,
+                defaults=defaults,
+            )
 
     if action == 'approve':
         messages.success(
