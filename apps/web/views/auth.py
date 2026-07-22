@@ -1,6 +1,7 @@
 """세션 기반 로그인/로그아웃 및 점주 회원가입 웹 화면."""
 
 import os
+from enrollment.models import EnrollmentRequest
 
 from django.contrib import messages
 from django.contrib.auth import (
@@ -34,14 +35,95 @@ def _home_for(user):
 def login_view(request):
     if (
         request.user.is_authenticated
-        and request.user.role in (User.Role.ADMIN, User.Role.OWNER)
+        and request.user.role in (
+            User.Role.ADMIN,
+            User.Role.OWNER,
+        )
     ):
         return _home_for(request.user)
 
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
+        username = request.POST.get(
+            'username',
+            '',
+        ).strip()
 
+        password = request.POST.get(
+            'password',
+            '',
+        )
+
+        candidate = User.objects.filter(
+            username=username,
+        ).first()
+
+        # 비밀번호가 맞는 점주 계정은
+        # authenticate 이전에 신청 상태를 확인한다.
+        if (
+            candidate
+            and candidate.role == User.Role.OWNER
+            and candidate.check_password(password)
+        ):
+            if candidate.status == User.Status.PENDING:
+                messages.error(
+                    request,
+                    '입점 승인 대기 중인 계정입니다.',
+                )
+                return render(
+                    request,
+                    'web/login.html',
+                    {
+                        'next': (
+                            request.GET.get('next')
+                            or request.POST.get('next')
+                            or ''
+                        ),
+                        'hide_chrome': True,
+                    },
+                )
+
+            if candidate.status == User.Status.SUSPENDED:
+                enrollment = (
+                    EnrollmentRequest.objects
+                    .filter(
+                        restaurant__owner=candidate,
+                        status='rejected',
+                    )
+                    .only('rejection_reason')
+                    .first()
+                )
+
+                if (
+                    enrollment
+                    and enrollment.rejection_reason
+                ):
+                    messages.error(
+                        request,
+                        '입점 신청이 반려되었습니다. '
+                        f'반려 사유: '
+                        f'{enrollment.rejection_reason}',
+                    )
+                else:
+                    messages.error(
+                        request,
+                        '비활성화된 계정입니다. '
+                        '관리자에게 문의하세요.',
+                    )
+
+                return render(
+                    request,
+                    'web/login.html',
+                    {
+                        'next': (
+                            request.GET.get('next')
+                            or request.POST.get('next')
+                            or ''
+                        ),
+                        'hide_chrome': True,
+                    },
+                )
+
+        # 승인된 계정 등은 기존 인증 흐름으로 처리
         user = authenticate(
             request,
             username=username,
@@ -54,22 +136,23 @@ def login_view(request):
                 '아이디 또는 비밀번호가 올바르지 않습니다.',
             )
 
-        elif user.role not in (User.Role.ADMIN, User.Role.OWNER):
+        elif user.role not in (
+            User.Role.ADMIN,
+            User.Role.OWNER,
+        ):
             messages.error(
                 request,
                 '관리자 또는 점주 계정만 로그인할 수 있습니다.',
             )
 
-        elif user.status == User.Status.PENDING:
-            messages.warning(
-                request,
-                '입점 승인 대기 중인 계정입니다. 관리자 승인 후 로그인할 수 있습니다.',
-            )
-
-        elif user.status != User.Status.ACTIVE or not user.is_active:
+        elif (
+            user.status != User.Status.ACTIVE
+            or not user.is_active
+        ):
             messages.error(
                 request,
-                '비활성화된 계정입니다. 관리자에게 문의하세요.',
+                '비활성화된 계정입니다. '
+                '관리자에게 문의하세요.',
             )
 
         else:
