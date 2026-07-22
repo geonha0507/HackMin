@@ -250,18 +250,22 @@ def store_decide(request, pk):
             owner.is_active = action == 'approve'
             owner.save(update_fields=['status', 'is_active'])
 
+        defaults = {
+            'username': owner.username,
+            'phone': (owner.phone or '')[:20],
+            'owner_name': owner.nickname or owner.username,
+            'restaurant_name': store.name,
+            'status': enrollment_status,
+            'reviewed_at': timezone.now(),
+            'reviewed_by': request.user,
+        }
+
+        if action == 'reject':
+            defaults['rejection_reason'] = rejection_reason
+
         EnrollmentRequest.objects.update_or_create(
             restaurant=store,
-            defaults={
-                'username': owner.username,
-                'phone': (owner.phone or '')[:20],
-                'owner_name': owner.nickname or owner.username,
-                'restaurant_name': store.name,
-                'status': enrollment_status,
-                'rejection_reason': rejection_reason if action == 'reject' else '',
-                'reviewed_at': timezone.now(),
-                'reviewed_by': request.user,
-            },
+            defaults=defaults,
         )
 
     if action == 'approve':
