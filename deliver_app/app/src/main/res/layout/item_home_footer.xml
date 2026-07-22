@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 홈 목록 맨 아래 푸터(배민 스타일). 정보는 프로젝트용 가상 데이터. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#F4F4F4"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="28dp"
+    android:layout_marginTop="12dp">
+
+    <!-- 정책/약관 링크 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="사업자정보확인  |  이용약관  |  전자금융거래이용약관"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="개인정보처리방침  |  리뷰운영정책  |  데이터제공정책"
+        android:textSize="12sp"
+        android:textColor="@color/text_primary"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="소비자분쟁해결기준"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="#E0E0E0" />
+
+    <!-- 회사 정보 (프로젝트용 가상 정보) -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="(주)해킹의민족"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="대표이사 김해민  |  사업자등록번호 000-00-00000\n통신판매업 2026-서울송파-0000  |  호스팅서비스제공자 (주)해킹의민족\nhelp@hackmin.example  |  서울특별시 송파구 위례성대로 2\n전자금융분쟁처리 Tel 1600-0000"
+        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:lineSpacingExtra="3dp" />
+
+    <!-- 고객센터 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="고객센터"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="1600-0000  ·  24시간 운영, 연중무휴"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary" />
+
+    <!-- 통신판매중개 안내 문구 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="(주)해킹의민족은 통신판매중개자이며 통신판매의 당사자가 아닙니다. 따라서 (주)해킹의민족은 판매자가 등록한 상품정보 및 거래 등에 대해 책임을 지지 않습니다."
+        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:lineSpacingExtra="3dp" />
+
+</LinearLayout>
