@@ -56,6 +56,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=255, blank=True, null=True,
         help_text="주민등록번호 (AES-128 암호화)"
     )
+    rrn_hash = models.CharField(
+        max_length=64, unique=True, null=True, blank=True,
+        help_text="주민등록번호 중복 확인용 해시(SHA-256). 복호화 불가능해서 이 값만으로는 원본을 알 수 없다.",
+    )
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 
