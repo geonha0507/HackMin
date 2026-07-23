@@ -39,7 +39,11 @@ public class HomeActivity extends AppCompatActivity {
     private RecyclerView rvRestaurants;
     private ProgressBar pbLoading;
     private TextView tvEmpty;
+    private TextView tvListTitle;
     private RestaurantAdapter adapter;
+
+    // 카테고리/검색 필터가 없을 때 목록 제목의 기본값
+    private static final String DEFAULT_LIST_TITLE = "추천 맛집";
 
     // 뒤로가기 두 번 눌러 종료: 마지막 뒤로가기 시각(ms)과 허용 간격.
     private static final long BACK_EXIT_INTERVAL_MS = 2000L;
@@ -58,6 +62,7 @@ public class HomeActivity extends AppCompatActivity {
         rvRestaurants = findViewById(R.id.rv_restaurants);
         pbLoading = findViewById(R.id.pb_loading);
         tvEmpty = findViewById(R.id.tv_empty);
+        tvListTitle = findViewById(R.id.tv_list_title);
 
         // 상단 아이콘 버튼(공지사항)
         ImageButton btnNotification = findViewById(R.id.btn_notification);
@@ -71,6 +76,7 @@ public class HomeActivity extends AppCompatActivity {
         // 홈 탭은 현재 화면 — 탭하면 검색/카테고리 필터 해제하고 전체 목록으로 리셋
         findViewById(R.id.nav_home).setOnClickListener(v -> {
             etHomeSearch.setText("");
+            tvListTitle.setText(DEFAULT_LIST_TITLE);
             loadRestaurants(null, null);
             rvRestaurants.smoothScrollToPosition(0);
         });
@@ -102,6 +108,7 @@ public class HomeActivity extends AppCompatActivity {
         if (recommend != null) {
             recommend.setOnClickListener(v -> {
                 etHomeSearch.setText("");
+                tvListTitle.setText(DEFAULT_LIST_TITLE);
                 loadRestaurants(null, null);
             });
         }
@@ -134,21 +141,29 @@ public class HomeActivity extends AppCompatActivity {
     private void triggerSearch() {
         String keyword = etHomeSearch.getText() != null
                 ? etHomeSearch.getText().toString().trim() : "";
+        tvListTitle.setText(keyword.isEmpty()
+                ? DEFAULT_LIST_TITLE
+                : "'" + keyword + "' 검색 결과");
         loadRestaurants(keyword.isEmpty() ? null : keyword, null);
     }
 
     private void setupCategoryListeners() {
         int[] categoryIds = {
-                R.id.category_chinese, R.id.category_chicken,
-                R.id.category_cafe, R.id.category_stew, R.id.category_korean
+                R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
+                R.id.category_cafe, R.id.category_stew, R.id.category_korean,
+                R.id.category_bunsik
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "카페", "찜", "한식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식"};
+        // 목록 제목으로 보여줄 라벨(버튼 라벨과 일치). 예: 찜 → "찜, 탕"
+        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];
+            final String title = categoryTitles[i];
             findViewById(categoryIds[i]).setOnClickListener(v -> {
                 etHomeSearch.setText("");
+                tvListTitle.setText(title);
                 loadRestaurants(query, null);
             });
         }

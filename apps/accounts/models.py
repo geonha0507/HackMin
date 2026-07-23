@@ -51,6 +51,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(blank=True, null=True, unique=True)
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
+    name = models.CharField(max_length=64, blank=True)          # 실명
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 

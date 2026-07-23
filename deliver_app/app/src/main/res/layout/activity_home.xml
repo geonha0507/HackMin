@@ -120,12 +120,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#FFF3CD">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="⭐"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_recommend"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="추천메뉴"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -158,12 +158,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#FFE8D6">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="🥟"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_chinese"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="중식"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -196,12 +196,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#FFE0DB">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="🍗"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_chicken"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="치킨"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -209,6 +209,44 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="치킨"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 피자 -->
+            <LinearLayout
+                android:id="@+id/category_pizza"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_pizza"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="피자"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="피자"
                     android:textSize="12sp"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="6dp"/>
@@ -234,12 +272,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#E8DFF5">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="☕"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_cafe"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="카페"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -272,12 +310,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#FFDDE1">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="🍲"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_stew"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="찜, 탕"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -296,6 +334,7 @@
                 android:id="@+id/category_korean"
                 android:layout_width="64dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:orientation="vertical"
                 android:gravity="center"
                 android:clickable="true"
@@ -309,12 +348,12 @@
                     app:cardElevation="0dp"
                     app:cardBackgroundColor="#DFF0DF">
 
-                    <TextView
+                    <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:text="🍚"
-                        android:textSize="24sp"
-                        android:gravity="center"/>
+                        android:src="@drawable/cat_korean"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="한식"/>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -322,6 +361,43 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="한식"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 분식 -->
+            <LinearLayout
+                android:id="@+id/category_bunsik"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_bunsik"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="분식"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="분식"
                     android:textSize="12sp"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="6dp"/>

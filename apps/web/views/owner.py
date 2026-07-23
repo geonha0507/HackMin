@@ -1,10 +1,12 @@
 """점주(Owner) 웹 화면 - 주문/상품/매출/리뷰 관리."""
 
+from ..views.restaurant import _is_reviewable_restaurant
 from datetime import date, timedelta
 
 from django.contrib import messages
 from django.db.models import Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from orders.models import Order
 from restaurants.models import Menu, MenuCategory, Restaurant
@@ -30,6 +32,16 @@ def _owned_restaurants(user):
 
 def _owned_ids(user):
     return owned_restaurant_ids(user)
+
+
+def _filter_owned(request, owned_ids):
+    """GET 파라미터 restaurant_id로 매장 필터링. 소유하지 않은 ID는 무시."""
+    try:
+        sel = int(request.GET.get('restaurant_id', ''))
+    except ValueError:
+        sel = None
+    ids = [sel] if sel in owned_ids else owned_ids
+    return ids, sel if sel in owned_ids else ''
 
 
 @owner_required
@@ -101,24 +113,22 @@ def order_detail(request, pk):
 @owner_required
 def product_list(request):
     owned_ids = _owned_ids(request.user)
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
 
     menus = Menu.objects.filter(restaurant_id__in=ids).select_related('restaurant', 'category')
     return render(request, 'web/owner/products.html', {
         'menus': menus,
         'status_labels': MENU_STATUS_LABELS,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     })
 
 
 @owner_required
 def product_form(request, pk=None):
     restaurants = _owned_restaurants(request.user)
+    # 심사 완료(승인)된 매장만 상품 등록 대상으로 노출
+    reviewable_restaurants = [r for r in restaurants if _is_reviewable_restaurant(r)]
     ids = list(restaurants.values_list('id', flat=True))
     menu = None
     if pk:
@@ -126,6 +136,11 @@ def product_form(request, pk=None):
 
     if request.method == 'POST':
         restaurant = get_object_or_404(Restaurant, pk=request.POST.get('restaurant'), owner=request.user)
+
+        if not _is_reviewable_restaurant(restaurant):
+            messages.error(request, '심사 대기 또는 반려 중인 매장은 상품을 등록할 수 없습니다.')
+            return redirect('web:owner_products')
+
         category_id = request.POST.get('category') or None
         category = None
         if category_id:
@@ -159,11 +174,10 @@ def product_form(request, pk=None):
     categories = MenuCategory.objects.filter(restaurant_id__in=ids)
     return render(request, 'web/owner/product_form.html', {
         'menu': menu,
-        'restaurants': restaurants,
+        'restaurants': reviewable_restaurants,   # ← 필터링된 목록으로 교체
         'categories': categories,
         'status_choices': Menu.Status.choices,
     })
-
 
 @owner_required
 def product_delete(request, pk):
@@ -178,6 +192,7 @@ def product_delete(request, pk):
 @owner_required
 def category_list(request):
     restaurants = _owned_restaurants(request.user)
+    reviewable_restaurants = [r for r in restaurants if _is_reviewable_restaurant(r)]
     ids = list(restaurants.values_list('id', flat=True))
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -191,6 +206,9 @@ def category_list(request):
 
             if not restaurant:
                 messages.error(request, '유효한 매장을 선택하세요.')
+
+            elif not _is_reviewable_restaurant(restaurant):
+                messages.error(request, '심사 대기 또는 반려 중인 매장은 카테고리를 등록할 수 없습니다.')
 
             elif not name:
                 messages.error(request, '카테고리 이름을 입력하세요.')
@@ -242,7 +260,7 @@ def category_list(request):
         .order_by('restaurant', 'display_order')
     )
     return render(request, 'web/owner/categories.html', {
-        'categories': categories, 'restaurants': restaurants,
+        'categories': categories, 'restaurants': reviewable_restaurants,
     })
 
 
@@ -250,11 +268,7 @@ def category_list(request):
 @owner_required
 def sales(request):
     owned_ids = _owned_ids(request.user)
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
     today = date.today()
     start = request.GET.get('start') or str(today - timedelta(days=29))
     end = request.GET.get('end') or str(today)
@@ -282,7 +296,7 @@ def sales(request):
         'order_count': qs.count(),
         'max_amount': max_amount,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     }
     return render(request, 'web/owner/sales.html', ctx)
 
@@ -299,13 +313,13 @@ def review_list(request):
                 review=review, defaults={'owner': request.user, 'content': content},
             )
             messages.success(request, '답변을 등록했습니다.')
-        return redirect('web:owner_reviews')
+        restaurant_id = request.GET.get('restaurant_id', '')
+        url = reverse('web:owner_reviews')
+        if restaurant_id:
+            url += f'?restaurant_id={restaurant_id}'
+        return redirect(url)
 
-    try:
-        selected_id = int(request.GET.get('restaurant_id', ''))
-    except ValueError:
-        selected_id = None
-    ids = [selected_id] if selected_id in owned_ids else owned_ids
+    ids, selected_restaurant_id = _filter_owned(request, owned_ids)
 
     reviews = (
         Review.objects.filter(restaurant_id__in=ids)
@@ -315,5 +329,5 @@ def review_list(request):
     return render(request, 'web/owner/reviews.html', {
         'reviews': reviews,
         'restaurants': _owned_restaurants(request.user),
-        'selected_restaurant_id': selected_id if selected_id in owned_ids else '',
+        'selected_restaurant_id': selected_restaurant_id,
     })
