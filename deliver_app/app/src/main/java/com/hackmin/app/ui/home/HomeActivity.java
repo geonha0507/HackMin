@@ -40,6 +40,7 @@ public class HomeActivity extends AppCompatActivity {
     private ProgressBar pbLoading;
     private TextView tvEmpty;
     private TextView tvListTitle;
+    private TextView tvNoticeBadge;
     private RestaurantAdapter adapter;
 
     // 카테고리/검색 필터가 없을 때 목록 제목의 기본값
@@ -64,7 +65,8 @@ public class HomeActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tv_empty);
         tvListTitle = findViewById(R.id.tv_list_title);
 
-        // 상단 아이콘 버튼(공지사항)
+        // 상단 아이콘 버튼(공지사항) + 안읽음 뱃지
+        tvNoticeBadge = findViewById(R.id.tv_notice_badge);
         ImageButton btnNotification = findViewById(R.id.btn_notification);
         if (btnNotification != null) {
             btnNotification.setOnClickListener(v ->
@@ -120,6 +122,52 @@ public class HomeActivity extends AppCompatActivity {
         loadRestaurants(null, null);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 공지 화면에서 읽고 돌아오면 안읽음 뱃지 갱신.
+        refreshNoticeBadge();
+    }
+
+    /** 서버 공지 목록을 받아 안읽음(=로컬 읽음기록에 없는) 개수를 벨 뱃지에 표시한다. */
+    private void refreshNoticeBadge() {
+        if (tvNoticeBadge == null) {
+            return;
+        }
+        ApiClient.noticeApi(this).getNotices().enqueue(
+                new retrofit2.Callback<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>>() {
+            @Override
+            public void onResponse(
+                    retrofit2.Call<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> call,
+                    retrofit2.Response<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> response) {
+                if (!response.isSuccessful() || response.body() == null
+                        || response.body().getResults() == null) {
+                    return;
+                }
+                java.util.Set<String> read = com.hackmin.app.util.NoticeReadStore.getReadIds(HomeActivity.this);
+                int unread = 0;
+                for (com.hackmin.app.data.model.notice.NoticeDto n : response.body().getResults()) {
+                    if (!read.contains(String.valueOf(n.getId()))) {
+                        unread++;
+                    }
+                }
+                if (unread > 0) {
+                    tvNoticeBadge.setText(String.valueOf(unread));
+                    tvNoticeBadge.setVisibility(View.VISIBLE);
+                } else {
+                    tvNoticeBadge.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onFailure(
+                    retrofit2.Call<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> call,
+                    Throwable t) {
+                // 뱃지 갱신 실패는 조용히 무시.
+            }
+        });
+    }
+
     /** 메인 화면에서 뒤로가기를 두 번 눌러야 앱이 종료되도록 처리한다. */
     private void setupDoubleBackToExit() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -151,12 +199,13 @@ public class HomeActivity extends AppCompatActivity {
         int[] categoryIds = {
                 R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
                 R.id.category_cafe, R.id.category_stew, R.id.category_korean,
-                R.id.category_bunsik
+                R.id.category_bunsik, R.id.category_japanese, R.id.category_dessert,
+                R.id.category_meat, R.id.category_western
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식", "일식", "디저트", "고기", "양식"};
         // 목록 제목으로 보여줄 라벨(버튼 라벨과 일치). 예: 찜 → "찜, 탕"
-        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식"};
+        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식", "일식", "디저트", "고기", "양식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];
