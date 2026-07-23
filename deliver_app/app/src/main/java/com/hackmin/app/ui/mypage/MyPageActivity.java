@@ -72,6 +72,8 @@ public class MyPageActivity extends AppCompatActivity {
                 startActivity(new Intent(this, MyReviewsActivity.class)));
         findViewById(R.id.menu_coupons).setOnClickListener(v ->
                 startActivity(new Intent(this, CouponsActivity.class)));
+        findViewById(R.id.menu_inquiries).setOnClickListener(v ->
+                startActivity(new Intent(this, InquiryListActivity.class)));
         findViewById(R.id.menu_change_password).setOnClickListener(v ->
                 startActivity(new Intent(this, ChangePasswordActivity.class)));
         findViewById(R.id.menu_withdraw).setOnClickListener(v -> confirmWithdraw());

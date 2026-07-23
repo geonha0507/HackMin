@@ -16,6 +16,7 @@ api_v1 = [
     path('', include('restaurants.urls')),
     path('', include('carts.urls')),
     path('', include('chatbot.urls')),
+    path('', include('inquiries.urls')),
     path('', include('orders.urls')),
     path('', include('payments.urls')),
     path('', include('reviews.urls')),

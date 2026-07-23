@@ -137,6 +137,13 @@
             <View style="@style/MyPageDivider"/>
 
             <TextView
+                android:id="@+id/menu_inquiries"
+                style="@style/MyPageMenuItem"
+                android:text="1:1 문의"/>
+
+            <View style="@style/MyPageDivider"/>
+
+            <TextView
                 android:id="@+id/menu_change_password"
                 style="@style/MyPageMenuItem"
                 android:text="비밀번호 변경"/>
