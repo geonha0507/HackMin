@@ -123,6 +123,15 @@ public class HomeActivity extends AppCompatActivity {
             });
         }
 
+        // 추천메뉴 아이콘: 움직이는 GIF를 Glide로 로드(정적 src 대신 애니메이션).
+        android.widget.ImageView ivRecommend = findViewById(R.id.iv_recommend_icon);
+        if (ivRecommend != null) {
+            com.bumptech.glide.Glide.with(this)
+                    .load(R.raw.recommend_anim)
+                    .centerCrop()
+                    .into(ivRecommend);
+        }
+
         // 뒤로가기 두 번 연속(2초 이내)이면 앱 종료, 한 번이면 안내 토스트.
         setupDoubleBackToExit();
 
