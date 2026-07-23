@@ -76,8 +76,10 @@ public class OrderActivity extends AppCompatActivity {
         initApi();
         initViews();
 
-        // 저장된 기본 배송지가 있으면 자동으로 채운다.
+        // 저장된 기본 배송지가 있으면 자동으로 채운다(로컬 먼저 즉시 표시).
         applySavedDefaultAddress();
+        // 서버(마이페이지 배송지 관리)의 기본 배송지도 불러와 반영한다.
+        loadServerDefaultAddress();
 
         btnChangeAddress.setOnClickListener(v -> selectAddress());
         btnPay.setOnClickListener(v -> submitOrder());
@@ -728,6 +730,44 @@ public class OrderActivity extends AppCompatActivity {
             selectedAddressDetail = detail;
             updateAddressDisplay();
         }
+    }
+
+    /**
+     * 마이페이지 배송지 관리(서버 /me/addresses)에서 기본 배송지를 불러와 반영한다.
+     * is_default 배송지가 있으면 그걸, 없으면 첫 배송지를 자동 선택한다.
+     */
+    private void loadServerDefaultAddress() {
+        ApiClient.userApi(this).getAddresses().enqueue(new Callback<PagedResponse<AddressDto>>() {
+            @Override
+            public void onResponse(@NonNull Call<PagedResponse<AddressDto>> call,
+                                   @NonNull Response<PagedResponse<AddressDto>> response) {
+                if (!response.isSuccessful() || response.body() == null
+                        || response.body().getResults() == null) {
+                    return;
+                }
+                List<AddressDto> list = response.body().getResults();
+                AddressDto chosen = null;
+                for (AddressDto a : list) {
+                    if (a.isDefault()) {
+                        chosen = a;
+                        break;
+                    }
+                }
+                if (chosen == null && !list.isEmpty()) {
+                    chosen = list.get(0);  // 기본 지정이 없으면 첫 배송지 사용.
+                }
+                if (chosen != null) {
+                    selectedAddress = chosen.getAddress() != null ? chosen.getAddress() : "";
+                    selectedAddressDetail = chosen.getDetail() != null ? chosen.getDetail() : "";
+                    updateAddressDisplay();
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<PagedResponse<AddressDto>> call, @NonNull Throwable t) {
+                // 서버 조회 실패 시 로컬 기본값(applySavedDefaultAddress)이 이미 적용돼 있으므로 무시.
+            }
+        });
     }
 
     // 요청사항 프리셋(마지막 "직접 입력"은 사용자가 직접 타이핑).
