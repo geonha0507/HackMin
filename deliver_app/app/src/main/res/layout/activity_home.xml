@@ -34,6 +34,7 @@
             android:layout_height="wrap_content"
             android:text="해킹의 민족"
             android:textStyle="bold"
+            android:fontFamily="sans-serif-black"
             android:textSize="24sp"
             android:textColor="@color/text_primary"
             android:layout_centerVertical="true"/>
@@ -46,15 +47,39 @@
             android:layout_centerVertical="true"
             android:orientation="horizontal">
 
-            <!-- 알림(공지사항) -->
-            <ImageButton
-                android:id="@+id/btn_notification"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="8dp"
-                android:src="@drawable/ic_bell"
-                app:tint="@color/text_primary"/>
+            <!-- 알림(공지사항) + 안읽음 뱃지 -->
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageButton
+                    android:id="@+id/btn_notification"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_bell"
+                    app:tint="@color/text_primary"/>
+
+                <TextView
+                    android:id="@+id/tv_notice_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:minWidth="18dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/bg_notice_badge"
+                    android:gravity="center"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="5dp"
+                    android:text=""
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"/>
+
+            </FrameLayout>
 
         </LinearLayout>
 
@@ -125,6 +150,7 @@
                     app:cardBackgroundColor="#FFF3CD">
 
                     <ImageView
+                        android:id="@+id/iv_recommend_icon"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:src="@drawable/cat_recommend"
@@ -376,6 +402,7 @@
                 android:id="@+id/category_bunsik"
                 android:layout_width="64dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:orientation="vertical"
                 android:gravity="center"
                 android:clickable="true"
@@ -402,6 +429,157 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="분식"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 일식 -->
+            <LinearLayout
+                android:id="@+id/category_japanese"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_japanese"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="일식"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="일식"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 디저트 -->
+            <LinearLayout
+                android:id="@+id/category_dessert"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_dessert"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="디저트"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="디저트"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 고기 -->
+            <LinearLayout
+                android:id="@+id/category_meat"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_meat"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="고기"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="고기"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 양식 -->
+            <LinearLayout
+                android:id="@+id/category_western"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE0DB">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_western"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="양식"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="양식"
                     android:textSize="12sp"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="6dp"/>
