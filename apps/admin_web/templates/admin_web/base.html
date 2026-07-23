@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}HackMin{% endblock %} · HackMin</title>
+  <title>{% block title %}HackMin{% endblock %} · HackMin 관리자</title>
   <style>
     :root{
       --bg:#f4f5f7; --panel:#ffffff; --ink:#1f2430; --muted:#6b7280;
@@ -77,26 +77,25 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="brand">Hack<span>Min</span></div>
-      <div class="role">
-        점주 센터
-      </div>
+      <div class="role">관리자 콘솔</div>
       <nav class="nav">
-          <a href="{% url 'web:owner_dashboard' %}" class="{% if url_name == 'owner_dashboard' %}active{% endif %}">대시보드</a>
-          <div class="sec">주문</div>
-          <a href="{% url 'web:owner_orders' %}" class="{% if url_name == 'owner_orders' or url_name == 'owner_order_detail' %}active{% endif %}">주문 관리</a>
-          <div class="sec">상품</div>
-          <a href="{% url 'web:owner_products' %}" class="{% if 'product' in url_name %}active{% endif %}">상품 관리</a>
-          <a href="{% url 'web:owner_categories' %}" class="{% if url_name == 'owner_categories' %}active{% endif %}">카테고리</a>
-          <div class="sec">운영</div>
-          <a href="{% url 'web:owner_sales' %}" class="{% if url_name == 'owner_sales' %}active{% endif %}">매출 분석</a>
-          <a href="{% url 'web:owner_reviews' %}" class="{% if url_name == 'owner_reviews' %}active{% endif %}">리뷰 관리</a>
-          <div class="sec">마이페이지</div>
-          <a href="{% url 'web:mypage' %}" class="{% if url_name == 'mypage' %}active{% endif %}">내 정보 변경</a>
-          <a href="{% url 'web:my_restaurant' %}" class="{% if url_name == 'my_restaurant' %}active{% endif %}">내 매장 관리</a>
+        <a href="{% url 'admin_web:admin_dashboard' %}" class="{% if url_name == 'admin_dashboard' %}active{% endif %}">대시보드</a>
+        <div class="sec">회원 관리</div>
+        <a href="{% url 'admin_web:admin_users' %}" class="{% if url_name == 'admin_users' or url_name == 'admin_user_detail' %}active{% endif %}">회원 목록</a>
+        <a href="{% url 'admin_web:admin_owners' %}" class="{% if url_name == 'admin_owners' %}active{% endif %}">점주 관리</a>
+        <a href="{% url 'admin_web:admin_store' %}" class="{% if url_name == 'admin_store' or url_name == 'admin_store_decide' %}active{% endif %}">입점 관리</a>
+        <a href="{% url 'admin_web:admin_withdrawals' %}" class="{% if url_name == 'admin_withdrawals' %}active{% endif %}">탈퇴 요청</a>
+        <div class="sec">매장</div>
+        <a href="{% url 'admin_web:admin_restaurant_edits' %}" class="{% if url_name == 'admin_restaurant_edits' %}active{% endif %}">매장 수정 요청</a>
+        <div class="sec">거래</div>
+        <a href="{% url 'admin_web:admin_orders' %}" class="{% if url_name == 'admin_orders' %}active{% endif %}">주문 조회</a>
+        <a href="{% url 'admin_web:admin_payments' %}" class="{% if url_name == 'admin_payments' %}active{% endif %}">결제 조회</a>
+        <div class="sec">공지</div>
+        <a href="{% url 'admin_web:admin_notices' %}" class="{% if url_name == 'admin_notices' or url_name == 'admin_notice_create' or url_name == 'admin_notice_edit' %}active{% endif %}">공지사항 관리</a>
       </nav>
       <div class="foot">
         <div>{{ request.user.nickname|default:request.user.username }}</div>
-        <a href="{% url 'web:logout' %}" class="muted">로그아웃 →</a>
+        <a href="{% url 'admin_web:logout' %}" class="muted">로그아웃 →</a>
       </div>
     </aside>
     <div class="main">

@@ -1,7 +1,8 @@
 """세션 기반 로그인/로그아웃 및 점주 회원가입 웹 화면."""
 import hashlib
-from accounts.crypto_utils import encrypt_aes128
 import os
+
+from accounts.crypto_utils import encrypt_aes128
 from enrollment.models import EnrollmentRequest
 
 from django.contrib import messages
@@ -21,6 +22,7 @@ User = get_user_model()
 
 _ALLOWED_LICENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 _MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
+
 
 def _is_valid_rrn(rrn):
     """13자리 주민등록번호 형식과 체크섬을 검증한다."""
@@ -42,22 +44,21 @@ def _hash_rrn(rrn):
 
 
 def _home_for(user):
-    if user.role == User.Role.ADMIN:
-        return redirect('web:admin_dashboard')
-
     if user.role == User.Role.OWNER:
         return redirect('web:owner_dashboard')
 
+    # 관리자 화면은 admin_web 앱(별도 컨테이너/도메인)으로 이동했다.
+    # 이 컨테이너(owner-web)에는 admin 전용 라우트가 없으므로,
+    # 관리자 계정 세션이 여기로 흘러들어와도 로그인 화면으로 되돌린다.
     return redirect('web:login')
 
 
 def login_view(request):
+    # 이 컨테이너(owner-web)는 owner 전용이다. admin 계정 세션이 있어도
+    # 여기엔 admin_dashboard가 없으므로 owner일 때만 바로 홈으로 보낸다.
     if (
         request.user.is_authenticated
-        and request.user.role in (
-            User.Role.ADMIN,
-            User.Role.OWNER,
-        )
+        and request.user.role == User.Role.OWNER
     ):
         return _home_for(request.user)
 
@@ -155,13 +156,10 @@ def login_view(request):
                 '아이디 또는 비밀번호가 올바르지 않습니다.',
             )
 
-        elif user.role not in (
-            User.Role.ADMIN,
-            User.Role.OWNER,
-        ):
+        elif user.role != User.Role.OWNER:
             messages.error(
                 request,
-                '관리자 또는 점주 계정만 로그인할 수 있습니다.',
+                '점주 계정만 로그인할 수 있습니다.',
             )
 
         elif (
@@ -202,7 +200,7 @@ def signup_view(request):
 
     if (
         request.user.is_authenticated
-        and request.user.role in (User.Role.ADMIN, User.Role.OWNER)
+        and request.user.role == User.Role.OWNER
     ):
         return _home_for(request.user)
 

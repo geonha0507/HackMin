@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'enrollment',
     'downloads',
     'web',
+    'admin_web',
 ]
 
 # 세션 기반 관리자/점주 웹 로그인 경로
@@ -75,7 +76,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = os.environ.get('ROOT_URLCONF', 'config.urls')
+ROOT_URLCONF = os.environ.get('DJANGO_ROOT_URLCONF', 'config.urls')
 
 TEMPLATES = [
     {

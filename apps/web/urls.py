@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import account, admin, auth, owner, restaurant
+from .views import account, auth, owner, restaurant
 
 app_name = 'web'
 
@@ -35,30 +35,6 @@ urlpatterns = [
     path('owner/sales', owner.sales, name='owner_sales'),
     path('owner/reviews', owner.review_list, name='owner_reviews'),
 
-    # 관리자
-    path('admin/', admin.dashboard, name='admin_dashboard'),
-    path('admin/users', admin.user_list, name='admin_users'),
-    path('admin/users/<int:pk>', admin.user_detail, name='admin_user_detail'),
-    path('admin/owners', admin.owner_list, name='admin_owners'),
-    path('admin/owners/<int:pk>/status', admin.owner_status, name='admin_owner_status'),
-    path('admin/withdrawals', admin.withdrawal_requests, name='admin_withdrawals'),
-    path('admin/withdrawals/<int:pk>/decide', admin.withdrawal_decide, name='admin_withdrawal_decide'),
-    path('admin/restaurant-edits', admin.restaurant_edit_requests, name='admin_restaurant_edits'),
-    path('admin/restaurant-edits/<int:pk>/decide', admin.restaurant_edit_decide, name='admin_restaurant_edit_decide'),
-    path('admin/orders', admin.order_list, name='admin_orders'),
-    path('admin/payments', admin.payment_list, name='admin_payments'),
-    path('admin/notices', admin.notice_list, name='admin_notices'),
-    path('admin/notices/new', admin.notice_create, name='admin_notice_create'),
-    path('admin/notices/<int:pk>/edit', admin.notice_edit, name='admin_notice_edit'),
-    path('admin/notices/<int:pk>/delete', admin.notice_delete, name='admin_notice_delete'),
-    path(
-        'admin/store',
-        admin.store_list,
-        name='admin_store',
-    ),
-    path(
-        'admin/store/<int:pk>/decide',
-        admin.store_decide,
-        name='admin_store_decide',
-    ),
+    # 관리자 화면은 apps/admin_web 앱(별도 컨테이너)으로 이동함.
+    # (config/urls_admin.py 에서 'admin_web.urls' 로 include)
 ]

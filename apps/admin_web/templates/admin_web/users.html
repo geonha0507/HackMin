@@ -1,4 +1,4 @@
-{% extends 'web/base.html' %}
+{% extends 'admin_web/base.html' %}
 {% block title %}회원 목록{% endblock %}
 {% block heading %}회원 목록{% endblock %}
 {% block content %}
@@ -31,7 +31,7 @@
         <td>{{ u.get_role_display }}</td>
         <td>{% include 'web/_user_badge.html' with status=u.status label=u.get_status_display %}</td>
         <td class="muted">{{ u.date_joined|date:'Y-m-d' }}</td>
-        <td class="right"><a class="btn btn-sm" href="{% url 'web:admin_user_detail' u.pk %}">상세</a></td>
+        <td class="right"><a class="btn btn-sm" href="{% url 'admin_web:admin_user_detail' u.pk %}">상세</a></td>
       </tr>
     {% empty %}
       <tr><td colspan="7" class="muted">회원이 없습니다.</td></tr>
