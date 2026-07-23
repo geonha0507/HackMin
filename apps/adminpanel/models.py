@@ -1,5 +1,16 @@
+from pathlib import Path
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
+
+
+def notice_image_upload_to(instance, filename):
+    extension = Path(filename).suffix.lower()
+    file_id = uuid4().hex
+    now = timezone.now()
+    return f'notices/{now:%Y/%m}/{file_id}{extension}'
 
 
 class Notice(models.Model):
@@ -7,6 +18,7 @@ class Notice(models.Model):
 
     title = models.CharField(max_length=200)
     content = models.TextField()
+    image = models.ImageField(upload_to=notice_image_upload_to, null=True, blank=True)
     is_pinned = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',

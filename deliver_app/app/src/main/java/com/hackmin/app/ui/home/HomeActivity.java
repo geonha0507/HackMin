@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.hackmin.app.R;
@@ -21,6 +22,7 @@ import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.chat.ChatActivity;
 import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.util.ImageLoader;
@@ -82,6 +84,12 @@ public class HomeActivity extends AppCompatActivity {
             loadRestaurants(null, null);
             rvRestaurants.smoothScrollToPosition(0);
         });
+
+        FloatingActionButton fabChatbot = findViewById(R.id.fab_chatbot);
+        if (fabChatbot != null) {
+            fabChatbot.setOnClickListener(v ->
+                    startActivity(new Intent(this, ChatActivity.class)));
+        }
 
         // 음식점 목록
         adapter = new RestaurantAdapter(restaurant -> {

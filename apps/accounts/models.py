@@ -52,6 +52,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     name = models.CharField(max_length=64, blank=True)          # 실명
+    rrn_encrypted = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="주민등록번호 (AES-128 암호화)"
+    )
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 

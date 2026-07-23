@@ -1,8 +1,18 @@
 {% extends 'web/base.html' %}
+{% load humanize %}
 {% block title %}결제 조회{% endblock %}
 {% block heading %}결제 조회{% endblock %}
 {% block content %}
 <form class="toolbar" method="get">
+  <div>
+    <label>매장</label>
+    <select name="restaurant_id" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for r in restaurants %}
+        <option value="{{ r.pk }}" {% if selected_restaurant_id == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
   <div>
     <label>상태</label>
     <select name="status" onchange="this.form.submit()">
@@ -24,7 +34,7 @@
         <td>{{ p.order.order_number }}</td>
         <td>{{ p.order.restaurant.name|default:'-' }}</td>
         <td>{{ p.get_method_display }}</td>
-        <td>{{ p.amount|floatformat:0 }}원</td>
+        <td>{{ p.amount|floatformat:0|intcomma }}원</td>
         <td>
           {% if p.status == 'paid' %}<span class="badge b-green">{{ p.get_status_display }}</span>
           {% elif p.status == 'pending' %}<span class="badge b-amber">{{ p.get_status_display }}</span>

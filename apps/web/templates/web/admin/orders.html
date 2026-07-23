@@ -1,8 +1,18 @@
 {% extends 'web/base.html' %}
+{% load humanize %}
 {% block title %}주문 조회{% endblock %}
 {% block heading %}주문 조회{% endblock %}
 {% block content %}
 <form class="toolbar" method="get">
+  <div>
+    <label>매장</label>
+    <select name="restaurant_id" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for r in restaurants %}
+        <option value="{{ r.pk }}" {% if selected_restaurant_id == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
   <div>
     <label>상태</label>
     <select name="status" onchange="this.form.submit()">
@@ -23,7 +33,7 @@
         <td>{{ o.order_number }}</td>
         <td>{{ o.restaurant.name|default:'-' }}</td>
         <td>{{ o.user.username }}</td>
-        <td>{{ o.total|floatformat:0 }}원</td>
+        <td>{{ o.total|floatformat:0|intcomma }}원</td>
         <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
         <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
       </tr>

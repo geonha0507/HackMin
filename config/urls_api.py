@@ -1,12 +1,13 @@
+"""API 전용 URL 설정 — api 컨테이너에서만 사용."""
+
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
 
 def health(_request):
-    return JsonResponse({'status': 'ok', 'service': 'hackmin-backend'})
+    return JsonResponse({'status': 'ok', 'service': 'hackmin-api'})
 
 
 api_v1 = [
@@ -27,10 +28,8 @@ api_v1 = [
 ]
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('api/v1/health', health),
     path('api/v1/', include((api_v1, 'api_v1'))),
-    path('web/', include('web.urls')),
 ]
 
 if settings.DEBUG:

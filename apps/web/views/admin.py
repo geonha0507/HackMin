@@ -1,5 +1,7 @@
 """관리자(Admin) 웹 화면 - 회원/점주/주문/결제 관리."""
 
+import os
+
 from django.db import transaction
 from enrollment.models import EnrollmentRequest
 
@@ -10,11 +12,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.models import WithdrawalRequest
+from adminpanel.models import Notice
 from orders.models import Order
 from payments.models import Payment
 from restaurants.models import Restaurant, RestaurantEditRequest
 
 from ..decorators import admin_required
+
+_ALLOWED_NOTICE_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+_MAX_NOTICE_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _valid_notice_image(upload):
+    extension = os.path.splitext(upload.name)[1].lower()
+    return extension in _ALLOWED_NOTICE_IMAGE_EXTENSIONS and upload.size <= _MAX_NOTICE_IMAGE_SIZE
 
 User = get_user_model()
 USER_STATUS = dict(User.Status.choices)
@@ -42,6 +53,22 @@ def _restaurant_diff_rows(edit_request):
         })
     return rows
 
+def _store_review_status(store):
+    """이 매장의 심사 상태. 'pending'/'approved'/'rejected'로 통일해서 반환한다.
+
+    add_restaurant로 만든 매장은 EnrollmentRequest가 즉시 생성되므로 그걸 그대로 쓰고,
+    signup_view의 최초 매장은 아직 EnrollmentRequest가 없을 수 있어 owner.status로 판단한다.
+    """
+    enrollment = getattr(store, 'enrollment_request', None)
+    if enrollment:
+        return enrollment.status
+
+    mapping = {
+        User.Status.PENDING: 'pending',
+        User.Status.ACTIVE: 'approved',
+        User.Status.SUSPENDED: 'rejected',
+    }
+    return mapping.get(store.owner.status, 'pending')
 
 @admin_required
 def dashboard(request):
@@ -124,10 +151,7 @@ def store_list(request):
     """입점 신청 매장 목록."""
 
     q = request.GET.get('q', '').strip()
-    status = request.GET.get(
-        'status',
-        User.Status.PENDING,
-    )
+    status = request.GET.get('status', 'pending')
 
     stores = (
         Restaurant.objects
@@ -135,9 +159,6 @@ def store_list(request):
         .filter(owner__role=User.Role.OWNER)
         .order_by('-created_at')
     )
-
-    if status != 'all':
-        stores = stores.filter(owner__status=status)
 
     if q:
         stores = stores.filter(
@@ -148,14 +169,26 @@ def store_list(request):
             | Q(address__icontains=q)
         )
 
+    stores = list(stores[:300])
+    for s in stores:
+        s.display_status = _store_review_status(s)
+
+    if status != 'all':
+        stores = [s for s in stores if s.display_status == status]
+
     return render(
         request,
         'web/admin/store.html',
         {
-            'stores': stores[:300],
+            'stores': stores,
             'q': q,
             'status': status,
-            'status_choices': User.Status.choices,
+            'status_choices': [
+                ('pending', '승인 대기'),
+                ('approved', '승인 완료'),
+                ('rejected', '반려'),
+                ('all', '전체'),
+            ],
         },
     )
 
@@ -180,7 +213,7 @@ def store_decide(request, pk):
         '',
     ).strip()
 
-    if owner.status != User.Status.PENDING:
+    if _store_review_status(store) != 'pending':
         messages.error(
             request,
             '이미 처리된 입점 신청입니다.',
@@ -209,37 +242,29 @@ def store_decide(request, pk):
         return redirect('web:admin_store')
 
     with transaction.atomic():
-        if action == 'approve':
-            owner.status = User.Status.ACTIVE
-            owner.is_active = True
+        enrollment_status = 'approved' if action == 'approve' else 'rejected'
 
-            enrollment_status = 'approved'
-
-        else:
-            owner.status = User.Status.SUSPENDED
-            owner.is_active = False
-
-            enrollment_status = 'rejected'
-
-        owner.save(
-            update_fields=['status', 'is_active'],
-        )
+        # 이 점주의 "최초" 매장(계정 자체가 아직 pending)인 경우에만 계정 상태도 같이 바꾼다.
+        if owner.status == User.Status.PENDING:
+            owner.status = User.Status.ACTIVE if action == 'approve' else User.Status.SUSPENDED
+            owner.is_active = action == 'approve'
+            owner.save(update_fields=['status', 'is_active'])
 
         defaults = {
-                'restaurant': store,
-                'phone': (owner.phone or '')[:20],
-                'owner_name': owner.nickname or owner.username,
-                'restaurant_name': store.name,
-                'status': enrollment_status,
-                'reviewed_at': timezone.now(),
-                'reviewed_by': request.user,
-            }
+            'username': owner.username,
+            'phone': (owner.phone or '')[:20],
+            'owner_name': owner.nickname or owner.username,
+            'restaurant_name': store.name,
+            'status': enrollment_status,
+            'reviewed_at': timezone.now(),
+            'reviewed_by': request.user,
+        }
 
         if action == 'reject':
             defaults['rejection_reason'] = rejection_reason
 
         EnrollmentRequest.objects.update_or_create(
-            username=owner.username,
+            restaurant=store,
             defaults=defaults,
         )
 
@@ -332,8 +357,13 @@ def order_list(request):
     status = request.GET.get('status', '')
     if status:
         orders = orders.filter(status=status)
+    restaurant_id = request.GET.get('restaurant_id', '')
+    if restaurant_id.isdigit():
+        orders = orders.filter(restaurant_id=restaurant_id)
     return render(request, 'web/admin/orders.html', {
         'orders': orders[:300], 'status': status, 'status_choices': Order.Status.choices,
+        'restaurants': Restaurant.objects.order_by('name'),
+        'selected_restaurant_id': restaurant_id,
     })
 
 
@@ -343,6 +373,81 @@ def payment_list(request):
     status = request.GET.get('status', '')
     if status:
         payments = payments.filter(status=status)
+    restaurant_id = request.GET.get('restaurant_id', '')
+    if restaurant_id.isdigit():
+        payments = payments.filter(order__restaurant_id=restaurant_id)
     return render(request, 'web/admin/payments.html', {
         'payments': payments[:300], 'status': status, 'status_choices': Payment.Status.choices,
+        'restaurants': Restaurant.objects.order_by('name'),
+        'selected_restaurant_id': restaurant_id,
     })
+
+
+# ------------------------------------------------------------------ 공지사항
+@admin_required
+def notice_list(request):
+    """앱 전체 사용자에게 노출되는 공지사항 목록."""
+    notices = Notice.objects.all()
+    return render(request, 'web/admin/notices.html', {'notices': notices})
+
+
+@admin_required
+def notice_create(request):
+    """공지사항 작성. 사진은 선택 사항."""
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        content = request.POST.get('content', '').strip()
+        image = request.FILES.get('image')
+        is_pinned = request.POST.get('is_pinned') == 'on'
+
+        if not title:
+            messages.error(request, '제목을 입력하세요.')
+        elif not content:
+            messages.error(request, '내용을 입력하세요.')
+        elif image and not _valid_notice_image(image):
+            messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+        else:
+            Notice.objects.create(
+                title=title, content=content, image=image, is_pinned=is_pinned,
+                created_by=request.user,
+            )
+            messages.success(request, '공지사항을 등록했습니다.')
+            return redirect('web:admin_notices')
+    return render(request, 'web/admin/notice_form.html', {'notice': None})
+
+
+@admin_required
+def notice_edit(request, pk):
+    """공지사항 수정. 사진을 새로 첨부하지 않으면 기존 사진을 유지한다."""
+    notice = get_object_or_404(Notice, pk=pk)
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        content = request.POST.get('content', '').strip()
+        image = request.FILES.get('image')
+        is_pinned = request.POST.get('is_pinned') == 'on'
+
+        if not title:
+            messages.error(request, '제목을 입력하세요.')
+        elif not content:
+            messages.error(request, '내용을 입력하세요.')
+        elif image and not _valid_notice_image(image):
+            messages.error(request, '이미지는 jpg/png/gif/webp, 5MB 이하만 가능합니다.')
+        else:
+            notice.title = title
+            notice.content = content
+            notice.is_pinned = is_pinned
+            if image:
+                notice.image = image
+            notice.save()
+            messages.success(request, '공지사항을 수정했습니다.')
+            return redirect('web:admin_notices')
+    return render(request, 'web/admin/notice_form.html', {'notice': notice})
+
+
+@admin_required
+def notice_delete(request, pk):
+    notice = get_object_or_404(Notice, pk=pk)
+    if request.method == 'POST':
+        notice.delete()
+        messages.success(request, '공지사항을 삭제했습니다.')
+    return redirect('web:admin_notices')

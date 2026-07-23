@@ -1,0 +1,52 @@
+{% extends 'web/base.html' %}
+{% block title %}공지사항 관리{% endblock %}
+{% block heading %}공지사항 관리{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <a href="{% url 'web:admin_notice_create' %}" class="btn btn-primary">+ 공지사항 작성</a>
+</div>
+
+<div class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th>사진</th>
+        <th>제목</th>
+        <th>내용</th>
+        <th>고정</th>
+        <th>작성일</th>
+        <th>관리</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in notices %}
+        <tr>
+          <td>
+            {% if n.image %}
+              <img src="{{ n.image.url }}" alt="{{ n.title }}"
+                   style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ n.title }}</strong></td>
+          <td class="muted" style="max-width:320px">{{ n.content|truncatechars:60 }}</td>
+          <td>{% if n.is_pinned %}<span class="badge b-amber">고정</span>{% endif %}</td>
+          <td class="muted">{{ n.created_at|date:'Y-m-d H:i' }}</td>
+          <td class="right">
+            <a class="btn btn-sm" href="{% url 'web:admin_notice_edit' n.pk %}">수정</a>
+            <form method="post" action="{% url 'web:admin_notice_delete' n.pk %}" style="display:inline">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('삭제하시겠습니까?')">삭제</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="muted">등록된 공지사항이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

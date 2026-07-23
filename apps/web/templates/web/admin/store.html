@@ -26,15 +26,15 @@
       </option>
 
       <option
-        value="active"
-        {% if status == 'active' %}selected{% endif %}
+        value="approved"
+        {% if status == 'approved' %}selected{% endif %}
       >
         승인 완료
       </option>
 
       <option
-        value="suspended"
-        {% if status == 'suspended' %}selected{% endif %}
+        value="rejected"
+        {% if status == 'rejected' %}selected{% endif %}
       >
         반려·정지
       </option>
@@ -136,11 +136,17 @@
           </td>
 
           <td>
-            {% include 'web/_user_badge.html' with status=store.owner.status label=store.owner.get_status_display %}
+            {% if store.display_status == 'pending' %}
+              <span class="badge b-amber">승인 대기</span>
+            {% elif store.display_status == 'approved' %}
+              <span class="badge b-green">승인 완료</span>
+            {% else %}
+              <span class="badge b-red">반려</span>
+            {% endif %}
           </td>
 
           <td>
-           {% if store.owner.status == 'pending' %}
+           {% if store.display_status == 'pending' %}
             <form
               method="post"
               action="{% url 'web:admin_store_decide' store.pk %}"
@@ -191,14 +197,14 @@
               </button>
             </form>
 
-          {% elif store.owner.status == 'active' %}
+          {% elif store.display_status == 'approved' %}
             <span class="badge b-green">
               승인 완료
             </span>
 
           {% else %}
             <span class="muted">
-              처리 완료
+              반려됨
             </span>
 
             {% with enrollment=store.enrollment_request %}
