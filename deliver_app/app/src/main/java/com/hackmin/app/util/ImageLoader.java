@@ -1,6 +1,8 @@
 package com.hackmin.app.util;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
@@ -29,12 +31,29 @@ public final class ImageLoader {
 
     /** 음식점/메뉴 등 이미지를 로드한다. url이 null/빈값이면 placeholder 표시. */
     public static void load(ImageView view, String url) {
+        // 비동기 응답이 화면이 닫힌 뒤 도착하면 Glide.with()가 "destroyed activity" 예외로 크래시한다.
+        // 파괴/종료 중인 액티비티면 로드를 건너뛴다.
+        Activity activity = findActivity(view.getContext());
+        if (activity != null && (activity.isDestroyed() || activity.isFinishing())) {
+            return;
+        }
         Glide.with(view.getContext())
                 .load(toModel(resolve(url)))
                 .placeholder(R.drawable.ic_image_placeholder)
                 .error(R.drawable.ic_image_placeholder)
                 .centerCrop()
                 .into(view);
+    }
+
+    /** 뷰의 Context에서 실제 Activity를 찾는다(ContextWrapper로 감싸진 경우 포함). */
+    private static Activity findActivity(Context context) {
+        while (context instanceof ContextWrapper) {
+            if (context instanceof Activity) {
+                return (Activity) context;
+            }
+            context = ((ContextWrapper) context).getBaseContext();
+        }
+        return null;
     }
 
     /**

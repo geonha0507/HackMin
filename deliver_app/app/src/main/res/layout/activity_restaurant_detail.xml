@@ -175,4 +175,32 @@
 
     </FrameLayout>
 
+    <!-- 하단 장바구니 담기 바(장바구니에 담기면 표시) -->
+    <LinearLayout
+        android:id="@+id/cart_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#EEEEEE"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cart_bar"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_margin="12dp"
+            android:text="0원 담기"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            app:backgroundTint="@color/coral_primary"
+            app:cornerRadius="12dp"/>
+
+    </LinearLayout>
+
 </LinearLayout>

@@ -31,7 +31,7 @@ import static org.junit.Assert.*;
  */
 public class AuthApiRealBackendTest {
 
-    private static final String REAL_BASE_URL = "http://127.0.0.1:8000/api/v1/";
+    private static final String REAL_BASE_URL = "http://54.116.95.188/api/v1/";
 
     @Test
     public void login_againstRealBackend_returnsExpectedShape() throws Exception {
