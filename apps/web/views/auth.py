@@ -1,5 +1,6 @@
 """세션 기반 로그인/로그아웃 및 점주 회원가입 웹 화면."""
-
+import hashlib
+from accounts.crypto_utils import encrypt_aes128  # 실제 AES 함수가 있는 파일 경로에 맞게 수정하세요
 import os
 from enrollment.models import EnrollmentRequest
 
@@ -20,6 +21,24 @@ User = get_user_model()
 
 _ALLOWED_LICENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 _MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
+
+def _is_valid_rrn(rrn):
+    """13자리 주민등록번호 형식과 체크섬을 검증한다."""
+    digits = rrn.replace('-', '')
+    if not digits.isdigit() or len(digits) != 13:
+        return False
+
+    weights = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5]
+    total = sum(int(d) * w for d, w in zip(digits[:12], weights))
+    check_digit = (11 - (total % 11)) % 10
+
+    return check_digit == int(digits[12])
+
+
+def _hash_rrn(rrn):
+    """중복 확인 전용 해시. 단방향이라 이 값만으로는 원본 복원이 불가능하다."""
+    digits = rrn.replace('-', '')
+    return hashlib.sha256(digits.encode()).hexdigest()
 
 
 def _home_for(user):
@@ -197,6 +216,7 @@ def signup_view(request):
         'store_postcode': '',
         'store_road_address': '',
         'store_detail_address': '',
+        # rrn은 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
     }
 
     if request.method == 'POST':
@@ -204,6 +224,7 @@ def signup_view(request):
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         nickname = request.POST.get('nickname', '').strip()
+        rrn = request.POST.get('rrn', '').strip()
 
         store_name = request.POST.get('store_name', '').strip()
         store_phone = request.POST.get('store_phone', '').strip()
@@ -245,6 +266,24 @@ def signup_view(request):
 
         elif not nickname:
             messages.error(request, '점주명을 입력하세요.')
+            error_found = True
+
+        elif not rrn:
+            messages.error(request, '주민등록번호를 입력하세요.')
+            error_found = True
+
+        elif not _is_valid_rrn(rrn):
+            messages.error(
+                request,
+                '주민등록번호 형식이 올바르지 않습니다.',
+            )
+            error_found = True
+
+        elif User.objects.filter(rrn_hash=_hash_rrn(rrn)).exists():
+            messages.error(
+                request,
+                '이미 등록된 주민등록번호입니다.',
+            )
             error_found = True
 
         elif not store_name:
@@ -342,6 +381,9 @@ def signup_view(request):
                         # 비밀번호 인증은 가능하게 두되,
                         # login_view에서 pending 계정을 차단한다.
                         is_active=True,
+
+                        rrn_hash=_hash_rrn(rrn),
+                        rrn_encrypted=encrypt_aes128(rrn),
                     )
 
                     Restaurant.objects.create(
