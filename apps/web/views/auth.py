@@ -1,6 +1,6 @@
 """세션 기반 로그인/로그아웃 및 점주 회원가입 웹 화면."""
 import hashlib
-from accounts.crypto_utils import encrypt_aes128  # 실제 AES 함수가 있는 파일 경로에 맞게 수정하세요
+from accounts.crypto_utils import encrypt_aes128
 import os
 from enrollment.models import EnrollmentRequest
 
