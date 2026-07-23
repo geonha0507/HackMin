@@ -12,4 +12,6 @@
     <color name="dot_red">#FF5F56</color>
     <color name="dot_yellow">#FFBD2E</color>
     <color name="dot_green">#27C93F</color>
+    <!-- 앱 아이콘(어댑티브) 배경 코랄색 — 아이콘 이미지 배경과 동일. -->
+    <color name="ic_launcher_background">#F86464</color>
 </resources>
