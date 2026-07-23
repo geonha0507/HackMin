@@ -34,7 +34,9 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ApiClient {
 
-    private static final String BASE_URL = "http://54.116.95.188:8000/api/v1/";
+    // [로컬 테스트] 에뮬레이터 → 호스트 도커. 커밋 전 클라우드 URL로 되돌릴 것.
+    private static final String BASE_URL = "http://10.0.2.2:8000/api/v1/";
+    // private static final String BASE_URL = "http://54.116.95.188:8000/api/v1/";
 
     private static Retrofit retrofit;
 
