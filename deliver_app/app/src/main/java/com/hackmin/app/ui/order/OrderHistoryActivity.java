@@ -78,11 +78,19 @@ public class OrderHistoryActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null
                                 && response.body().getResults() != null) {
                             orderList.clear();
+                            java.util.List<Long> ids = new java.util.ArrayList<>();
                             for (OrderDto dto : response.body().getResults()) {
                                 orderList.add(toSummary(dto));
+                                ids.add(dto.getId());
                             }
                             adapter.notifyDataSetChanged();
                             resolveRestaurantNames();
+                            // 주문내역을 열었으므로 전부 "확인함" 처리 → 하단 주문내역 뱃지 제거.
+                            com.hackmin.app.util.OrderSeenStore.markAllSeen(OrderHistoryActivity.this, ids);
+                            android.view.View ordersBadge = findViewById(R.id.tv_orders_badge);
+                            if (ordersBadge != null) {
+                                ordersBadge.setVisibility(android.view.View.GONE);
+                            }
                             if (orderList.isEmpty()) {
                                 Toast.makeText(OrderHistoryActivity.this,
                                         "주문 내역이 없습니다.", Toast.LENGTH_SHORT).show();
