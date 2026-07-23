@@ -1,4 +1,11 @@
-"""API 전용 URL 설정 — api 컨테이너에서만 사용."""
+"""API 전용 URL 설정.
+
+api 컨테이너에서만 사용한다 (DJANGO_ROOT_URLCONF=config.urls_api).
+/web/, /admin/ 경로가 이 설정에는 아예 없으므로, api 컨테이너에서는
+해당 경로 요청 시 항상 404가 떨어진다.
+
+기존 config/urls.py 와 내용은 100% 동일하되, 'web/' 경로 include만 뺐다.
+"""
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -7,7 +14,7 @@ from django.urls import include, path
 
 
 def health(_request):
-    return JsonResponse({'status': 'ok', 'service': 'hackmin-api'})
+    return JsonResponse({'status': 'ok', 'service': 'hackmin-backend'})
 
 
 api_v1 = [

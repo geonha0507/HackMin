@@ -1,4 +1,4 @@
-{% extends 'web/base.html' %}
+{% extends 'admin_web/base.html' %}
 {% block title %}점주 관리{% endblock %}
 {% block heading %}점주 관리{% endblock %}
 {% block content %}
@@ -26,7 +26,7 @@
         </td>
         <td>{% include 'web/_user_badge.html' with status=row.user.status label=row.user.get_status_display %}</td>
         <td>
-          <form method="post" action="{% url 'web:admin_owner_status' row.user.pk %}" class="row">{% csrf_token %}
+          <form method="post" action="{% url 'admin_web:admin_owner_status' row.user.pk %}" class="row">{% csrf_token %}
             <select name="status" style="width:auto">
               {% for val, lbl in status_choices %}
                 <option value="{{ val }}" {% if val == row.user.status %}selected{% endif %}>{{ lbl }}</option>
