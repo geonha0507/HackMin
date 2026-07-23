@@ -8,8 +8,7 @@ from rest_framework.response import Response
 
 from common.exceptions import error_response
 from common.permissions import IsOwner
-from restaurants.models import Menu, MenuCategory, MenuOption, MenuOptionGroup
-from restaurants.selectors import owned_menus, owned_restaurants, owns_restaurant
+from restaurants.models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant
 from .serializers import (
     CategorySerializer,
     OptionSerializer,
@@ -19,24 +18,37 @@ from .serializers import (
 _ALLOWED_IMAGE_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 
 
+def owned_restaurant_ids(user):
+    return list(Restaurant.objects.filter(owner=user).values_list('id', flat=True))
+
+
+def _menu_scope(request):
+    """본인 매장 메뉴만 조회."""
+    return Menu.objects.filter(restaurant__owner=request.user)
+
+
+def _assert_owns_restaurant(request, restaurant_id):
+    return Restaurant.objects.filter(id=restaurant_id, owner=request.user).exists()
+
+
 # --- Products --------------------------------------------------------------
 @api_view(['GET', 'POST'])
 @permission_classes([IsOwner])
 def product_list_create(request):
     if request.method == 'GET':
-        products = owned_menus(request.user).order_by('-created_at')
+        products = _menu_scope(request).order_by('-created_at')
         return Response({'results': ProductSerializer(products, many=True).data})
 
-    # 등록:
+    # 상품 등록
     serializer = ProductSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     restaurant = serializer.validated_data.get('restaurant')
     if restaurant is None:
-        first = owned_restaurants(request.user).first()
+        first = Restaurant.objects.filter(owner=request.user).first()
         if not first:
             return error_response('no_restaurant', '등록된 매장이 없습니다.', 400)
         restaurant = first
-    elif not owns_restaurant(request.user, restaurant.id):
+    elif not _assert_owns_restaurant(request, restaurant.id):
         return error_response('forbidden', '본인 매장에만 상품을 등록할 수 있습니다.', 403)
     product = serializer.save(restaurant=restaurant)
     return Response(ProductSerializer(product).data, status=201)
@@ -46,7 +58,7 @@ def product_list_create(request):
 @permission_classes([IsOwner])
 def product_detail(request, pk):
     """상품 조회/수정/삭제."""
-    product = owned_menus(request.user).filter(pk=pk).first()
+    product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
 
@@ -67,8 +79,8 @@ def product_detail(request, pk):
 @permission_classes([IsOwner])
 @parser_classes([MultiPartParser, FormParser])
 def product_image(request, pk):
-    """상품 이미지 업로드. 확장자 화이트리스트 검증."""
-    product = owned_menus(request.user).filter(pk=pk).first()
+    """상품 이미지 업로드. 허용된 확장자만 업로드 가능."""
+    product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
     upload = request.FILES.get('image')
@@ -85,7 +97,7 @@ def product_image(request, pk):
 @api_view(['PUT'])
 @permission_classes([IsOwner])
 def product_status(request, pk):
-    product = owned_menus(request.user).filter(pk=pk).first()
+    product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
     new_status = request.data.get('status')
@@ -107,7 +119,7 @@ def category_list_create(request):
     serializer = CategorySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     restaurant = serializer.validated_data['restaurant']
-    if not owns_restaurant(request.user, restaurant.id):
+    if not _assert_owns_restaurant(request, restaurant.id):
         return error_response('forbidden', '본인 매장에만 카테고리를 만들 수 있습니다.', 403)
     category = serializer.save()
     return Response(CategorySerializer(category).data, status=201)
@@ -133,7 +145,7 @@ def category_detail(request, pk):
 @permission_classes([IsOwner])
 def product_options(request, pk):
     """메뉴 옵션 목록/생성. 옵션은 옵션그룹 하위에 생성한다."""
-    product = owned_menus(request.user).filter(pk=pk).first()
+    product = _menu_scope(request).filter(pk=pk).first()
     if not product:
         return error_response('not_found', '상품을 찾을 수 없습니다.', 404)
 

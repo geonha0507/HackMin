@@ -16,12 +16,9 @@ User = get_user_model()
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """내 정보 조회/수정/탈퇴.
-
-    """
+    """내 정보 조회/수정/탈퇴."""
     if request.method == 'GET':
-        target = request.user
-        return Response(UserSerializer(target).data)
+        return Response(UserSerializer(request.user).data)
 
     if request.method == 'PUT':
         serializer = UserSerializer(request.user, data=request.data, partial=True)
@@ -62,9 +59,7 @@ class AddressListCreateView(generics.ListCreateAPIView):
 
 
 class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """배송지 수정/삭제.
-
-    """
+    """배송지 수정/삭제."""
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticated]
 
