@@ -25,7 +25,6 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
-      ROOT_URLCONF: config.urls_api
       # CSRF/SSL
       DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
       DJANGO_SSL_REDIRECT: "0"
@@ -33,11 +32,11 @@ services:
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
-      # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin/ 은 404).
-      DJANGO_ROOT_URLCONF: config.urls_api
-      # 이 컨테이너만 migrate/seed 를 실행한다.
       # 챗봇 (OpenRouter → GPT-4o-mini)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin-web/, /admin/ 은 404).
+      DJANGO_ROOT_URLCONF: config.urls_api
+      # 이 컨테이너만 migrate/seed 를 실행한다.
       RUN_MIGRATIONS: "1"
       SEED_DEMO: ${SEED_DEMO:-1}
 
@@ -69,7 +68,6 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
-      ROOT_URLCONF: config.urls_web
       # CSRF/SSL
       DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
       DJANGO_SSL_REDIRECT: "0"
@@ -113,6 +111,9 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
