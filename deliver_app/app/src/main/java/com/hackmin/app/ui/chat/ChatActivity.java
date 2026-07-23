@@ -6,6 +6,8 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,13 +44,23 @@ public class ChatActivity extends AppCompatActivity {
         setContentView(R.layout.activity_chat);
 
         ImageButton btnBack = findViewById(R.id.btn_chat_back);
+        ImageButton btnReset = findViewById(R.id.btn_chat_reset);
         rvMessages = findViewById(R.id.rv_chat_messages);
         pbLoading = findViewById(R.id.pb_chat_loading);
         pbSending = findViewById(R.id.pb_chat_sending);
         etInput = findViewById(R.id.et_chat_input);
         btnSend = findViewById(R.id.btn_chat_send);
 
-        btnBack.setOnClickListener(v -> finish());
+        btnBack.setOnClickListener(v -> leaveChat());
+        btnReset.setOnClickListener(v -> confirmResetChat());
+
+        // 실제 챗봇 상담창처럼, 화면을 나가면(뒤로가기 제스처 포함) 대화를 초기화한다.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                leaveChat();
+            }
+        });
 
         adapter = new ChatMessageAdapter();
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -114,6 +126,46 @@ public class ChatActivity extends AppCompatActivity {
                         Toast.makeText(ChatActivity.this, "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    /** 화면을 나갈 때 세션을 조용히 초기화한다(응답을 기다리지 않고 바로 종료). */
+    private void leaveChat() {
+        ApiClient.chatbotApi(this).resetSession().enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) { /* no-op */ }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) { /* no-op */ }
+        });
+        finish();
+    }
+
+    private void confirmResetChat() {
+        new AlertDialog.Builder(this)
+                .setTitle("대화 초기화")
+                .setMessage("지금까지의 대화 내용을 모두 삭제할까요?")
+                .setPositiveButton("초기화", (d, w) -> resetChat())
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void resetChat() {
+        ApiClient.chatbotApi(this).resetSession().enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    adapter.submit(null);
+                    Toast.makeText(ChatActivity.this, "대화가 초기화되었습니다.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(ChatActivity.this, "초기화에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(ChatActivity.this, "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void setSending(boolean sending) {
