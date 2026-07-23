@@ -5,7 +5,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import base64
 
-_OBFUSCATED_KEY = "aGFja21pbl9zZWNyZXRfa2V5IXshYg=="
+_OBFUSCATED_KEY = "SGFja01pblNlY3JldGtleQ=="
 
 def _get_cipher_key():
     """Get 16-byte AES-128 key."""
