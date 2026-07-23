@@ -1,5 +1,6 @@
 """점주(Owner) 웹 화면 - 주문/상품/매출/리뷰 관리."""
 
+from ..views.restaurant import _is_reviewable_restaurant
 from datetime import date, timedelta
 
 from django.contrib import messages
@@ -126,6 +127,8 @@ def product_list(request):
 @owner_required
 def product_form(request, pk=None):
     restaurants = _owned_restaurants(request.user)
+    # 심사 완료(승인)된 매장만 상품 등록 대상으로 노출
+    reviewable_restaurants = [r for r in restaurants if _is_reviewable_restaurant(r)]
     ids = list(restaurants.values_list('id', flat=True))
     menu = None
     if pk:
@@ -133,6 +136,11 @@ def product_form(request, pk=None):
 
     if request.method == 'POST':
         restaurant = get_object_or_404(Restaurant, pk=request.POST.get('restaurant'), owner=request.user)
+
+        if not _is_reviewable_restaurant(restaurant):
+            messages.error(request, '심사 대기 또는 반려 중인 매장은 상품을 등록할 수 없습니다.')
+            return redirect('web:owner_products')
+
         category_id = request.POST.get('category') or None
         category = None
         if category_id:
@@ -166,11 +174,10 @@ def product_form(request, pk=None):
     categories = MenuCategory.objects.filter(restaurant_id__in=ids)
     return render(request, 'web/owner/product_form.html', {
         'menu': menu,
-        'restaurants': restaurants,
+        'restaurants': reviewable_restaurants,   # ← 필터링된 목록으로 교체
         'categories': categories,
         'status_choices': Menu.Status.choices,
     })
-
 
 @owner_required
 def product_delete(request, pk):
@@ -185,6 +192,7 @@ def product_delete(request, pk):
 @owner_required
 def category_list(request):
     restaurants = _owned_restaurants(request.user)
+    reviewable_restaurants = [r for r in restaurants if _is_reviewable_restaurant(r)]
     ids = list(restaurants.values_list('id', flat=True))
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -198,6 +206,9 @@ def category_list(request):
 
             if not restaurant:
                 messages.error(request, '유효한 매장을 선택하세요.')
+
+            elif not _is_reviewable_restaurant(restaurant):
+                messages.error(request, '심사 대기 또는 반려 중인 매장은 카테고리를 등록할 수 없습니다.')
 
             elif not name:
                 messages.error(request, '카테고리 이름을 입력하세요.')
@@ -249,7 +260,7 @@ def category_list(request):
         .order_by('restaurant', 'display_order')
     )
     return render(request, 'web/owner/categories.html', {
-        'categories': categories, 'restaurants': restaurants,
+        'categories': categories, 'restaurants': reviewable_restaurants,
     })
 
 
