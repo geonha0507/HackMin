@@ -25,6 +25,10 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      ROOT_URLCONF: config.urls_api
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
@@ -61,6 +65,10 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      ROOT_URLCONF: config.urls_web
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
