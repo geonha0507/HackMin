@@ -54,7 +54,7 @@ def submit_enrollment_request(request):
     - restaurant_name (가게명)
     - business_license (파일: pdf, jpg, jpeg, png / 최대 10MB)
     
-    Secure 모드: 파일 확장자 + 크기 검증
+    파일 확장자 + 크기 검증 포함.
     """
     # 필수 필드 확인
     required_fields = ['username', 'password', 'phone', 'owner_name', 
@@ -67,7 +67,7 @@ def submit_enrollment_request(request):
     # Serializer 검증
     serializer = EnrollmentRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    
+
     # username 중복 확인
     if EnrollmentRequest.objects.filter(username=request.data['username']).exists():
         return error_response('duplicate_username', '이미 등록된 사용자명입니다.', 400)
@@ -79,7 +79,7 @@ def submit_enrollment_request(request):
     obj = EnrollmentRequest.objects.create(
         username=request.data['username'],
         password=make_password(request.data['password']),  # 비밀번호 해싱
-        phone=request.data['phone'], # 휴대폰 번호 저장 추가
+        phone=request.data['phone'],
         owner_name=request.data['owner_name'],
         restaurant_name=request.data['restaurant_name'],
         business_license=request.FILES['business_license']
@@ -150,21 +150,20 @@ def review_enrollment_request(request, request_id):
     
     # ===== 승인 =====
     if status == 'approved':
-        # User 생성 (password는 이미 해싱되어 있으므로 set_password 우회)
-        user = User(
+        # User 생성
+        user = User.objects.create_user(
             username=enrollment.username,
-            role='owner',  # 점주 입점이기에 승인시 점주 role을 부여
-            phone=enrollment.phone,
+            password=None,
         )
-        user.password = enrollment.password  # 이미 해싱된 값 그대로 대입
-        user.save()
+        user.password = enrollment.password  # submit 시 make_password()로 이미 해싱됨
+        user.save(update_fields=['password'])
         
         # Restaurant 생성
         restaurant = Restaurant.objects.create(
             owner=user,
             name=enrollment.restaurant_name,
             phone=enrollment.phone,
-            business_license=enrollment.business_license,
+            business_license=enrollment.business_license
         )
         
         enrollment.status = 'approved'

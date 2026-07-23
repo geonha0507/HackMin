@@ -14,7 +14,6 @@ from .serializers import (
     MenuListSerializer,
     RestaurantDetailSerializer,
     RestaurantListSerializer,
-    RestaurantNoticeSerializer,
     RestaurantReviewSerializer,
 )
 
@@ -38,7 +37,6 @@ def restaurant_search(request):
     cuisine = request.query_params.get('cuisine', '')
     sort = request.query_params.get('sort', '')
 
-    # SECURE: ORM 파라미터 바인딩.
     queryset = Restaurant.objects.all()
     if q:
         queryset = queryset.filter(
@@ -69,8 +67,7 @@ def restaurant_search(request):
 
     paginator = StandardPagination()
     page = paginator.paginate_queryset(queryset, request)
-    # context에 request를 넘겨야 ImageField(image)가 절대 URL로 직렬화된다.
-    serializer = RestaurantListSerializer(page, many=True, context={'request': request})
+    serializer = RestaurantListSerializer(page, many=True)
     return paginator.get_paginated_response(serializer.data)
 
 
@@ -107,19 +104,4 @@ class RestaurantReviewListView(generics.ListAPIView):
 
     def get_queryset(self):
         from reviews.models import Review
-        return (
-            Review.objects.filter(restaurant_id=self.kwargs['pk'])
-            .select_related('user', 'reply')
-            .prefetch_related('images')
-        )
-
-
-class RestaurantNoticeListView(generics.ListAPIView):
-    """매장이 고객에게 보내는 공지사항 (관리자 전체 공지 Notice 와는 별개)."""
-
-    serializer_class = RestaurantNoticeSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        from .models import RestaurantNotice
-        return RestaurantNotice.objects.filter(restaurant_id=self.kwargs['pk'])
+        return Review.objects.filter(restaurant_id=self.kwargs['pk']).select_related('user')

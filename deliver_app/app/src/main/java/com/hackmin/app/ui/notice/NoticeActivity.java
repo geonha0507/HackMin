@@ -85,8 +85,12 @@ public class NoticeActivity extends AppCompatActivity {
         });
     }
 
-    /** 항목 클릭 → 상세 조회 후 다이얼로그로 표시. */
+    /** 항목 클릭 → 읽음 기록 후 상세 조회해 다이얼로그로 표시. */
     private void showDetail(NoticeDto fromList) {
+        // 클릭 시 읽음 처리 → 목록의 "읽음" 라벨 갱신.
+        com.hackmin.app.util.NoticeReadStore.markRead(this, fromList.getId());
+        adapter.notifyDataSetChanged();
+
         ApiClient.noticeApi(this).getNotice(fromList.getId()).enqueue(new Callback<NoticeDto>() {
             @Override
             public void onResponse(Call<NoticeDto> call, Response<NoticeDto> response) {

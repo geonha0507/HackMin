@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.hackmin.app.R;
@@ -21,6 +22,7 @@ import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.restaurant.MenuDto;
 import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.ui.chat.ChatActivity;
 import com.hackmin.app.ui.common.BottomNav;
 import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.util.ImageLoader;
@@ -40,6 +42,7 @@ public class HomeActivity extends AppCompatActivity {
     private ProgressBar pbLoading;
     private TextView tvEmpty;
     private TextView tvListTitle;
+    private TextView tvNoticeBadge;
     private RestaurantAdapter adapter;
 
     // 카테고리/검색 필터가 없을 때 목록 제목의 기본값
@@ -64,7 +67,8 @@ public class HomeActivity extends AppCompatActivity {
         tvEmpty = findViewById(R.id.tv_empty);
         tvListTitle = findViewById(R.id.tv_list_title);
 
-        // 상단 아이콘 버튼(공지사항)
+        // 상단 아이콘 버튼(공지사항) + 안읽음 뱃지
+        tvNoticeBadge = findViewById(R.id.tv_notice_badge);
         ImageButton btnNotification = findViewById(R.id.btn_notification);
         if (btnNotification != null) {
             btnNotification.setOnClickListener(v ->
@@ -80,6 +84,12 @@ public class HomeActivity extends AppCompatActivity {
             loadRestaurants(null, null);
             rvRestaurants.smoothScrollToPosition(0);
         });
+
+        FloatingActionButton fabChatbot = findViewById(R.id.fab_chatbot);
+        if (fabChatbot != null) {
+            fabChatbot.setOnClickListener(v ->
+                    startActivity(new Intent(this, ChatActivity.class)));
+        }
 
         // 음식점 목록
         adapter = new RestaurantAdapter(restaurant -> {
@@ -113,11 +123,66 @@ public class HomeActivity extends AppCompatActivity {
             });
         }
 
+        // 추천메뉴 아이콘: 움직이는 GIF를 Glide로 로드(정적 src 대신 애니메이션).
+        android.widget.ImageView ivRecommend = findViewById(R.id.iv_recommend_icon);
+        if (ivRecommend != null) {
+            com.bumptech.glide.Glide.with(this)
+                    .load(R.raw.recommend_anim)
+                    .centerCrop()
+                    .into(ivRecommend);
+        }
+
         // 뒤로가기 두 번 연속(2초 이내)이면 앱 종료, 한 번이면 안내 토스트.
         setupDoubleBackToExit();
 
         // 최초 진입: 전체 목록(평점순)
         loadRestaurants(null, null);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 공지 화면에서 읽고 돌아오면 안읽음 뱃지 갱신.
+        refreshNoticeBadge();
+    }
+
+    /** 서버 공지 목록을 받아 안읽음(=로컬 읽음기록에 없는) 개수를 벨 뱃지에 표시한다. */
+    private void refreshNoticeBadge() {
+        if (tvNoticeBadge == null) {
+            return;
+        }
+        ApiClient.noticeApi(this).getNotices().enqueue(
+                new retrofit2.Callback<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>>() {
+            @Override
+            public void onResponse(
+                    retrofit2.Call<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> call,
+                    retrofit2.Response<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> response) {
+                if (!response.isSuccessful() || response.body() == null
+                        || response.body().getResults() == null) {
+                    return;
+                }
+                java.util.Set<String> read = com.hackmin.app.util.NoticeReadStore.getReadIds(HomeActivity.this);
+                int unread = 0;
+                for (com.hackmin.app.data.model.notice.NoticeDto n : response.body().getResults()) {
+                    if (!read.contains(String.valueOf(n.getId()))) {
+                        unread++;
+                    }
+                }
+                if (unread > 0) {
+                    tvNoticeBadge.setText(String.valueOf(unread));
+                    tvNoticeBadge.setVisibility(View.VISIBLE);
+                } else {
+                    tvNoticeBadge.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onFailure(
+                    retrofit2.Call<com.hackmin.app.data.model.common.PagedResponse<com.hackmin.app.data.model.notice.NoticeDto>> call,
+                    Throwable t) {
+                // 뱃지 갱신 실패는 조용히 무시.
+            }
+        });
     }
 
     /** 메인 화면에서 뒤로가기를 두 번 눌러야 앱이 종료되도록 처리한다. */
@@ -151,12 +216,13 @@ public class HomeActivity extends AppCompatActivity {
         int[] categoryIds = {
                 R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
                 R.id.category_cafe, R.id.category_stew, R.id.category_korean,
-                R.id.category_bunsik
+                R.id.category_bunsik, R.id.category_japanese, R.id.category_dessert,
+                R.id.category_meat, R.id.category_western
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식", "일식", "디저트", "고기", "양식"};
         // 목록 제목으로 보여줄 라벨(버튼 라벨과 일치). 예: 찜 → "찜, 탕"
-        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식"};
+        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식", "일식", "디저트", "고기", "양식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];

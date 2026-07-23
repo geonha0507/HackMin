@@ -36,6 +36,8 @@ services:
       # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin/ 은 404).
       DJANGO_ROOT_URLCONF: config.urls_api
       # 이 컨테이너만 migrate/seed 를 실행한다.
+      # 챗봇 (OpenRouter → GPT-4o-mini)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       RUN_MIGRATIONS: "1"
       SEED_DEMO: ${SEED_DEMO:-1}
 

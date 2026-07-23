@@ -1,9 +1,4 @@
-"""File download endpoints (/api/v1/downloads) — File Download 실습 대상.
-
-주요 취약점:
-- attachment: Path Traversal (사용자 입력 경로를 검증 없이 파일 시스템 접근)
-- 나머지: IDOR (소유권 검증 없이 타인의 문서 다운로드)
-"""
+"""File download endpoints (/api/v1/downloads)."""
 
 import os
 
@@ -28,7 +23,7 @@ def _text_download(filename, body):
 
 
 def _order_for(request, order_id):
-    """Secure: 본인 주문 또는 본인 매장 주문."""
+    """본인 주문 또는 본인 매장 주문만 조회."""
     user = request.user
     return Order.objects.filter(pk=order_id).filter(
         Q(user=user) | Q(restaurant__owner=user)
@@ -104,13 +99,9 @@ def business_license(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def attachment(request, pk):
-    """첨부파일 다운로드 — Path Traversal 실습.
-
-    Secure 모드: 파일명 정규화 후 지정 디렉터리 밖 접근을 차단한다.
-    """
+    """첨부파일 다운로드. 파일명 정규화 후 지정 디렉터리 내부만 허용."""
     name = request.query_params.get('name', str(pk))
 
-    # SECURE: basename만 사용하고 정규화된 경로가 기준 디렉터리 내부인지 확인.
     safe_name = os.path.basename(name)
     target = os.path.normpath(os.path.join(ATTACHMENT_ROOT, safe_name))
     if not target.startswith(os.path.normpath(ATTACHMENT_ROOT) + os.sep):

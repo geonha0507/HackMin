@@ -65,10 +65,7 @@ def owner_password_change(request):
 @permission_classes([IsOwner])
 @parser_classes([MultiPartParser, FormParser])
 def upload_business_license(request):
-    """사업자등록증 업로드.
-
-    Secure 모드: 문서 확장자 화이트리스트 + 크기 제한.
-    """
+    """사업자등록증 업로드. 문서 확장자 화이트리스트 + 크기 제한 적용."""
     upload = request.FILES.get('file')
     if not upload:
         return error_response('bad_request', 'file이 필요합니다.', 400)
