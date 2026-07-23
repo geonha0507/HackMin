@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'reviews',
     'promotions',
     'chatbot',
+    'inquiries',
     'owner',
     'adminpanel',
     'rider',

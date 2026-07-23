@@ -12,6 +12,7 @@ import com.hackmin.app.data.api.AuthApi;
 import com.hackmin.app.data.api.CartApi;
 import com.hackmin.app.data.api.ChatbotApi;
 import com.hackmin.app.data.api.DownloadApi;
+import com.hackmin.app.data.api.InquiryApi;
 import com.hackmin.app.data.api.LocationApi;
 import com.hackmin.app.data.api.NoticeApi;
 import com.hackmin.app.data.api.OrderApi;
@@ -108,6 +109,8 @@ public final class ApiClient {
     public static PromotionApi promotionApi(Context context) { return api(context, PromotionApi.class); }
 
     public static ChatbotApi chatbotApi(Context context) { return api(context, ChatbotApi.class); }
+
+    public static InquiryApi inquiryApi(Context context) { return api(context, InquiryApi.class); }
 
     public static OwnerApi ownerApi(Context context) { return api(context, OwnerApi.class); }
 

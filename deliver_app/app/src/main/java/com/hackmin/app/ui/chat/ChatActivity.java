@@ -20,6 +20,8 @@ import com.hackmin.app.data.model.chat.ChatSendRequest;
 import com.hackmin.app.data.model.chat.ChatSendResponse;
 import com.hackmin.app.network.ApiClient;
 
+import java.util.Collections;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -30,6 +32,12 @@ import retrofit2.Response;
  * - POST /chatbot/message  (메시지 전송)
  */
 public class ChatActivity extends AppCompatActivity {
+
+    /** 대화 이력이 비어 있을 때(신규 진입/초기화 직후) 보여줄 인사말. 서버로 전송되거나 저장되지 않는 화면 전용 문구다. */
+    private static final String GREETING_TEXT =
+            "안녕하세요! 해킹의 민족 AI 상담원입니다. 무엇을 도와드릴까요?\n\n"
+                    + "예시: \"내 최근 주문 내역 보여줘\"\n"
+                    + "예시: \"교촌치킨 강남점 정보 알려줘\"";
 
     private RecyclerView rvMessages;
     private ProgressBar pbLoading;
@@ -80,7 +88,11 @@ public class ChatActivity extends AppCompatActivity {
             public void onResponse(Call<ChatHistoryResponse> call, Response<ChatHistoryResponse> response) {
                 pbLoading.setVisibility(View.GONE);
                 if (response.isSuccessful() && response.body() != null) {
-                    adapter.submit(response.body().getResults());
+                    if (response.body().getResults() == null || response.body().getResults().isEmpty()) {
+                        showGreeting();
+                    } else {
+                        adapter.submit(response.body().getResults());
+                    }
                     scrollToBottom();
                 } else {
                     Toast.makeText(ChatActivity.this, "대화 이력을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
@@ -154,7 +166,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
-                    adapter.submit(null);
+                    showGreeting();
                     Toast.makeText(ChatActivity.this, "대화가 초기화되었습니다.", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(ChatActivity.this, "초기화에 실패했습니다.", Toast.LENGTH_SHORT).show();
@@ -166,6 +178,12 @@ public class ChatActivity extends AppCompatActivity {
                 Toast.makeText(ChatActivity.this, "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    /** 대화 이력이 없을 때 화면에만 표시하는 인사말 말풍선(서버 저장 X). */
+    private void showGreeting() {
+        adapter.submit(Collections.singletonList(
+                new ChatMessageDto(ChatMessageDto.ROLE_ASSISTANT, GREETING_TEXT)));
     }
 
     private void setSending(boolean sending) {

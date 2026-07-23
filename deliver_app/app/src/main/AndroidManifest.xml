@@ -72,6 +72,16 @@
             android:name=".ui.mypage.EditProfileActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.mypage.InquiryListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.mypage.InquiryDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.mypage.InquiryWriteActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".ui.restaurant.RestaurantDetailActivity"
