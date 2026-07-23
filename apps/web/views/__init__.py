@@ -1,1 +1,1 @@
-from . import auth, owner, admin, account, restaurant  # noqa
+from . import auth, owner, account, restaurant  # noqa

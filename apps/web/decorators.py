@@ -21,9 +21,8 @@ def role_required(*roles):
                 return _redirect_login(request)
             if roles and user.role not in roles:
                 messages.error(request, '접근 권한이 없습니다.')
-                # 역할에 맞는 홈으로 보냄
-                if user.role == 'admin':
-                    return redirect('web:admin_dashboard')
+                # 관리자 화면은 admin_web 앱(별도 컨테이너)으로 이동했으므로
+                # 여기(owner-web 컨테이너)에는 admin_dashboard 라우트가 없다.
                 if user.role == 'owner':
                     return redirect('web:owner_dashboard')
                 return _redirect_login(request)

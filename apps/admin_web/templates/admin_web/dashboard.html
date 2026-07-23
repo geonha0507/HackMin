@@ -1,5 +1,4 @@
-{% extends 'web/base.html' %}
-{% load humanize %}
+{% extends 'admin_web/base.html' %}
 {% block title %}관리자 대시보드{% endblock %}
 {% block heading %}관리자 대시보드{% endblock %}
 {% block content %}
@@ -9,7 +8,7 @@
   <div class="card"><div class="label">등록 매장</div><div class="value">{{ restaurant_count }}</div></div>
   <div class="card"><div class="label">전체 주문</div><div class="value">{{ order_count }}</div></div>
   <div class="card"><div class="label">정지 계정</div><div class="value">{{ suspended_count }}</div></div>
-  <div class="card"><div class="label">결제 완료액</div><div class="value">{{ total_sales|floatformat:0|intcomma }}원</div></div>
+  <div class="card"><div class="label">결제 완료액</div><div class="value">{{ total_sales|floatformat:0 }}원</div></div>
 </div>
 
 <div class="panel">
@@ -22,7 +21,7 @@
         <td>{{ o.order_number }}</td>
         <td>{{ o.restaurant.name|default:'-' }}</td>
         <td>{{ o.user.username }}</td>
-        <td>{{ o.total|floatformat:0|intcomma }}원</td>
+        <td>{{ o.total|floatformat:0 }}원</td>
         <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
         <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
       </tr>
@@ -39,7 +38,7 @@
     <tbody>
     {% for u in recent_users %}
       <tr>
-        <td><a href="{% url 'web:admin_user_detail' u.pk %}">{{ u.username }}</a></td>
+        <td><a href="{% url 'admin_web:admin_user_detail' u.pk %}">{{ u.username }}</a></td>
         <td>{{ u.get_role_display }}</td>
         <td>{% include 'web/_user_badge.html' with status=u.status label=u.get_status_display %}</td>
         <td class="muted">{{ u.date_joined|date:'Y-m-d' }}</td>

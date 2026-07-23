@@ -17,10 +17,64 @@ from orders.models import Order
 from payments.models import Payment
 from restaurants.models import Restaurant, RestaurantEditRequest
 
-from ..decorators import admin_required
+from .decorators import admin_required
 
 _ALLOWED_NOTICE_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 _MAX_NOTICE_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def login_view(request):
+    """관리자 전용 로그인.
+
+    apps/web/views/auth.py의 login_view 중 admin 분기만 떼어온 것.
+    이 컨테이너(admin-web)는 admin_required 뷰만 갖고 있으므로,
+    owner 계정으로 로그인해도 어차피 아무 화면도 못 보므로 여기서 role을
+    admin으로 한 번 더 제한한다.
+    """
+    from django.contrib import messages as django_messages
+    from django.contrib.auth import authenticate, login as auth_login
+    from django.contrib.auth import get_user_model as _get_user_model
+    from django.shortcuts import redirect as _redirect, render as _render
+
+    _User = _get_user_model()
+
+    if request.user.is_authenticated and request.user.role == _User.Role.ADMIN:
+        return _redirect('admin_web:admin_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is None:
+            django_messages.error(request, '아이디 또는 비밀번호가 올바르지 않습니다.')
+        elif user.role != _User.Role.ADMIN:
+            django_messages.error(request, '관리자 계정만 로그인할 수 있습니다.')
+        elif user.status != _User.Status.ACTIVE or not user.is_active:
+            django_messages.error(request, '비활성화된 계정입니다.')
+        else:
+            auth_login(request, user)
+            nxt = request.GET.get('next') or request.POST.get('next')
+            if nxt:
+                return _redirect(nxt)
+            return _redirect('admin_web:admin_dashboard')
+
+    return _render(
+        request,
+        'admin_web/login.html',
+        {'next': request.GET.get('next', ''), 'hide_chrome': True},
+    )
+
+
+def logout_view(request):
+    from django.contrib import messages as django_messages
+    from django.contrib.auth import logout as auth_logout
+    from django.shortcuts import redirect as _redirect
+
+    auth_logout(request)
+    django_messages.success(request, '로그아웃되었습니다.')
+    return _redirect('admin_web:login')
 
 
 def _valid_notice_image(upload):
@@ -82,7 +136,7 @@ def dashboard(request):
         'recent_orders': Order.objects.select_related('restaurant', 'user')[:8],
         'recent_users': User.objects.order_by('-date_joined')[:8],
     }
-    return render(request, 'web/admin/dashboard.html', ctx)
+    return render(request, 'admin_web/dashboard.html', ctx)
 
 
 @admin_required
@@ -94,7 +148,7 @@ def user_list(request):
         users = users.filter(role=role)
     if q:
         users = users.filter(Q(username__icontains=q) | Q(email__icontains=q) | Q(nickname__icontains=q))
-    return render(request, 'web/admin/users.html', {
+    return render(request, 'admin_web/users.html', {
         'users': users.order_by('-date_joined')[:300],
         'q': q, 'role': role,
         'role_choices': User.Role.choices,
@@ -112,9 +166,9 @@ def user_detail(request, pk):
             user.is_active = new_status == User.Status.ACTIVE
             user.save(update_fields=['status', 'is_active'])
             messages.success(request, '회원 상태를 변경했습니다.')
-        return redirect('web:admin_user_detail', pk=pk)
+        return redirect('admin_web:admin_user_detail', pk=pk)
     orders = Order.objects.filter(user=user).select_related('restaurant')[:20]
-    return render(request, 'web/admin/user_detail.html', {
+    return render(request, 'admin_web/user_detail.html', {
         'obj': user, 'orders': orders, 'status_choices': User.Status.choices,
     })
 
@@ -129,7 +183,7 @@ def owner_list(request):
     rows = []
     for o in owners[:300]:
         rows.append({'user': o, 'restaurants': Restaurant.objects.filter(owner=o)})
-    return render(request, 'web/admin/owners.html', {
+    return render(request, 'admin_web/owners.html', {
         'rows': rows, 'q': q, 'status_choices': User.Status.choices,
     })
 
@@ -144,7 +198,7 @@ def owner_status(request, pk):
             owner.is_active = new_status == User.Status.ACTIVE
             owner.save(update_fields=['status', 'is_active'])
             messages.success(request, '점주 상태를 변경했습니다.')
-    return redirect('web:admin_owners')
+    return redirect('admin_web:admin_owners')
 
 @admin_required
 def store_list(request):
@@ -178,7 +232,7 @@ def store_list(request):
 
     return render(
         request,
-        'web/admin/store.html',
+        'admin_web/store.html',
         {
             'stores': stores,
             'q': q,
@@ -204,7 +258,7 @@ def store_decide(request, pk):
     )
 
     if request.method != 'POST':
-        return redirect('web:admin_store')
+        return redirect('admin_web:admin_store')
 
     owner = store.owner
     action = request.POST.get('action')
@@ -218,28 +272,28 @@ def store_decide(request, pk):
             request,
             '이미 처리된 입점 신청입니다.',
         )
-        return redirect('web:admin_store')
+        return redirect('admin_web:admin_store')
 
     if action not in ('approve', 'reject'):
         messages.error(
             request,
             '올바르지 않은 처리 요청입니다.',
         )
-        return redirect('web:admin_store')
+        return redirect('admin_web:admin_store')
 
     if action == 'reject' and not rejection_reason:
         messages.error(
             request,
             '반려 사유를 입력해주세요.',
         )
-        return redirect('web:admin_store')
+        return redirect('admin_web:admin_store')
 
     if len(rejection_reason) > 500:
         messages.error(
             request,
             '반려 사유는 500자 이하로 입력해주세요.',
         )
-        return redirect('web:admin_store')
+        return redirect('admin_web:admin_store')
 
     with transaction.atomic():
         enrollment_status = 'approved' if action == 'approve' else 'rejected'
@@ -250,18 +304,22 @@ def store_decide(request, pk):
             owner.is_active = action == 'approve'
             owner.save(update_fields=['status', 'is_active'])
 
+        defaults = {
+            'username': owner.username,
+            'phone': (owner.phone or '')[:20],
+            'owner_name': owner.nickname or owner.username,
+            'restaurant_name': store.name,
+            'status': enrollment_status,
+            'reviewed_at': timezone.now(),
+            'reviewed_by': request.user,
+        }
+
+        if action == 'reject':
+            defaults['rejection_reason'] = rejection_reason
+
         EnrollmentRequest.objects.update_or_create(
             restaurant=store,
-            defaults={
-                'username': owner.username,
-                'phone': (owner.phone or '')[:20],
-                'owner_name': owner.nickname or owner.username,
-                'restaurant_name': store.name,
-                'status': enrollment_status,
-                'rejection_reason': rejection_reason if action == 'reject' else '',
-                'reviewed_at': timezone.now(),
-                'reviewed_by': request.user,
-            },
+            defaults=defaults,
         )
 
     if action == 'approve':
@@ -275,7 +333,7 @@ def store_decide(request, pk):
             f'{store.name}의 입점 신청을 반려했습니다.',
         )
 
-    return redirect('web:admin_store')
+    return redirect('admin_web:admin_store')
 
 @admin_required
 def withdrawal_requests(request):
@@ -285,7 +343,7 @@ def withdrawal_requests(request):
     processed = WithdrawalRequest.objects.select_related('user', 'processed_by').exclude(
         status=WithdrawalRequest.Status.PENDING,
     )[:50]
-    return render(request, 'web/admin/withdrawals.html', {'pending': pending, 'processed': processed})
+    return render(request, 'admin_web/withdrawals.html', {'pending': pending, 'processed': processed})
 
 
 @admin_required
@@ -303,11 +361,11 @@ def withdrawal_decide(request, pk):
             wr.status = WithdrawalRequest.Status.REJECTED
             messages.success(request, f'{wr.user.username} 님의 탈퇴 요청을 거절했습니다.')
         else:
-            return redirect('web:admin_withdrawals')
+            return redirect('admin_web:admin_withdrawals')
         wr.processed_at = timezone.now()
         wr.processed_by = request.user
         wr.save(update_fields=['status', 'processed_at', 'processed_by'])
-    return redirect('web:admin_withdrawals')
+    return redirect('admin_web:admin_withdrawals')
 
 
 @admin_required
@@ -320,7 +378,7 @@ def restaurant_edit_requests(request):
     ).exclude(status=RestaurantEditRequest.Status.PENDING)[:50]
 
     pending = [{'req': r, 'rows': _restaurant_diff_rows(r)} for r in pending_qs]
-    return render(request, 'web/admin/restaurant_edits.html', {
+    return render(request, 'admin_web/restaurant_edits.html', {
         'pending': pending, 'processed': processed_qs,
     })
 
@@ -340,11 +398,11 @@ def restaurant_edit_decide(request, pk):
             er.status = RestaurantEditRequest.Status.REJECTED
             messages.success(request, f'{er.restaurant.name} 매장 정보 수정 요청을 거절했습니다.')
         else:
-            return redirect('web:admin_restaurant_edits')
+            return redirect('admin_web:admin_restaurant_edits')
         er.processed_at = timezone.now()
         er.processed_by = request.user
         er.save(update_fields=['status', 'processed_at', 'processed_by'])
-    return redirect('web:admin_restaurant_edits')
+    return redirect('admin_web:admin_restaurant_edits')
 
 
 @admin_required
@@ -353,13 +411,8 @@ def order_list(request):
     status = request.GET.get('status', '')
     if status:
         orders = orders.filter(status=status)
-    restaurant_id = request.GET.get('restaurant_id', '')
-    if restaurant_id.isdigit():
-        orders = orders.filter(restaurant_id=restaurant_id)
-    return render(request, 'web/admin/orders.html', {
+    return render(request, 'admin_web/orders.html', {
         'orders': orders[:300], 'status': status, 'status_choices': Order.Status.choices,
-        'restaurants': Restaurant.objects.order_by('name'),
-        'selected_restaurant_id': restaurant_id,
     })
 
 
@@ -369,13 +422,8 @@ def payment_list(request):
     status = request.GET.get('status', '')
     if status:
         payments = payments.filter(status=status)
-    restaurant_id = request.GET.get('restaurant_id', '')
-    if restaurant_id.isdigit():
-        payments = payments.filter(order__restaurant_id=restaurant_id)
-    return render(request, 'web/admin/payments.html', {
+    return render(request, 'admin_web/payments.html', {
         'payments': payments[:300], 'status': status, 'status_choices': Payment.Status.choices,
-        'restaurants': Restaurant.objects.order_by('name'),
-        'selected_restaurant_id': restaurant_id,
     })
 
 
@@ -384,7 +432,7 @@ def payment_list(request):
 def notice_list(request):
     """앱 전체 사용자에게 노출되는 공지사항 목록."""
     notices = Notice.objects.all()
-    return render(request, 'web/admin/notices.html', {'notices': notices})
+    return render(request, 'admin_web/notices.html', {'notices': notices})
 
 
 @admin_required
@@ -408,8 +456,8 @@ def notice_create(request):
                 created_by=request.user,
             )
             messages.success(request, '공지사항을 등록했습니다.')
-            return redirect('web:admin_notices')
-    return render(request, 'web/admin/notice_form.html', {'notice': None})
+            return redirect('admin_web:admin_notices')
+    return render(request, 'admin_web/notice_form.html', {'notice': None})
 
 
 @admin_required
@@ -436,8 +484,8 @@ def notice_edit(request, pk):
                 notice.image = image
             notice.save()
             messages.success(request, '공지사항을 수정했습니다.')
-            return redirect('web:admin_notices')
-    return render(request, 'web/admin/notice_form.html', {'notice': notice})
+            return redirect('admin_web:admin_notices')
+    return render(request, 'admin_web/notice_form.html', {'notice': notice})
 
 
 @admin_required
@@ -446,4 +494,4 @@ def notice_delete(request, pk):
     if request.method == 'POST':
         notice.delete()
         messages.success(request, '공지사항을 삭제했습니다.')
-    return redirect('web:admin_notices')
+    return redirect('admin_web:admin_notices')

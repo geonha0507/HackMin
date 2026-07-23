@@ -1,9 +1,9 @@
-{% extends 'web/base.html' %}
+{% extends 'admin_web/base.html' %}
 {% block title %}{% if notice %}공지사항 수정{% else %}공지사항 작성{% endif %}{% endblock %}
 {% block heading %}{% if notice %}공지사항 수정{% else %}공지사항 작성{% endif %}{% endblock %}
 {% block content %}
 
-<a href="{% url 'web:admin_notices' %}" class="muted">← 공지사항 목록</a>
+<a href="{% url 'admin_web:admin_notices' %}" class="muted">← 공지사항 목록</a>
 
 <div class="panel" style="margin-top:14px;max-width:640px">
   <form method="post" enctype="multipart/form-data">

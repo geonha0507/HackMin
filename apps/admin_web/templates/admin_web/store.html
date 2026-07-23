@@ -1,4 +1,4 @@
-{% extends 'web/base.html' %}
+{% extends 'admin_web/base.html' %}
 
 {% block title %}입점 관리{% endblock %}
 {% block heading %}입점 관리{% endblock %}
@@ -149,7 +149,7 @@
            {% if store.display_status == 'pending' %}
             <form
               method="post"
-              action="{% url 'web:admin_store_decide' store.pk %}"
+              action="{% url 'admin_web:admin_store_decide' store.pk %}"
               style="margin-bottom:8px"
             >
               {% csrf_token %}
@@ -167,7 +167,7 @@
 
             <form
               method="post"
-              action="{% url 'web:admin_store_decide' store.pk %}"
+              action="{% url 'admin_web:admin_store_decide' store.pk %}"
               onsubmit="return confirm('입점 신청을 반려하시겠습니까?')"
             >
               {% csrf_token %}
