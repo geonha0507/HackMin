@@ -11,3 +11,4 @@ django-storages==1.14.4
 python-dotenv==1.0.1
 openai==1.54.4
 httpx==0.27.2
+pycryptodome==3.20.0
