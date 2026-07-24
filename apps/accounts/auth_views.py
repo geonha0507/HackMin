@@ -34,6 +34,9 @@ def signup(request):
     serializer = SignupSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
+    # 회원가입 축하 쿠폰 4종 지급.
+    from promotions.services import grant_signup_coupons
+    grant_signup_coupons(user)
     tokens = _issue_tokens(user)
     return Response(
         {'user': UserSerializer(user).data, **tokens},
@@ -88,7 +91,7 @@ def refresh_token(request):
         return error_response('invalid_token', '유효하지 않거나 만료된 토큰입니다.', 401)
     return Response({'access': str(refresh.access_token)})
 
-
+""" 중복 검사 안들어가서 재 커밋 위해서 주석 추가만 함"""
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_duplicate(request):
