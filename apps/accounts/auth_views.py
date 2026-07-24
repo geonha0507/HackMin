@@ -34,6 +34,9 @@ def signup(request):
     serializer = SignupSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
+    # 회원가입 축하 쿠폰 4종 지급.
+    from promotions.services import grant_signup_coupons
+    grant_signup_coupons(user)
     tokens = _issue_tokens(user)
     return Response(
         {'user': UserSerializer(user).data, **tokens},
@@ -92,14 +95,17 @@ def refresh_token(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_duplicate(request):
-    """이메일/아이디 중복 검사. ?username= 또는 ?email= 지원."""
+    """아이디/닉네임/이메일 중복 검사. ?username= 또는 ?nickname= 또는 ?email= 지원."""
     username = request.query_params.get('username')
+    nickname = request.query_params.get('nickname')
     email = request.query_params.get('email')
-    if not username and not email:
-        return error_response('bad_request', 'username 또는 email 파라미터가 필요합니다.', 400)
+    if not username and not nickname and not email:
+        return error_response('bad_request', 'username, nickname 또는 email 파라미터가 필요합니다.', 400)
     exists = False
     if username:
         exists = User.objects.filter(username=username).exists()
+    elif nickname:
+        exists = User.objects.filter(nickname=nickname).exists()
     elif email:
         exists = User.objects.filter(email=email).exists()
     return Response({'available': not exists, 'exists': exists})

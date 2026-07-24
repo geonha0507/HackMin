@@ -30,13 +30,62 @@ public class SignupActivity extends AppCompatActivity {
     private TextInputEditText etSignupPwConfirm;
     private TextInputEditText etSignupName;
     private TextInputEditText etSignupPhone;
+    private TextInputEditText etSignupRrn;
     private TextView tvNicknameCheckResult;
     private TextView tvIdCheckResult;
     private TextView tvPwCondition;
     private TextView tvPwConfirmResult;
     private TextView tvPhoneResult;
+    private TextView tvRrnResult;
     private boolean isNicknameChecked = false;
     private boolean isDuplicateChecked = false;
+
+    // 주민등록번호 검증 결과 코드.
+    private static final int RRN_OK = 0;
+    private static final int RRN_TOO_SHORT = 1;   // 13자리 미만
+    private static final int RRN_BAD_FORMAT = 2;  // 날짜/성별 자리 오류
+    private static final int RRN_UNDER_14 = 3;    // 만 14세 미만
+
+    // 주민등록번호 뒷자리 7자리(하이픈 뒤)를 화면에서만 별표로 가린다. 실제 값은 EditText에 그대로 남아 getText()로 읽힌다.
+    private static final android.text.method.TransformationMethod RRN_BACK_MASK =
+            new android.text.method.TransformationMethod() {
+                @Override
+                public CharSequence getTransformation(CharSequence source, View view) {
+                    return new MaskedRrn(source);
+                }
+
+                @Override
+                public void onFocusChanged(View view, CharSequence sourceText, boolean focused,
+                                           int direction, android.graphics.Rect previouslyFocusedRect) {}
+            };
+
+    /** "YYMMDD-BBBBBBB"에서 하이픈 뒤(index > 6) 문자를 '*'로 바꿔 보여주는 표시 전용 래퍼. */
+    private static class MaskedRrn implements CharSequence {
+        private final CharSequence source;
+
+        MaskedRrn(CharSequence source) {
+            this.source = source;
+        }
+
+        @Override
+        public int length() {
+            return source.length();
+        }
+
+        @Override
+        public char charAt(int index) {
+            return index > 6 ? '*' : source.charAt(index);
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = start; i < end; i++) {
+                sb.append(charAt(i));
+            }
+            return sb.toString();
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,11 +98,13 @@ public class SignupActivity extends AppCompatActivity {
         etSignupPwConfirm = findViewById(R.id.et_signup_pw_confirm);
         etSignupName = findViewById(R.id.et_signup_name);
         etSignupPhone = findViewById(R.id.et_signup_phone);
+        etSignupRrn = findViewById(R.id.et_signup_rrn);
         tvNicknameCheckResult = findViewById(R.id.tv_nickname_check_result);
         tvIdCheckResult = findViewById(R.id.tv_id_check_result);
         tvPwCondition = findViewById(R.id.tv_pw_condition);
         tvPwConfirmResult = findViewById(R.id.tv_pw_confirm_result);
         tvPhoneResult = findViewById(R.id.tv_phone_result);
+        tvRrnResult = findViewById(R.id.tv_rrn_result);
         Button btnCheckNicknameDuplicate = findViewById(R.id.btn_check_nickname_duplicate);
         Button btnCheckDuplicate = findViewById(R.id.btn_check_duplicate);
         Button btnSignupSubmit = findViewById(R.id.btn_signup_submit);
@@ -227,6 +278,34 @@ public class SignupActivity extends AppCompatActivity {
             }
         });
 
+        // 주민등록번호 입력 시 XXXXXX-XXXXXXX 형식으로 자동 정리 + 형식 검증 안내
+        etSignupRrn.addTextChangedListener(new TextWatcher() {
+            private boolean editing = false;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (editing) return;
+                editing = true;
+                String digits = s.toString().replaceAll("[^0-9]", "");
+                if (digits.length() > 13) {
+                    digits = digits.substring(0, 13);
+                }
+                String formatted = formatRrn(digits);
+                s.replace(0, s.length(), formatted);
+                etSignupRrn.setSelection(formatted.length());
+                editing = false;
+                updateRrnResult(digits);
+            }
+        });
+        // 뒷자리 7자리를 화면에서 별표로 가린다(입력값 자체는 유지).
+        etSignupRrn.setTransformationMethod(RRN_BACK_MASK);
+
         // 2. 회원가입 완료 통신
         btnSignupSubmit.setOnClickListener(v -> {
             String nickname = etSignupNickname.getText() != null ? etSignupNickname.getText().toString().trim() : "";
@@ -235,9 +314,10 @@ public class SignupActivity extends AppCompatActivity {
             String pwConfirm = etSignupPwConfirm.getText() != null ? etSignupPwConfirm.getText().toString().trim() : "";
             String name = etSignupName.getText() != null ? etSignupName.getText().toString().trim() : "";
             String phone = etSignupPhone.getText() != null ? etSignupPhone.getText().toString().trim() : "";
+            String rrn = etSignupRrn.getText() != null ? etSignupRrn.getText().toString().trim() : "";
 
             if (nickname.isEmpty() || id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty()
-                    || name.isEmpty() || phone.isEmpty()) {
+                    || name.isEmpty() || phone.isEmpty() || rrn.isEmpty()) {
                 Toast.makeText(this, "모든 정보를 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -261,6 +341,20 @@ public class SignupActivity extends AppCompatActivity {
                 Toast.makeText(this, "전화번호는 010으로 시작하는 11자리로 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
+            // 주민등록번호 형식 + 만 14세 이상 검사
+            int rrnCheck = validateRrn(rrn.replaceAll("[^0-9]", ""));
+            if (rrnCheck != RRN_OK) {
+                String rrnMsg;
+                if (rrnCheck == RRN_TOO_SHORT) {
+                    rrnMsg = "주민등록번호는 13자리 숫자로 입력해주세요.";
+                } else if (rrnCheck == RRN_BAD_FORMAT) {
+                    rrnMsg = "올바른 주민등록번호를 입력해주세요.";
+                } else {
+                    rrnMsg = "만 14세 이상만 가입할 수 있습니다.";
+                }
+                Toast.makeText(this, rrnMsg, Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (!isNicknameChecked) {
                 Toast.makeText(this, "닉네임 중복확인을 먼저 진행해 주세요.", Toast.LENGTH_SHORT).show();
                 return;
@@ -270,8 +364,8 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호
-            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, true);
+            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호, rrn=주민등록번호(XXXXXX-XXXXXXX)
+            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, formatRrn(rrn.replaceAll("[^0-9]", "")), true);
 
             ApiClient.authApi(this).signup(request).enqueue(new Callback<UserDto>() {
                 @Override
@@ -443,5 +537,93 @@ public class SignupActivity extends AppCompatActivity {
             tvPhoneResult.setText("010으로 시작하는 11자리 번호를 입력해주세요.");
             tvPhoneResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
         }
+    }
+
+    // 숫자열을 XXXXXX-XXXXXXX 형식으로 변환한다.
+    private String formatRrn(String digits) {
+        if (digits.length() <= 6) {
+            return digits;
+        }
+        return digits.substring(0, 6) + "-" + digits.substring(6);
+    }
+
+    // 주민등록번호(숫자 13자리)를 검증한다: 자릿수 → 생년월일 유효성 → 만 14세 이상.
+    private int validateRrn(String digits) {
+        if (digits.length() != 13) {
+            return RRN_TOO_SHORT;
+        }
+        java.time.LocalDate birth = parseRrnBirthDate(digits);
+        if (birth == null) {
+            return RRN_BAD_FORMAT;
+        }
+        if (!isAtLeast14(birth)) {
+            return RRN_UNDER_14;
+        }
+        return RRN_OK;
+    }
+
+    /**
+     * 주민등록번호 13자리에서 생년월일을 복원한다.
+     * 앞 6자리(YYMMDD) + 뒷자리 첫 숫자로 출생 세기를 판단한다.
+     * (1·2·5·6→1900년대, 3·4·7·8→2000년대, 9·0→1800년대)
+     * 존재하지 않는 날짜(예: 22월 31일)나 미래 날짜, 알 수 없는 성별자리면 null.
+     */
+    private java.time.LocalDate parseRrnBirthDate(String digits) {
+        int yy = Integer.parseInt(digits.substring(0, 2));
+        int mm = Integer.parseInt(digits.substring(2, 4));
+        int dd = Integer.parseInt(digits.substring(4, 6));
+        char g = digits.charAt(6);
+        int year;
+        switch (g) {
+            case '1': case '2': case '5': case '6':
+                year = 1900 + yy;
+                break;
+            case '3': case '4': case '7': case '8':
+                year = 2000 + yy;
+                break;
+            case '9': case '0':
+                year = 1800 + yy;
+                break;
+            default:
+                return null;
+        }
+        try {
+            java.time.LocalDate birth = java.time.LocalDate.of(year, mm, dd);
+            if (birth.isAfter(java.time.LocalDate.now())) {
+                return null; // 미래 생년월일은 불가.
+            }
+            return birth;
+        } catch (java.time.DateTimeException e) {
+            return null; // 존재하지 않는 월/일.
+        }
+    }
+
+    // 오늘 기준 만 14세 이상인지 판단한다(생일 당일 포함).
+    private boolean isAtLeast14(java.time.LocalDate birth) {
+        return !birth.isAfter(java.time.LocalDate.now().minusYears(14));
+    }
+
+    // 주민등록번호 검증 결과를 아래 안내 문구로 표시한다.
+    private void updateRrnResult(String digits) {
+        if (digits.isEmpty()) {
+            tvRrnResult.setVisibility(View.GONE);
+            return;
+        }
+        tvRrnResult.setVisibility(View.VISIBLE);
+        int result = validateRrn(digits);
+        String message;
+        boolean ok = result == RRN_OK;
+        if (result == RRN_OK) {
+            message = "올바른 형식입니다.";
+        } else if (result == RRN_TOO_SHORT) {
+            message = "13자리 숫자로 입력해주세요.";
+        } else if (result == RRN_BAD_FORMAT) {
+            message = "올바른 주민등록번호가 아닙니다.";
+        } else {
+            message = "만 14세 이상만 가입할 수 있습니다.";
+        }
+        tvRrnResult.setText(message);
+        tvRrnResult.setTextColor(ContextCompat.getColor(this,
+                ok ? android.R.color.holo_green_dark : android.R.color.holo_red_dark));
     }
 }
