@@ -32,6 +32,7 @@ import com.hackmin.app.data.model.payment.PaymentCreateRequest;
 import com.hackmin.app.data.model.payment.PaymentDto;
 import com.hackmin.app.data.model.user.AddressDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.network.SessionManager;
 import com.hackmin.app.util.ImageLoader;
 
 import java.util.ArrayList;
@@ -75,6 +76,9 @@ public class OrderActivity extends AppCompatActivity {
 
         initApi();
         initViews();
+
+        // 계정 구분 없이 저장돼 있던 예전 전역 캐시(배송지·카드)를 제거한다(계정 간 정보 잔존 방지).
+        clearLegacyGlobalCaches();
 
         // 저장된 기본 배송지가 있으면 자동으로 채운다(로컬 먼저 즉시 표시).
         applySavedDefaultAddress();
@@ -309,12 +313,19 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     // 등록 카드는 SharedPreferences에 JSON으로 저장 → 화면 재진입/앱 재시작 후에도 유지.
+    // 계정별로 파일을 분리(prefs 이름에 user_id 부착)해 다른 계정의 카드가 섞이지 않게 한다.
     private static final String PREF_CARDS = "payment_cards";
     private static final String KEY_CARDS = "cards_json";
 
+    /** 현재 로그인 계정 전용 카드 저장소. */
+    private android.content.SharedPreferences cardPrefs() {
+        long uid = SessionManager.getInstance(this).getUserId();
+        return getSharedPreferences(PREF_CARDS + "_" + uid, MODE_PRIVATE);
+    }
+
     /** 저장된 카드 목록을 불러와 화면에 그린다. 없으면 기본 루키즈카드 1장을 생성·저장한다. */
     private void loadCards() {
-        String json = getSharedPreferences(PREF_CARDS, MODE_PRIVATE).getString(KEY_CARDS, null);
+        String json = cardPrefs().getString(KEY_CARDS, null);
         List<CardData> list = null;
         if (json != null) {
             try {
@@ -346,7 +357,7 @@ public class OrderActivity extends AppCompatActivity {
                 list.add((CardData) tag);
             }
         }
-        getSharedPreferences(PREF_CARDS, MODE_PRIVATE).edit()
+        cardPrefs().edit()
                 .putString(KEY_CARDS, new com.google.gson.Gson().toJson(list))
                 .apply();
     }
@@ -708,13 +719,29 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     // 기본 배송지는 로컬(SharedPreferences)에 저장 → 다음 주문서 진입 시 자동 적용.
+    // 계정별로 파일을 분리(prefs 이름에 user_id 부착)해 다른 계정의 배송지가 보이지 않게 한다.
     private static final String PREF_ADDR = "default_address";
     private static final String KEY_ADDR = "address";
     private static final String KEY_ADDR_DETAIL = "address_detail";
 
+    /** 현재 로그인 계정 전용 배송지 저장소. */
+    private android.content.SharedPreferences addrPrefs() {
+        long uid = SessionManager.getInstance(this).getUserId();
+        return getSharedPreferences(PREF_ADDR + "_" + uid, MODE_PRIVATE);
+    }
+
+    /**
+     * 계정별 분리 이전에 쓰던 전역 캐시(배송지·카드)를 비운다.
+     * 예전 버전에서 다른 계정이 남긴 정보가 파일로 잔존하지 않도록 최초 진입 시 한 번 정리한다.
+     */
+    private void clearLegacyGlobalCaches() {
+        getSharedPreferences(PREF_ADDR, MODE_PRIVATE).edit().clear().apply();
+        getSharedPreferences(PREF_CARDS, MODE_PRIVATE).edit().clear().apply();
+    }
+
     /** 기본 배송지를 저장한다. */
     private void saveDefaultAddress(String address, String detail) {
-        getSharedPreferences(PREF_ADDR, MODE_PRIVATE).edit()
+        addrPrefs().edit()
                 .putString(KEY_ADDR, address)
                 .putString(KEY_ADDR_DETAIL, detail)
                 .apply();
@@ -722,7 +749,7 @@ public class OrderActivity extends AppCompatActivity {
 
     /** 저장된 기본 배송지가 있으면 선택값·상단 표시에 반영한다. */
     private void applySavedDefaultAddress() {
-        android.content.SharedPreferences p = getSharedPreferences(PREF_ADDR, MODE_PRIVATE);
+        android.content.SharedPreferences p = addrPrefs();
         String addr = p.getString(KEY_ADDR, "");
         String detail = p.getString(KEY_ADDR_DETAIL, "");
         if (!TextUtils.isEmpty(addr)) {
