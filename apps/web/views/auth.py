@@ -25,16 +25,9 @@ _MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 def _is_valid_rrn(rrn):
-    """13자리 주민등록번호 형식과 체크섬을 검증한다."""
+    """13자리 주민등록번호 형식만 검증한다 (앞 6자리-뒤 7자리)."""
     digits = rrn.replace('-', '')
-    if not digits.isdigit() or len(digits) != 13:
-        return False
-
-    weights = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5]
-    total = sum(int(d) * w for d, w in zip(digits[:12], weights))
-    check_digit = (11 - (total % 11)) % 10
-
-    return check_digit == int(digits[12])
+    return digits.isdigit() and len(digits) == 13
 
 
 def _hash_rrn(rrn):
