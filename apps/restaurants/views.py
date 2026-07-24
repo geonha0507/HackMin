@@ -104,4 +104,7 @@ class RestaurantReviewListView(generics.ListAPIView):
 
     def get_queryset(self):
         from reviews.models import Review
-        return Review.objects.filter(restaurant_id=self.kwargs['pk']).select_related('user')
+        # 점주가 삭제한 리뷰는 고객 화면에 노출하지 않는다.
+        return Review.objects.filter(
+            restaurant_id=self.kwargs['pk'], is_deleted=False,
+        ).select_related('user')

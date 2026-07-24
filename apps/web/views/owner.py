@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.db.models import Count, Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from orders.models import Order
 from restaurants.models import Menu, MenuCategory, Restaurant
@@ -331,3 +332,36 @@ def review_list(request):
         'restaurants': _owned_restaurants(request.user),
         'selected_restaurant_id': selected_restaurant_id,
     })
+
+
+@owner_required
+def review_delete(request, pk):
+    """점주가 본인 매장 리뷰를 사유와 함께 소프트 삭제한다."""
+    owned_ids = _owned_ids(request.user)
+    # 본인 소유 매장의 리뷰만 삭제 가능 (IDOR 차단)
+    review = get_object_or_404(Review, pk=pk, restaurant_id__in=owned_ids)
+
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '').strip()
+        if not reason:
+            messages.error(request, '삭제 사유를 입력하세요.')
+        elif review.is_deleted:
+            messages.info(request, '이미 삭제된 리뷰입니다.')
+        else:
+            review.is_deleted = True
+            review.delete_reason = reason
+            review.deleted_at = timezone.now()
+            review.deleted_by = request.user
+            review.save(update_fields=[
+                'is_deleted', 'delete_reason', 'deleted_at', 'deleted_by', 'updated_at',
+            ])
+            # 삭제된 리뷰는 평점 계산에서 빠지므로 매장 평점을 다시 계산한다.
+            from reviews.views import _recompute_restaurant_rating
+            _recompute_restaurant_rating(review.restaurant)
+            messages.success(request, '리뷰를 삭제했습니다.')
+
+    restaurant_id = request.GET.get('restaurant_id', '')
+    url = reverse('web:owner_reviews')
+    if restaurant_id:
+        url += f'?restaurant_id={restaurant_id}'
+    return redirect(url)

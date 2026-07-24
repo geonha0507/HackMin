@@ -18,7 +18,9 @@ from .serializers import ReviewCreateSerializer, ReviewSerializer
 
 def _recompute_restaurant_rating(restaurant):
     """음식점 평점을 해당 음식점 리뷰의 평균으로 재계산해 저장한다."""
-    avg = Review.objects.filter(restaurant=restaurant).aggregate(a=Avg('rating'))['a']
+    avg = Review.objects.filter(
+        restaurant=restaurant, is_deleted=False,
+    ).aggregate(a=Avg('rating'))['a']
     restaurant.rating = round(avg, 1) if avg is not None else 0.0
     restaurant.save(update_fields=['rating'])
 
@@ -118,4 +120,6 @@ class MyReviewListView(generics.ListAPIView):
     permission_classes = [IsCustomer]
 
     def get_queryset(self):
-        return Review.objects.filter(user=self.request.user).prefetch_related('images')
+        return Review.objects.filter(
+            user=self.request.user, is_deleted=False,
+        ).prefetch_related('images')
