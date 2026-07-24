@@ -95,19 +95,19 @@ def refresh_token(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_duplicate(request):
-    """아이디/닉네임/이메일 중복 검사. ?username= 또는 ?nickname= 또는 ?email= 지원."""
+    """이메일/아이디/닉네임 중복 검사. ?username= 또는 ?email= 또는 ?nickname= 지원."""
     username = request.query_params.get('username')
-    nickname = request.query_params.get('nickname')
     email = request.query_params.get('email')
-    if not username and not nickname and not email:
-        return error_response('bad_request', 'username, nickname 또는 email 파라미터가 필요합니다.', 400)
+    nickname = request.query_params.get('nickname')
+    if not username and not email and not nickname:
+        return error_response('bad_request', 'username, email 또는 nickname 파라미터가 필요합니다.', 400)
     exists = False
     if username:
         exists = User.objects.filter(username=username).exists()
-    elif nickname:
-        exists = User.objects.filter(nickname=nickname).exists()
     elif email:
         exists = User.objects.filter(email=email).exists()
+    elif nickname:
+        exists = User.objects.filter(nickname=nickname).exists()
     return Response({'available': not exists, 'exists': exists})
 
 
