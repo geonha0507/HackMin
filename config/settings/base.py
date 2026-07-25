@@ -10,8 +10,12 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # 이 파일은 config/settings/base.py 이므로 프로젝트 루트는 세 단계 위.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+load_dotenv(BASE_DIR / '.env')
 
 # Make the `apps/` package importable as top-level app labels (e.g. `accounts`).
 sys.path.insert(0, str(BASE_DIR / 'apps'))
@@ -30,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
     # Third-party
     'rest_framework',
@@ -48,12 +53,14 @@ INSTALLED_APPS = [
     'reviews',
     'promotions',
     'chatbot',
+    'inquiries',
     'owner',
     'adminpanel',
     'rider',
     'enrollment',
     'downloads',
     'web',
+    'admin_web',
 ]
 
 # 세션 기반 관리자/점주 웹 로그인 경로
@@ -70,7 +77,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = os.environ.get('DJANGO_ROOT_URLCONF', 'config.urls')
 
 TEMPLATES = [
     {

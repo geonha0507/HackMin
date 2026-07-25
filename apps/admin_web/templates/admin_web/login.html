@@ -1,0 +1,30 @@
+{% extends 'admin_web/base.html' %}
+{% block title %}관리자 로그인{% endblock %}
+{% block bare %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1f2430,#312e81)">
+  <div style="background:#fff;border-radius:16px;padding:38px 34px;width:360px;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div style="font-size:26px;font-weight:800;margin-bottom:4px">Hack<span style="color:#4f46e5">Min</span></div>
+    <div style="color:#6b7280;font-size:13px;margin-bottom:24px">관리자 콘솔</div>
+    {% if messages %}
+      {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+    {% endif %}
+    <form method="post" action="{% url 'admin_web:login' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label>아이디</label>
+        <input name="username" autofocus required>
+      </div>
+      <div class="field">
+        <label>비밀번호</label>
+        <input type="password" name="password" required>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px" type="submit">로그인</button>
+    </form>
+    <div style="margin-top:16px;font-size:12px;color:#9ca3af;text-align:center">
+      관리자 계정으로만 접속할 수 있습니다.
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block content %}{% endblock %}

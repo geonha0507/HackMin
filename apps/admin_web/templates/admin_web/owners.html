@@ -1,0 +1,45 @@
+{% extends 'admin_web/base.html' %}
+{% block title %}점주 관리{% endblock %}
+{% block heading %}점주 관리{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <div style="min-width:220px">
+    <label>검색 (아이디/이메일)</label>
+    <input name="q" value="{{ q }}" placeholder="검색어">
+  </div>
+  <button class="btn btn-primary" type="submit">검색</button>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>아이디</th><th>이메일</th><th>매장</th><th>상태</th><th>승인/정지</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><strong>{{ row.user.username }}</strong><div class="muted" style="font-size:12px">{{ row.user.nickname }}</div></td>
+        <td class="muted">{{ row.user.email|default:'-' }}</td>
+        <td>
+          {% for r in row.restaurants %}
+            <div>{{ r.name }} {% if r.is_open %}<span class="badge b-green">영업</span>{% else %}<span class="badge b-gray">휴무</span>{% endif %}</div>
+            <div class="muted" style="font-size:12px">{{ r.address|default:'주소 없음' }}</div>
+          {% empty %}<span class="muted">매장 없음</span>{% endfor %}
+        </td>
+        <td>{% include 'web/_user_badge.html' with status=row.user.status label=row.user.get_status_display %}</td>
+        <td>
+          <form method="post" action="{% url 'admin_web:admin_owner_status' row.user.pk %}" class="row">{% csrf_token %}
+            <select name="status" style="width:auto">
+              {% for val, lbl in status_choices %}
+                <option value="{{ val }}" {% if val == row.user.status %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm" type="submit">적용</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="muted">점주가 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

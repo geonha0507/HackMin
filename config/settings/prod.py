@@ -21,6 +21,9 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').s
 
 # CORS 화이트리스트. 예: "https://hackmin.com,https://admin.hackmin.com"
 CORS_ALLOW_ALL_ORIGINS = False
+
+# CSRF 신뢰 오리진. 예: "https://hackmin.com,https://admin.hackmin.com"
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_ORIGINS', '').split(',') if o.strip()]
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CORS_ORIGINS', '').split(',') if o.strip()]
 
 # 전송/쿠키 보안 (HTTPS 종단 기준).

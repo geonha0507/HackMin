@@ -1,4 +1,5 @@
 {% extends 'web/base.html' %}
+{% load humanize %}
 {% block title %}주문 상세{% endblock %}
 {% block heading %}주문 상세 · {{ order.order_number }}{% endblock %}
 {% block content %}
@@ -25,17 +26,17 @@
     {% for it in order.items.all %}
       <tr>
         <td>{{ it.menu_name }}{% if it.options %}<div class="muted" style="font-size:12px">{{ it.options }}</div>{% endif %}</td>
-        <td>{{ it.unit_price|floatformat:0 }}원</td>
+        <td>{{ it.unit_price|floatformat:0|intcomma }}원</td>
         <td>{{ it.quantity }}</td>
-        <td class="right">{{ it.line_total|floatformat:0 }}원</td>
+        <td class="right">{{ it.line_total|floatformat:0|intcomma }}원</td>
       </tr>
     {% endfor %}
     </tbody>
     <tfoot>
-      <tr><td colspan="3" class="right muted">상품합계</td><td class="right">{{ order.subtotal|floatformat:0 }}원</td></tr>
-      <tr><td colspan="3" class="right muted">배달비</td><td class="right">{{ order.delivery_fee|floatformat:0 }}원</td></tr>
-      <tr><td colspan="3" class="right muted">할인</td><td class="right">-{{ order.discount|floatformat:0 }}원</td></tr>
-      <tr><td colspan="3" class="right"><strong>총 결제금액</strong></td><td class="right"><strong>{{ order.total|floatformat:0 }}원</strong></td></tr>
+      <tr><td colspan="3" class="right muted">상품합계</td><td class="right">{{ order.subtotal|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right muted">배달비</td><td class="right">{{ order.delivery_fee|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right muted">할인</td><td class="right">-{{ order.discount|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right"><strong>총 결제금액</strong></td><td class="right"><strong>{{ order.total|floatformat:0|intcomma }}원</strong></td></tr>
     </tfoot>
   </table>
 </div>

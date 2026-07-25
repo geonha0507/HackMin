@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.notice.NoticeDto;
 import com.hackmin.app.util.ImageLoader;
+import com.hackmin.app.util.NoticeReadStore;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,10 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
         String date = n.getCreatedAt();
         h.date.setText(date != null && date.length() >= 10 ? date.substring(0, 10) : "");
 
+        // 읽은 공지면 우측 상단에 "읽음" 표시.
+        boolean read = NoticeReadStore.isRead(h.itemView.getContext(), n.getId());
+        h.read.setVisibility(read ? View.VISIBLE : View.GONE);
+
         String image = n.getImage();
         if (image == null || image.trim().isEmpty()) {
             h.image.setVisibility(View.GONE);
@@ -78,7 +83,7 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        final TextView title, preview, date, pinned;
+        final TextView title, preview, date, pinned, read;
         final ImageView image;
 
         VH(@NonNull View v) {
@@ -87,6 +92,7 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
             preview = v.findViewById(R.id.tv_notice_preview);
             date = v.findViewById(R.id.tv_notice_date);
             pinned = v.findViewById(R.id.tv_notice_pinned);
+            read = v.findViewById(R.id.tv_notice_read);
             image = v.findViewById(R.id.iv_notice_image);
         }
     }

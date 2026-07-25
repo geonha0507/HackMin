@@ -16,9 +16,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.cart.CartItemDto;
 import com.hackmin.app.util.CartRules;
+import com.hackmin.app.util.ImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class CartItemAdapter extends RecyclerView.Adapter<CartItemAdapter.CartViewHolder> {
 
@@ -58,6 +60,9 @@ public class CartItemAdapter extends RecyclerView.Adapter<CartItemAdapter.CartVi
 
         holder.tvName.setText(item.getMenuName());
 
+        // 메뉴 이미지 로드(url이 비면 placeholder 표시).
+        ImageLoader.load(holder.imgItem, item.getMenuImage());
+
         // 서버는 옵션 이름 대신 옵션 ID 리스트만 주므로 개수로 표시한다.
         int optionCount = item.getOptions() == null ? 0 : item.getOptions().size();
         if (optionCount > 0) {
@@ -67,7 +72,7 @@ public class CartItemAdapter extends RecyclerView.Adapter<CartItemAdapter.CartVi
             holder.tvOption.setVisibility(View.GONE);
         }
 
-        holder.tvPrice.setText(item.getLineTotal() + "원");
+        holder.tvPrice.setText(String.format(Locale.KOREA, "%,d원", item.getLineTotal()));
         holder.tvQuantity.setText(String.valueOf(item.getQuantity()));
 
         holder.btnIncrease.setOnClickListener(v -> {

@@ -1,6 +1,8 @@
 """세션 기반 로그인/로그아웃 및 점주 회원가입 웹 화면."""
-
+import hashlib
 import os
+
+from accounts.crypto_utils import encrypt_aes128
 from enrollment.models import EnrollmentRequest
 
 from django.contrib import messages
@@ -22,23 +24,34 @@ _ALLOWED_LICENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 _MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def _home_for(user):
-    if user.role == User.Role.ADMIN:
-        return redirect('web:admin_dashboard')
+def _is_valid_rrn(rrn):
+    """13자리 주민등록번호 형식만 검증한다 (앞 6자리-뒤 7자리)."""
+    digits = rrn.replace('-', '')
+    return digits.isdigit() and len(digits) == 13
 
+
+def _hash_rrn(rrn):
+    """중복 확인 전용 해시. 단방향이라 이 값만으로는 원본 복원이 불가능하다."""
+    digits = rrn.replace('-', '')
+    return hashlib.sha256(digits.encode()).hexdigest()
+
+
+def _home_for(user):
     if user.role == User.Role.OWNER:
         return redirect('web:owner_dashboard')
 
+    # 관리자 화면은 admin_web 앱(별도 컨테이너/도메인)으로 이동했다.
+    # 이 컨테이너(owner-web)에는 admin 전용 라우트가 없으므로,
+    # 관리자 계정 세션이 여기로 흘러들어와도 로그인 화면으로 되돌린다.
     return redirect('web:login')
 
 
 def login_view(request):
+    # 이 컨테이너(owner-web)는 owner 전용이다. admin 계정 세션이 있어도
+    # 여기엔 admin_dashboard가 없으므로 owner일 때만 바로 홈으로 보낸다.
     if (
         request.user.is_authenticated
-        and request.user.role in (
-            User.Role.ADMIN,
-            User.Role.OWNER,
-        )
+        and request.user.role == User.Role.OWNER
     ):
         return _home_for(request.user)
 
@@ -136,13 +149,10 @@ def login_view(request):
                 '아이디 또는 비밀번호가 올바르지 않습니다.',
             )
 
-        elif user.role not in (
-            User.Role.ADMIN,
-            User.Role.OWNER,
-        ):
+        elif user.role != User.Role.OWNER:
             messages.error(
                 request,
-                '관리자 또는 점주 계정만 로그인할 수 있습니다.',
+                '점주 계정만 로그인할 수 있습니다.',
             )
 
         elif (
@@ -183,7 +193,7 @@ def signup_view(request):
 
     if (
         request.user.is_authenticated
-        and request.user.role in (User.Role.ADMIN, User.Role.OWNER)
+        and request.user.role == User.Role.OWNER
     ):
         return _home_for(request.user)
 
@@ -197,6 +207,7 @@ def signup_view(request):
         'store_postcode': '',
         'store_road_address': '',
         'store_detail_address': '',
+        # rrn은 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
     }
 
     if request.method == 'POST':
@@ -204,6 +215,7 @@ def signup_view(request):
         email = request.POST.get('email', '').strip()
         phone = request.POST.get('phone', '').strip()
         nickname = request.POST.get('nickname', '').strip()
+        rrn = request.POST.get('rrn', '').strip()
 
         store_name = request.POST.get('store_name', '').strip()
         store_phone = request.POST.get('store_phone', '').strip()
@@ -245,6 +257,24 @@ def signup_view(request):
 
         elif not nickname:
             messages.error(request, '점주명을 입력하세요.')
+            error_found = True
+
+        elif not rrn:
+            messages.error(request, '주민등록번호를 입력하세요.')
+            error_found = True
+
+        elif not _is_valid_rrn(rrn):
+            messages.error(
+                request,
+                '주민등록번호 형식이 올바르지 않습니다.',
+            )
+            error_found = True
+
+        elif User.objects.filter(rrn_hash=_hash_rrn(rrn)).exists():
+            messages.error(
+                request,
+                '이미 등록된 주민등록번호입니다.',
+            )
             error_found = True
 
         elif not store_name:
@@ -342,6 +372,9 @@ def signup_view(request):
                         # 비밀번호 인증은 가능하게 두되,
                         # login_view에서 pending 계정을 차단한다.
                         is_active=True,
+
+                        rrn_hash=_hash_rrn(rrn),
+                        rrn_encrypted=encrypt_aes128(rrn),
                     )
 
                     Restaurant.objects.create(

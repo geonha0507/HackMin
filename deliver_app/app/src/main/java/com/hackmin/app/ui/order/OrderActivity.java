@@ -32,6 +32,7 @@ import com.hackmin.app.data.model.payment.PaymentCreateRequest;
 import com.hackmin.app.data.model.payment.PaymentDto;
 import com.hackmin.app.data.model.user.AddressDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.network.SessionManager;
 import com.hackmin.app.util.ImageLoader;
 
 import java.util.ArrayList;
@@ -76,6 +77,14 @@ public class OrderActivity extends AppCompatActivity {
         initApi();
         initViews();
 
+        // 계정 구분 없이 저장돼 있던 예전 전역 캐시(배송지·카드)를 제거한다(계정 간 정보 잔존 방지).
+        clearLegacyGlobalCaches();
+
+        // 저장된 기본 배송지가 있으면 자동으로 채운다(로컬 먼저 즉시 표시).
+        applySavedDefaultAddress();
+        // 서버(마이페이지 배송지 관리)의 기본 배송지도 불러와 반영한다.
+        loadServerDefaultAddress();
+
         btnChangeAddress.setOnClickListener(v -> selectAddress());
         btnPay.setOnClickListener(v -> submitOrder());
 
@@ -103,6 +112,7 @@ public class OrderActivity extends AppCompatActivity {
         btnChangeAddress = findViewById(R.id.btnChangeAddress);
         btnPay = findViewById(R.id.btnPay);
         etRequestMessage = findViewById(R.id.etRequestMessage);
+        setupRequestNote();
         containerOrderItems = findViewById(R.id.containerOrderItems);
         setupPaymentMethods();
     }
@@ -282,6 +292,11 @@ public class OrderActivity extends AppCompatActivity {
         }
     }
 
+    /** 금액을 천 단위 콤마 + "원" 형식으로 변환한다. (예: 108000 → "108,000원") */
+    private String won(int amount) {
+        return String.format(java.util.Locale.KOREA, "%,d원", amount);
+    }
+
     /** 카드번호를 "****  ****  ****  1234" 형태로 마스킹(뒤 4자리만 노출). */
     private String maskCardNumber(String cardNo) {
         String last4 = cardNo.length() >= 4 ? cardNo.substring(cardNo.length() - 4) : cardNo;
@@ -298,12 +313,19 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     // 등록 카드는 SharedPreferences에 JSON으로 저장 → 화면 재진입/앱 재시작 후에도 유지.
+    // 계정별로 파일을 분리(prefs 이름에 user_id 부착)해 다른 계정의 카드가 섞이지 않게 한다.
     private static final String PREF_CARDS = "payment_cards";
     private static final String KEY_CARDS = "cards_json";
 
+    /** 현재 로그인 계정 전용 카드 저장소. */
+    private android.content.SharedPreferences cardPrefs() {
+        long uid = SessionManager.getInstance(this).getUserId();
+        return getSharedPreferences(PREF_CARDS + "_" + uid, MODE_PRIVATE);
+    }
+
     /** 저장된 카드 목록을 불러와 화면에 그린다. 없으면 기본 루키즈카드 1장을 생성·저장한다. */
     private void loadCards() {
-        String json = getSharedPreferences(PREF_CARDS, MODE_PRIVATE).getString(KEY_CARDS, null);
+        String json = cardPrefs().getString(KEY_CARDS, null);
         List<CardData> list = null;
         if (json != null) {
             try {
@@ -335,7 +357,7 @@ public class OrderActivity extends AppCompatActivity {
                 list.add((CardData) tag);
             }
         }
-        getSharedPreferences(PREF_CARDS, MODE_PRIVATE).edit()
+        cardPrefs().edit()
                 .putString(KEY_CARDS, new com.google.gson.Gson().toJson(list))
                 .apply();
     }
@@ -543,7 +565,7 @@ public class OrderActivity extends AppCompatActivity {
 
             ImageLoader.load(iv, item.getMenuImage());
             name.setText(item.getMenuName() + " x" + item.getQuantity());
-            price.setText(item.getLineTotal() + "원");
+            price.setText(won(item.getLineTotal()));
 
             containerOrderItems.addView(row);
         }
@@ -555,11 +577,11 @@ public class OrderActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<CartSummaryDto> call, @NonNull Response<CartSummaryDto> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     CartSummaryDto s = response.body();
-                    tvMenuPrice.setText(s.getSubtotal() + "원");
-                    tvDeliveryFee.setText(s.getDeliveryFee() + "원");
+                    tvMenuPrice.setText(won(s.getSubtotal()));
+                    tvDeliveryFee.setText(won(s.getDeliveryFee()));
                     // 할인 금액이 있으면 -N원 형태로 표시.
-                    tvDiscount.setText(s.getDiscount() > 0 ? "-" + s.getDiscount() + "원" : "0원");
-                    tvTotalPayment.setText(s.getTotal() + "원");
+                    tvDiscount.setText(s.getDiscount() > 0 ? "-" + won(s.getDiscount()) : won(0));
+                    tvTotalPayment.setText(won(s.getTotal()));
                 }
             }
 
@@ -633,13 +655,28 @@ public class OrderActivity extends AppCompatActivity {
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         box.setPadding(pad, pad, pad, 0);
 
+        // 주소는 직접 입력 대신 우편번호 검색으로 채운다(직접 수정 방지).
         EditText etAddr = new EditText(this);
-        etAddr.setHint("주소 (예: 서울시 강남구 테헤란로 123)");
+        etAddr.setHint("주소 (주소 검색으로 선택)");
         etAddr.setText(selectedAddress);
+        etAddr.setFocusable(false);
+        etAddr.setClickable(true);
+
+        Button btnSearchAddress = new Button(this);
+        btnSearchAddress.setText("주소 검색");
+
         EditText etDetail = new EditText(this);
         etDetail.setHint("상세주소 (예: 101동 1001호)");
         etDetail.setText(selectedAddressDetail);
+
+        // 주소 검색 버튼/주소칸 탭 → 다음 우편번호 검색 → 도로명 주소 채움.
+        View.OnClickListener openSearch = v -> com.hackmin.app.util.PostcodeSearch.show(this,
+                (zonecode, address) -> etAddr.setText(address));
+        btnSearchAddress.setOnClickListener(openSearch);
+        etAddr.setOnClickListener(openSearch);
+
         box.addView(etAddr);
+        box.addView(btnSearchAddress);
         box.addView(etDetail);
 
         new AlertDialog.Builder(this)
@@ -648,14 +685,164 @@ public class OrderActivity extends AppCompatActivity {
                 .setPositiveButton("확인", (d, w) -> {
                     selectedAddress = etAddr.getText().toString().trim();
                     selectedAddressDetail = etDetail.getText().toString().trim();
-                    if (TextUtils.isEmpty(selectedAddress)) {
-                        tvSelectedAddress.setText("배송지를 선택해주세요");
-                    } else {
-                        tvSelectedAddress.setText(
-                                selectedAddress
-                                        + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+                    updateAddressDisplay();
+                    // 주소가 입력되면 기본 주소로 저장할지 확인한다.
+                    if (!TextUtils.isEmpty(selectedAddress)) {
+                        confirmSetDefaultAddress();
                     }
                 })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    /** 상단 배송지 표시를 현재 선택값으로 갱신한다. */
+    private void updateAddressDisplay() {
+        if (TextUtils.isEmpty(selectedAddress)) {
+            tvSelectedAddress.setText("배송지를 선택해주세요");
+        } else {
+            tvSelectedAddress.setText(
+                    selectedAddress
+                            + (TextUtils.isEmpty(selectedAddressDetail) ? "" : " " + selectedAddressDetail));
+        }
+    }
+
+    /** "이 주소를 기본 주소로 설정하시겠습니까?" — 예 선택 시 로컬에 저장(다음 진입 시 자동 적용). */
+    private void confirmSetDefaultAddress() {
+        new AlertDialog.Builder(this)
+                .setMessage("이 주소를 기본 주소로 설정하시겠습니까?")
+                .setPositiveButton("예", (d, w) -> {
+                    saveDefaultAddress(selectedAddress, selectedAddressDetail);
+                    Toast.makeText(this, "기본 주소로 설정되었습니다.", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("아니오", null)
+                .show();
+    }
+
+    // 기본 배송지는 로컬(SharedPreferences)에 저장 → 다음 주문서 진입 시 자동 적용.
+    // 계정별로 파일을 분리(prefs 이름에 user_id 부착)해 다른 계정의 배송지가 보이지 않게 한다.
+    private static final String PREF_ADDR = "default_address";
+    private static final String KEY_ADDR = "address";
+    private static final String KEY_ADDR_DETAIL = "address_detail";
+
+    /** 현재 로그인 계정 전용 배송지 저장소. */
+    private android.content.SharedPreferences addrPrefs() {
+        long uid = SessionManager.getInstance(this).getUserId();
+        return getSharedPreferences(PREF_ADDR + "_" + uid, MODE_PRIVATE);
+    }
+
+    /**
+     * 계정별 분리 이전에 쓰던 전역 캐시(배송지·카드)를 비운다.
+     * 예전 버전에서 다른 계정이 남긴 정보가 파일로 잔존하지 않도록 최초 진입 시 한 번 정리한다.
+     */
+    private void clearLegacyGlobalCaches() {
+        getSharedPreferences(PREF_ADDR, MODE_PRIVATE).edit().clear().apply();
+        getSharedPreferences(PREF_CARDS, MODE_PRIVATE).edit().clear().apply();
+    }
+
+    /** 기본 배송지를 저장한다. */
+    private void saveDefaultAddress(String address, String detail) {
+        addrPrefs().edit()
+                .putString(KEY_ADDR, address)
+                .putString(KEY_ADDR_DETAIL, detail)
+                .apply();
+    }
+
+    /** 저장된 기본 배송지가 있으면 선택값·상단 표시에 반영한다. */
+    private void applySavedDefaultAddress() {
+        android.content.SharedPreferences p = addrPrefs();
+        String addr = p.getString(KEY_ADDR, "");
+        String detail = p.getString(KEY_ADDR_DETAIL, "");
+        if (!TextUtils.isEmpty(addr)) {
+            selectedAddress = addr;
+            selectedAddressDetail = detail;
+            updateAddressDisplay();
+        }
+    }
+
+    /**
+     * 마이페이지 배송지 관리(서버 /me/addresses)에서 기본 배송지를 불러와 반영한다.
+     * is_default 배송지가 있으면 그걸, 없으면 첫 배송지를 자동 선택한다.
+     */
+    private void loadServerDefaultAddress() {
+        ApiClient.userApi(this).getAddresses().enqueue(new Callback<PagedResponse<AddressDto>>() {
+            @Override
+            public void onResponse(@NonNull Call<PagedResponse<AddressDto>> call,
+                                   @NonNull Response<PagedResponse<AddressDto>> response) {
+                if (!response.isSuccessful() || response.body() == null
+                        || response.body().getResults() == null) {
+                    return;
+                }
+                List<AddressDto> list = response.body().getResults();
+                AddressDto chosen = null;
+                for (AddressDto a : list) {
+                    if (a.isDefault()) {
+                        chosen = a;
+                        break;
+                    }
+                }
+                if (chosen == null && !list.isEmpty()) {
+                    chosen = list.get(0);  // 기본 지정이 없으면 첫 배송지 사용.
+                }
+                if (chosen != null) {
+                    selectedAddress = chosen.getAddress() != null ? chosen.getAddress() : "";
+                    selectedAddressDetail = chosen.getDetail() != null ? chosen.getDetail() : "";
+                    updateAddressDisplay();
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<PagedResponse<AddressDto>> call, @NonNull Throwable t) {
+                // 서버 조회 실패 시 로컬 기본값(applySavedDefaultAddress)이 이미 적용돼 있으므로 무시.
+            }
+        });
+    }
+
+    // 요청사항 프리셋(마지막 "직접 입력"은 사용자가 직접 타이핑).
+    private static final String[] REQUEST_NOTE_OPTIONS = {
+            "문 앞에 놓아주세요",
+            "경비실에 놓아주세요",
+            "벨 누르지 말고 노크해 주세요",
+            "직접 받을게요",
+            "전화주시면 마중 나갈게요",
+            "직접 입력",
+    };
+
+    /** 요청사항 칸을 탭하면 프리셋 선택 다이얼로그가 뜨도록 설정(직접 입력만 타이핑). */
+    private void setupRequestNote() {
+        etRequestMessage.setFocusable(false);
+        etRequestMessage.setClickable(true);
+        etRequestMessage.setOnClickListener(v -> showRequestNoteOptions());
+    }
+
+    /** 요청사항 프리셋 목록을 보여준다. */
+    private void showRequestNoteOptions() {
+        new AlertDialog.Builder(this)
+                .setTitle("요청사항")
+                .setItems(REQUEST_NOTE_OPTIONS, (d, which) -> {
+                    if (which == REQUEST_NOTE_OPTIONS.length - 1) {
+                        showCustomRequestNoteDialog();  // 직접 입력
+                    } else {
+                        etRequestMessage.setText(REQUEST_NOTE_OPTIONS[which]);
+                    }
+                })
+                .show();
+    }
+
+    /** "직접 입력" 선택 시 자유 입력 다이얼로그. */
+    private void showCustomRequestNoteDialog() {
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(pad, pad, pad, 0);
+
+        EditText et = new EditText(this);
+        et.setHint("요청사항을 입력해주세요");
+        et.setText(etRequestMessage.getText().toString());
+        box.addView(et);
+
+        new AlertDialog.Builder(this)
+                .setTitle("직접 입력")
+                .setView(box)
+                .setPositiveButton("확인", (d, w) -> etRequestMessage.setText(et.getText().toString().trim()))
                 .setNegativeButton("취소", null)
                 .show();
     }

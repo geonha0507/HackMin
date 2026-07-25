@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.cart.AddCartItemRequest;
+import com.hackmin.app.data.model.cart.CartSummaryDto;
 import com.hackmin.app.data.model.cart.CartDto;
 import com.hackmin.app.data.model.cart.CartItemDto;
 import com.hackmin.app.data.model.common.PagedResponse;
@@ -60,6 +61,8 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private RecyclerView rvMenus;
     private ProgressBar pbLoading;
     private MenuAdapter adapter;
+    private View cartBar;
+    private android.widget.Button btnCartBar;
 
     private final NumberFormat won = NumberFormat.getNumberInstance(Locale.KOREA);
 
@@ -106,13 +109,50 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         noticesBanner.setVisibility(View.GONE); // 공지가 있을 때만 표시(loadNotices에서 갱신)
 
         adapter = new MenuAdapter(this::onMenuClicked);
+        adapter.setRestaurantName(restaurantName);  // 유의사항 문구용(이후 상세 로드 시 갱신)
         rvMenus.setLayoutManager(new LinearLayoutManager(this));
         rvMenus.setAdapter(adapter);
+
+        // 하단 장바구니 담기 바: 누르면 장바구니로 이동.
+        cartBar = findViewById(R.id.cart_bar);
+        btnCartBar = findViewById(R.id.btn_cart_bar);
+        btnCartBar.setOnClickListener(v -> startActivity(new Intent(this, CartActivity.class)));
 
         loadDetail();
         loadMenus();
         loadReviewAverage();
         loadNotices();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 장바구니에서 수량이 바뀌었을 수 있으니 다시 진입 시 금액 갱신.
+        refreshCartBar();
+    }
+
+    /** 하단 장바구니 바의 금액을 갱신한다. 담긴 게 있으면 "N원 담기"로 표시, 없으면 숨김. */
+    private void refreshCartBar() {
+        ApiClient.cartApi(this).getCartSummary().enqueue(new Callback<CartSummaryDto>() {
+            @Override
+            public void onResponse(Call<CartSummaryDto> call, Response<CartSummaryDto> response) {
+                int total = 0;
+                if (response.isSuccessful() && response.body() != null) {
+                    total = response.body().getTotal();
+                }
+                if (total > 0) {
+                    btnCartBar.setText(won.format(total) + "원 담기");
+                    cartBar.setVisibility(View.VISIBLE);
+                } else {
+                    cartBar.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<CartSummaryDto> call, Throwable t) {
+                // 실패 시 조용히 무시(바 상태 유지).
+            }
+        });
     }
 
     /** 매장 공지사항 유무를 확인해 배너에 최신 공지 제목을 보여준다. 공지가 없으면 배너를 숨긴다. */
@@ -159,6 +199,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     private void bindHeader(RestaurantDetailDto r) {
         detail = r;
         restaurantName = r.getName();
+        adapter.setRestaurantName(restaurantName);  // 유의사항 문구를 실제 매장명으로 갱신
         String cuisine = r.getCuisineType();
         tvCuisine.setText(cuisine == null || cuisine.isEmpty() ? "음식점" : cuisine);
         String addr = r.getAddress();
@@ -263,41 +304,62 @@ public class RestaurantDetailActivity extends AppCompatActivity {
         int pad = dp(20);
         container.setPadding(pad, dp(8), pad, dp(8));
 
-        // ── 수량 스테퍼 ( − [n] + ) ──
+        // ── 수량 스테퍼 (테두리 박스: − [n개] +) ──
         final int[] qty = {1};
-        LinearLayout qtyRow = new LinearLayout(this);
-        qtyRow.setOrientation(LinearLayout.HORIZONTAL);
-        qtyRow.setPadding(0, 0, 0, dp(8));
 
-        TextView qtyLabel = new TextView(this);
-        qtyLabel.setText("수량");
-        qtyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        // 둥근 테두리 배경.
+        android.graphics.drawable.GradientDrawable stepperBg =
+                new android.graphics.drawable.GradientDrawable();
+        stepperBg.setColor(android.graphics.Color.WHITE);
+        stepperBg.setStroke(dp(1), android.graphics.Color.parseColor("#DDDDDD"));
+        stepperBg.setCornerRadius(dp(12));
 
-        Button btnMinus = new Button(this);
+        LinearLayout stepper = new LinearLayout(this);
+        stepper.setOrientation(LinearLayout.HORIZONTAL);
+        stepper.setBackground(stepperBg);
+        stepper.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams stepperLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
+        stepperLp.bottomMargin = dp(8);
+        stepper.setLayoutParams(stepperLp);
+
+        TextView btnMinus = new TextView(this);
         btnMinus.setText("−");
+        btnMinus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        btnMinus.setGravity(android.view.Gravity.CENTER);
+        btnMinus.setLayoutParams(new LinearLayout.LayoutParams(dp(56), LinearLayout.LayoutParams.MATCH_PARENT));
+        btnMinus.setClickable(true);
+        btnMinus.setFocusable(true);
+
         final TextView tvQty = new TextView(this);
-        tvQty.setText("1");
+        tvQty.setText("1개");
         tvQty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        tvQty.setPadding(dp(16), 0, dp(16), 0);
-        Button btnPlus = new Button(this);
+        tvQty.setGravity(android.view.Gravity.CENTER);
+        tvQty.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+
+        TextView btnPlus = new TextView(this);
         btnPlus.setText("+");
+        btnPlus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        btnPlus.setGravity(android.view.Gravity.CENTER);
+        btnPlus.setLayoutParams(new LinearLayout.LayoutParams(dp(56), LinearLayout.LayoutParams.MATCH_PARENT));
+        btnPlus.setClickable(true);
+        btnPlus.setFocusable(true);
 
         btnMinus.setOnClickListener(v -> {
-            if (qty[0] > 1) { qty[0]--; tvQty.setText(String.valueOf(qty[0])); }
+            if (qty[0] > 1) { qty[0]--; tvQty.setText(qty[0] + "개"); }
         });
         btnPlus.setOnClickListener(v -> {
             if (qty[0] >= CartRules.MAX_ITEM_QUANTITY) {
                 Toast.makeText(this, CartRules.MAX_QUANTITY_MESSAGE, Toast.LENGTH_SHORT).show();
                 return;
             }
-            qty[0]++; tvQty.setText(String.valueOf(qty[0]));
+            qty[0]++; tvQty.setText(qty[0] + "개");
         });
 
-        qtyRow.addView(qtyLabel);
-        qtyRow.addView(btnMinus);
-        qtyRow.addView(tvQty);
-        qtyRow.addView(btnPlus);
-        container.addView(qtyRow);
+        stepper.addView(btnMinus);
+        stepper.addView(tvQty);
+        stepper.addView(btnPlus);
+        container.addView(stepper);
 
         // ── 옵션 그룹(있으면) ──
         List<MenuOptionGroupDto> groups = menu.getOptionGroups();
@@ -402,7 +464,9 @@ public class RestaurantDetailActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<CartDto> call, Response<CartDto> response) {
                 if (response.isSuccessful()) {
-                    promptGoToCart();
+                    refreshCartBar();  // 담긴 금액을 하단 바에 반영(별도 안내 다이얼로그 없음).
+                    Toast.makeText(RestaurantDetailActivity.this,
+                            "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show();
                 } else if (response.code() == 409) {
                     // 다른 음식점 메뉴가 담겨 있음 → 비우고 교체할지 확인.
                     promptReplaceCart(menuId, optionIds, quantity);
@@ -453,15 +517,6 @@ public class RestaurantDetailActivity extends AppCompatActivity {
                         "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void promptGoToCart() {
-        new AlertDialog.Builder(this)
-                .setMessage("장바구니에 담았습니다.")
-                .setPositiveButton("장바구니 보기", (d, w) ->
-                        startActivity(new Intent(this, CartActivity.class)))
-                .setNegativeButton("계속 담기", null)
-                .show();
     }
 
     private int dp(int value) {

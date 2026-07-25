@@ -5,6 +5,11 @@
 """
 
 import os
+from enrollment.models import EnrollmentRequest
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 from datetime import date
 
 from django.contrib import messages
@@ -37,6 +42,17 @@ _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 _ALLOWED_LICENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 _MAX_LICENSE_SIZE = 10 * 1024 * 1024  # 10MB
 
+def _is_reviewable_restaurant(restaurant):
+    """이 매장이 정상 운영 가능(승인 완료) 상태인지 확인한다.
+
+    add_restaurant로 만든 매장은 EnrollmentRequest.status로 판단하고,
+    signup_view의 최초 매장은 아직 EnrollmentRequest가 없을 수 있어
+    owner.status로 판단한다.
+    """
+    enrollment = getattr(restaurant, 'enrollment_request', None)
+    if enrollment:
+        return enrollment.status == 'approved'
+    return restaurant.owner.status == User.Status.ACTIVE
 
 def _valid_image(upload):
     extension = os.path.splitext(upload.name)[1].lower()
@@ -118,6 +134,8 @@ def my_restaurant(request):
     if request.method == 'POST':
         if not restaurant:
             messages.error(request, '등록된 매장이 없습니다.')
+        elif not _is_reviewable_restaurant(restaurant):
+            messages.error(request, '심사 대기 또는 반려 중인 매장은 정보를 수정할 수 없습니다.')
         elif pending_edit:
             messages.error(request, '이미 처리 대기 중인 수정 요청이 있습니다.')
         else:
@@ -158,6 +176,12 @@ def my_restaurant(request):
     )
     notices = restaurant.notices.all() if restaurant else []
 
+    enrollment = getattr(restaurant, 'enrollment_request', None) if restaurant else None
+    restaurant_pending_review = bool(enrollment and enrollment.status == 'pending')
+    restaurant_rejected = bool(enrollment and enrollment.status == 'rejected')
+    restaurant_rejection_reason = enrollment.rejection_reason if restaurant_rejected else ''
+    restaurant_reviewable = _is_reviewable_restaurant(restaurant) if restaurant else True
+
     return render(request, 'web/my_restaurant.html', {
         'restaurants': restaurants,
         'restaurant': restaurant, 'pending_edit': pending_edit,
@@ -168,14 +192,19 @@ def my_restaurant(request):
         'weekday_choices': RestaurantRegularClosedDay.Weekday.choices,
         'regular_closed_weekdays': regular_closed_weekdays,
         'notices': notices,
+        'restaurant_pending_review': restaurant_pending_review,
+        'restaurant_rejected': restaurant_rejected,
+        'restaurant_rejection_reason': restaurant_rejection_reason,
+        'restaurant_reviewable': restaurant_reviewable,
     })
 
 
 @owner_required
 def add_restaurant(request):
-    """이미 계정이 있는 점주가 매장을 추가로 등록한다. (회원가입 시 최초 매장 등록과는 별개)"""
+    """이미 계정이 있는 점주가 매장을 추가로 등록한다. 관리자 승인 후 노출된다."""
     if request.method == 'POST':
         proposed = _parse_form(request.POST)
+        proposed['is_open'] = False  # 승인 전에는 강제로 비영업 처리
         image = request.FILES.get('image')
         business_license = request.FILES.get('business_license')
 
@@ -196,7 +225,17 @@ def add_restaurant(request):
             if image:
                 restaurant.image = image
                 restaurant.save(update_fields=['image'])
-            messages.success(request, '매장이 추가되었습니다.')
+
+            EnrollmentRequest.objects.create(
+                restaurant=restaurant,
+                username=request.user.username,
+                phone=(request.user.phone or '')[:20],
+                owner_name=request.user.nickname or request.user.username,
+                restaurant_name=restaurant.name,
+                status='pending',
+            )
+
+            messages.success(request, '매장이 추가되었습니다. 관리자 승인 후 노출됩니다.')
             return _redirect_to_restaurant(restaurant)
         return render(request, 'web/restaurant_add.html', {
             'cuisine_presets': CUISINE_PRESETS,
@@ -220,6 +259,10 @@ def closed_date_add(request):
         return redirect('web:my_restaurant')
 
     restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    if not _is_reviewable_restaurant(restaurant):
+        messages.error(request, '심사 대기 또는 반려 중인 매장은 휴무일을 등록할 수 없습니다.')
+        return _redirect_to_restaurant(restaurant)
+
     raw_date = request.POST.get('date', '').strip()
     try:
         closed_on = date.fromisoformat(raw_date)
@@ -232,7 +275,6 @@ def closed_date_add(request):
         else:
             messages.info(request, '이미 등록된 휴무일입니다.')
     return _redirect_to_restaurant(restaurant)
-
 
 @owner_required
 def closed_date_delete(request, pk):
@@ -252,6 +294,10 @@ def regular_closed_days_update(request):
         return redirect('web:my_restaurant')
 
     restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    if not _is_reviewable_restaurant(restaurant):
+        messages.error(request, '심사 대기 또는 반려 중인 매장은 정기휴무일을 설정할 수 없습니다.')
+        return _redirect_to_restaurant(restaurant)
+
     valid_weekdays = {str(val) for val, _ in RestaurantRegularClosedDay.Weekday.choices}
     selected = sorted({
         int(w) for w in request.POST.getlist('weekday') if w in valid_weekdays
@@ -267,11 +313,15 @@ def regular_closed_days_update(request):
 
 @owner_required
 def restaurant_image_upload(request):
-    """매장 대표 이미지 업로드/교체. 승인 절차 없이 즉시 반영된다."""
+    """매장 대표 이미지 업로드/교체. 승인된 매장만 즉시 반영된다."""
     if request.method != 'POST':
         return redirect('web:my_restaurant')
 
     restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    if not _is_reviewable_restaurant(restaurant):
+        messages.error(request, '심사 대기 또는 반려 중인 매장은 사진을 변경할 수 없습니다.')
+        return _redirect_to_restaurant(restaurant)
+
     image = request.FILES.get('image')
     if not image:
         messages.error(request, '이미지 파일을 선택하세요.')
@@ -291,6 +341,10 @@ def notice_add(request):
         return redirect('web:my_restaurant')
 
     restaurant = get_object_or_404(Restaurant, pk=request.POST.get('rid'), owner=request.user)
+    if not _is_reviewable_restaurant(restaurant):
+        messages.error(request, '심사 대기 또는 반려 중인 매장은 공지사항을 등록할 수 없습니다.')
+        return _redirect_to_restaurant(restaurant)
+
     title = request.POST.get('title', '').strip()
     content = request.POST.get('content', '').strip()
 
@@ -302,7 +356,6 @@ def notice_add(request):
         RestaurantNotice.objects.create(restaurant=restaurant, title=title, content=content)
         messages.success(request, '공지사항을 등록했습니다.')
     return _redirect_to_restaurant(restaurant)
-
 
 @owner_required
 def notice_delete(request, pk):

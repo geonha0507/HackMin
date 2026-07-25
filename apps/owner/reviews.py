@@ -23,10 +23,7 @@ def owner_review_list(request):
 @api_view(['POST'])
 @permission_classes([IsOwner])
 def owner_review_reply(request, pk):
-    """리뷰 답변 작성.
-
-    Secure 모드: 본인 매장 리뷰만 답변.
-    """
+    """리뷰 답변 작성. 본인 매장 리뷰만 답변 가능."""
     review = _review_scope(request).filter(pk=pk).first()
     if not review:
         return error_response('not_found', '리뷰를 찾을 수 없습니다.', 404)

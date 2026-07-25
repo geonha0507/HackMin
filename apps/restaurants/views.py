@@ -14,7 +14,6 @@ from .serializers import (
     MenuListSerializer,
     RestaurantDetailSerializer,
     RestaurantListSerializer,
-    RestaurantNoticeSerializer,
     RestaurantReviewSerializer,
 )
 
@@ -38,7 +37,6 @@ def restaurant_search(request):
     cuisine = request.query_params.get('cuisine', '')
     sort = request.query_params.get('sort', '')
 
-    # SECURE: ORM 파라미터 바인딩.
     queryset = Restaurant.objects.all()
     if q:
         queryset = queryset.filter(
@@ -104,22 +102,16 @@ class MenuDetailView(generics.RetrieveAPIView):
 class RestaurantReviewListView(generics.ListAPIView):
     serializer_class = RestaurantReviewSerializer
     permission_classes = [AllowAny]
-
+   
+  
     def get_queryset(self):
         from reviews.models import Review
+        # 점주가 삭제한 리뷰는 고객 화면에 노출하지 않는다.
         return (
-            Review.objects.filter(restaurant_id=self.kwargs['pk'])
+            Review.objects.filter(restaurant_id=self.kwargs['pk'], is_deleted=False)
             .select_related('user', 'reply')
             .prefetch_related('images')
         )
 
 
-class RestaurantNoticeListView(generics.ListAPIView):
-    """매장이 고객에게 보내는 공지사항 (관리자 전체 공지 Notice 와는 별개)."""
 
-    serializer_class = RestaurantNoticeSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        from .models import RestaurantNotice
-        return RestaurantNotice.objects.filter(restaurant_id=self.kwargs['pk'])

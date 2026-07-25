@@ -78,24 +78,9 @@
     <aside class="sidebar">
       <div class="brand">Hack<span>Min</span></div>
       <div class="role">
-        {% if request.user.role == 'admin' %}관리자 콘솔{% else %}점주 센터{% endif %}
+        점주 센터
       </div>
       <nav class="nav">
-        {% if request.user.role == 'admin' %}
-          <a href="{% url 'web:admin_dashboard' %}" class="{% if url_name == 'admin_dashboard' %}active{% endif %}">대시보드</a>
-          <div class="sec">회원 관리</div>
-          <a href="{% url 'web:admin_users' %}" class="{% if url_name == 'admin_users' or url_name == 'admin_user_detail' %}active{% endif %}">회원 목록</a>
-          <a href="{% url 'web:admin_owners' %}" class="{% if url_name == 'admin_owners' %}active{% endif %}">점주 관리</a>
-          <a href="{% url 'web:admin_store' %}" class="{% if url_name == 'admin_store' or url_name == 'admin_store_decide' %}active{% endif %}">입점 관리</a>
-          <a href="{% url 'web:admin_withdrawals' %}" class="{% if url_name == 'admin_withdrawals' %}active{% endif %}">탈퇴 요청</a>
-          <div class="sec">매장</div>
-          <a href="{% url 'web:admin_restaurant_edits' %}" class="{% if url_name == 'admin_restaurant_edits' %}active{% endif %}">매장 수정 요청</a>
-          <div class="sec">거래</div>
-          <a href="{% url 'web:admin_orders' %}" class="{% if url_name == 'admin_orders' %}active{% endif %}">주문 조회</a>
-          <a href="{% url 'web:admin_payments' %}" class="{% if url_name == 'admin_payments' %}active{% endif %}">결제 조회</a>
-          <div class="sec">마이페이지</div>
-          <a href="{% url 'web:mypage' %}" class="{% if url_name == 'mypage' %}active{% endif %}">내 정보 변경</a>
-        {% else %}
           <a href="{% url 'web:owner_dashboard' %}" class="{% if url_name == 'owner_dashboard' %}active{% endif %}">대시보드</a>
           <div class="sec">주문</div>
           <a href="{% url 'web:owner_orders' %}" class="{% if url_name == 'owner_orders' or url_name == 'owner_order_detail' %}active{% endif %}">주문 관리</a>
@@ -108,7 +93,6 @@
           <div class="sec">마이페이지</div>
           <a href="{% url 'web:mypage' %}" class="{% if url_name == 'mypage' %}active{% endif %}">내 정보 변경</a>
           <a href="{% url 'web:my_restaurant' %}" class="{% if url_name == 'my_restaurant' %}active{% endif %}">내 매장 관리</a>
-        {% endif %}
       </nav>
       <div class="foot">
         <div>{{ request.user.nickname|default:request.user.username }}</div>

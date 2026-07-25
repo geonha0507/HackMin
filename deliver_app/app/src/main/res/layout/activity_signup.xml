@@ -64,7 +64,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:hint="닉네임"
-                    app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                    app:startIconDrawable="@drawable/ic_person"
                     app:startIconTint="@color/text_secondary"
                     app:boxBackgroundColor="#F8F9FA"
                     app:boxCornerRadiusTopStart="12dp"
@@ -123,7 +123,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:hint="아이디 (이메일)"
-                    app:startIconDrawable="@android:drawable/ic_menu_edit"
+                    app:startIconDrawable="@drawable/ic_mail"
                     app:startIconTint="@color/text_secondary"
                     app:boxBackgroundColor="#F8F9FA"
                     app:boxCornerRadiusTopStart="12dp"
@@ -173,7 +173,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="비밀번호"
-                app:startIconDrawable="@android:drawable/ic_lock_idle_lock"
+                app:startIconDrawable="@drawable/ic_lock"
                 app:startIconTint="@color/text_secondary"
                 app:passwordToggleEnabled="true"
                 app:boxBackgroundColor="#F8F9FA"
@@ -211,7 +211,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="비밀번호 확인"
-                app:startIconDrawable="@android:drawable/ic_lock_idle_lock"
+                app:startIconDrawable="@drawable/ic_lock"
                 app:startIconTint="@color/text_secondary"
                 app:passwordToggleEnabled="true"
                 app:boxBackgroundColor="#F8F9FA"
@@ -235,6 +235,107 @@
             <!-- 비밀번호 일치 여부 -->
             <TextView
                 android:id="@+id/tv_pw_confirm_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+
+            <!-- 이름 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="이름"
+                app:startIconDrawable="@drawable/ic_badge"
+                app:startIconTint="@color/text_secondary"
+                app:boxBackgroundColor="#F8F9FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeWidth="0dp"
+                app:boxStrokeWidthFocused="1dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_signup_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName"
+                    android:textColor="@color/text_primary"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 전화번호 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="전화번호"
+                app:startIconDrawable="@drawable/ic_call"
+                app:startIconTint="@color/text_secondary"
+                app:boxBackgroundColor="#F8F9FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeWidth="0dp"
+                app:boxStrokeWidthFocused="1dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_signup_phone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone"
+                    android:textColor="@color/text_primary"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 전화번호 형식 안내 -->
+            <TextView
+                android:id="@+id/tv_phone_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:layout_marginStart="4dp"
+                android:visibility="gone"/>
+
+            <!-- 주민등록번호 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="주민등록번호"
+                app:startIconDrawable="@drawable/ic_lock"
+                app:startIconTint="@color/text_secondary"
+                app:boxBackgroundColor="#F8F9FA"
+                app:boxCornerRadiusTopStart="12dp"
+                app:boxCornerRadiusTopEnd="12dp"
+                app:boxCornerRadiusBottomStart="12dp"
+                app:boxCornerRadiusBottomEnd="12dp"
+                app:boxStrokeWidth="0dp"
+                app:boxStrokeWidthFocused="1dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_signup_rrn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:digits="0123456789-"
+                    android:maxLength="14"
+                    android:textColor="@color/text_primary"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 주민등록번호 형식 안내 -->
+            <TextView
+                android:id="@+id/tv_rrn_result"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text=""

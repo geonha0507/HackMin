@@ -25,17 +25,24 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
+      # 챗봇 (OpenRouter → GPT-4o-mini)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin-web/, /admin/ 은 404).
+      DJANGO_ROOT_URLCONF: config.urls_api
       # 이 컨테이너만 migrate/seed 를 실행한다.
       RUN_MIGRATIONS: "1"
       SEED_DEMO: ${SEED_DEMO:-1}
 
   # ---------------------------------------------------------------------------
-  # 관리자/점주 웹 (/web). 같은 이미지·같은 DB 를 공유하며, DB 스키마가
-  # 준비될 때까지 대기했다가 기동한다.
+  # 점주(owner) 웹 (/web). 같은 이미지·같은 DB 를 공유하며, DB 스키마가
+  # 준비될 때까지 대기했다가 기동한다. 관리자 화면은 admin-web 서비스로 분리됨.
   # ---------------------------------------------------------------------------
   web:
     build: .
@@ -61,11 +68,57 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
+      # 이 컨테이너는 /web/ 만 응답한다 (/api/v1/, /admin-web/, /admin/ 은 404).
+      DJANGO_ROOT_URLCONF: config.urls_web
       # web 은 마이그레이션/시드를 하지 않고 api 가 만든 스키마를 기다린다.
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
+
+  # ---------------------------------------------------------------------------
+  # 관리자 웹 (/admin-web/, Django 기본 /admin/). 로컬 개발 시에는 localhost로
+  # 바로 확인 가능하도록 모든 인터페이스에 바인딩하지만, EC2에서는 반드시
+  # "127.0.0.1:8002:8000" 로 바꿔서 외부에서 직접 접근 불가능하게 하고,
+  # nginx가 /admin-web/ location에서 IP 제한을 건 뒤 localhost:8002로만 proxy_pass한다.
+  # ---------------------------------------------------------------------------
+  admin-web:
+    build: .
+    image: hackmin-app
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+      - db_data:/data
+    ports:
+      - "8002:8000"   # ← EC2 배포 시 "127.0.0.1:8002:8000" 로 변경할 것
+    environment:
+      DB_ENGINE: ${DB_ENGINE:-sqlite}
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DB_NAME: ${DB_NAME:-hackmin}
+      DB_USER: ${DB_USER:-hackmin}
+      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_SSL_CA: ${DB_SSL_CA:-}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
+      HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
+      # CSRF/SSL
+      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_SSL_REDIRECT: "0"
+      USE_S3: ${USE_S3:-0}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
+      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
+      # 이 컨테이너는 /admin-web/, /admin/ 만 응답한다 (나머지는 404).
+      DJANGO_ROOT_URLCONF: config.urls_admin
       RUN_MIGRATIONS: "0"
       SEED_DEMO: "0"
 

@@ -5,7 +5,7 @@
 
 <div class="panel">
   <h2>새 매장 등록</h2>
-  <p class="muted" style="margin:0 0 14px">추가하는 매장은 즉시 등록되며, 매장 관리 화면 상단의 목록에서 전환할 수 있습니다.</p>
+  <p class="muted" style="margin:0 0 14px">추가하는 매장은 관리자 승인 후 노출됩니다. 매장 관리 화면 상단의 목록에서 전환할 수 있습니다.</p>
   <form method="post" action="{% url 'web:restaurant_add' %}" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="field">
@@ -92,7 +92,7 @@
     </div>
     <div class="field">
       <label style="display:inline-flex;align-items:center;gap:6px">
-        <input type="checkbox" name="is_open" style="width:auto" {% if not form or form.is_open %}checked{% endif %}>
+        <input type="checkbox" name="is_open" style="width:auto">
         영업중
       </label>
     </div>

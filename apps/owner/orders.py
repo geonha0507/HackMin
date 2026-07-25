@@ -12,7 +12,7 @@ from payments.serializers import PaymentSerializer, RefundSerializer
 
 
 def _order_scope(request):
-    """본인 매장 주문만 조회한다."""
+    """본인 매장 주문만 조회."""
     return Order.objects.filter(restaurant__owner=request.user)
 
 
@@ -65,10 +65,7 @@ def reject_order(request, pk):
 @api_view(['PUT'])
 @permission_classes([IsOwner])
 def update_order_status(request, pk):
-    """조리 시작/완료·배달 요청 등 상태 변경.
-
-    Secure 모드: 본인 매장 + 허용된 상태값만.
-    """
+    """조리 시작/완료·배달 요청 등 상태 변경. 본인 매장 + 허용된 상태값만."""
     new_status = request.data.get('status')
     if new_status not in Order.Status.values:
         return error_response('bad_request', '유효하지 않은 상태입니다.', 400)
@@ -118,10 +115,7 @@ def owner_payment_cancel(request, pk):
 @api_view(['POST'])
 @permission_classes([IsOwner])
 def owner_payment_refund(request, pk):
-    """전체/부분 환불.
-
-    Secure 모드: 본인 매장 결제 + 남은 환불 가능 금액 이내.
-    """
+    """전체/부분 환불. 본인 매장 결제 + 남은 환불 가능 금액 이내."""
     payment = _payment_scope(request).filter(pk=pk).first()
     if not payment:
         return error_response('not_found', '결제 내역을 찾을 수 없습니다.', 404)
