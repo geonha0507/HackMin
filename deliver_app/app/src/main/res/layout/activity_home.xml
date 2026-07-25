@@ -91,7 +91,6 @@
         android:id="@+id/til_home_search"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="음식이나 매장 이름을 검색해보세요"
         style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
         app:hintEnabled="false"
         app:startIconDrawable="@android:drawable/ic_menu_search"
@@ -110,6 +109,11 @@
             android:id="@+id/et_home_search"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:hint="오늘은 뭐먹지?"
+            android:textColorHint="@color/text_secondary"
+            android:gravity="center_vertical"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:textColor="@color/text_primary"
@@ -543,6 +547,44 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="고기"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <!-- 야식 -->
+            <LinearLayout
+                android:id="@+id/category_yasik"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFE7C9">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/cat_yasik"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="야식"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="야식"
                     android:textSize="12sp"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="6dp"/>

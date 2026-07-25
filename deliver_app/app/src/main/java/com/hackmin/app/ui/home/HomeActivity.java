@@ -133,6 +133,9 @@ public class HomeActivity extends AppCompatActivity {
         });
         tilHomeSearch.setStartIconOnClickListener(v -> triggerSearch());
 
+        // 검색창 힌트: 진입할 때마다 추천 문구 중 하나를 무작위로 보여준다.
+        setupRandomSearchHint();
+
         setupCategoryListeners();
 
         // 이벤트 배너 (추천메뉴 ~ 추천 맛집 사이, 좌우 스와이프)
@@ -284,17 +287,37 @@ public class HomeActivity extends AppCompatActivity {
         });
     }
 
+    // 검색창에 무작위로 띄울 추천 문구들.
+    private static final String[] SEARCH_HINTS = {
+            "오늘은 뭐먹지?",
+            "치킨 한 마리 어때요?",
+            "매콤한 게 당기는 날",
+            "야식 땡기지 않나요?",
+            "든든한 한 끼 찾아볼까요?",
+            "국물 있는 게 좋을까요?",
+            "달콤한 디저트는 어때요?",
+            "뜨끈한 국밥 한 그릇?",
+            "바삭한 튀김이 필요해",
+            "오늘 저녁 뭐 먹을까요?",
+    };
+
+    /** 진입 시마다 추천 문구 중 하나를 무작위로 골라 검색창 힌트로 표시한다. */
+    private void setupRandomSearchHint() {
+        int i = (int) (Math.random() * SEARCH_HINTS.length);
+        etHomeSearch.setHint(SEARCH_HINTS[i]);
+    }
+
     private void setupCategoryListeners() {
         int[] categoryIds = {
                 R.id.category_chinese, R.id.category_chicken, R.id.category_pizza,
                 R.id.category_cafe, R.id.category_stew, R.id.category_korean,
                 R.id.category_bunsik, R.id.category_japanese, R.id.category_dessert,
-                R.id.category_meat, R.id.category_western
+                R.id.category_meat, R.id.category_yasik, R.id.category_western
         };
         // 백엔드 cuisine_type 검색어와 매칭되는 키워드
-        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식", "일식", "디저트", "고기", "양식"};
+        String[] categoryQueries = {"중식", "치킨", "피자", "카페", "찜", "한식", "분식", "일식", "디저트", "고기", "야식", "양식"};
         // 목록 제목으로 보여줄 라벨(버튼 라벨과 일치). 예: 찜 → "찜, 탕"
-        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식", "일식", "디저트", "고기", "양식"};
+        String[] categoryTitles = {"중식", "치킨", "피자", "카페", "찜, 탕", "한식", "분식", "일식", "디저트", "고기", "야식", "양식"};
 
         for (int i = 0; i < categoryIds.length; i++) {
             final String query = categoryQueries[i];
@@ -324,6 +347,8 @@ public class HomeActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null) {
                             List<RestaurantSummaryDto> results = response.body().getResults();
                             adapter.submit(results);
+                            // 카테고리/검색 전환 시 항상 목록 맨 위부터 보이도록 스크롤을 초기화한다.
+                            rvRestaurants.scrollToPosition(0);
                             showResult(results == null || results.isEmpty());
                             // 앱 실행 초기 1회: 음식점/메뉴 사진을 미리 받아 캐시에 채운다.
                             if (!imagesPrefetched) {
