@@ -176,6 +176,16 @@ REST_FRAMEWORK = {
     ),
     'EXCEPTION_HANDLER': 'common.exceptions.hackmin_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': (),
+    # 페이로드 하이브리드 암호화(듀얼 모드): X-Enc-Key 헤더가 있으면 요청/응답 본문을
+    # 복호화/암호화하고, 없으면 평범한 JSON으로 폴백(비암호화 클라이언트 호환).
+    'DEFAULT_PARSER_CLASSES': (
+        'common.enc.EncryptedJSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'common.enc.EncryptedJSONRenderer',
+    ),
 }
 
 SIMPLE_JWT = {
@@ -184,6 +194,15 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'ROTATE_REFRESH_TOKENS': False,
 }
+
+# --- Payload encryption (hybrid RSA-OAEP + AES-256-GCM) --------------------
+# 앱↔서버 본문 암호화용 서버 개인키(PEM). 우선순위: 환경변수 > dev 파일.
+# 프로덕션에선 반드시 PAYLOAD_PRIVATE_KEY_PEM 환경변수로 주입하고 dev 키는 폐기할 것.
+PAYLOAD_PRIVATE_KEY_PEM = os.environ.get('PAYLOAD_PRIVATE_KEY_PEM', '')
+if not PAYLOAD_PRIVATE_KEY_PEM:
+    _payload_key_file = BASE_DIR / 'keys' / 'payload_private_dev.pem'
+    if _payload_key_file.exists():
+        PAYLOAD_PRIVATE_KEY_PEM = _payload_key_file.read_text()
 
 # CORS 공통값. 오리진 허용 정책(CORS_ALLOW_ALL_ORIGINS 등)은 dev/prod 에서 지정.
 CORS_ALLOW_CREDENTIALS = True
