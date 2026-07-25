@@ -22,7 +22,7 @@ import retrofit2.Response;
 public class EditProfileActivity extends AppCompatActivity {
 
     private TextView tvUsername;
-    private EditText etNickname, etPhone, etEmail;
+    private EditText etNickname, etName, etPhone, etEmail;
     private Button btnSave;
 
     @Override
@@ -32,6 +32,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         tvUsername = findViewById(R.id.tvUsername);
         etNickname = findViewById(R.id.etNickname);
+        etName = findViewById(R.id.etName);
         etPhone = findViewById(R.id.etPhone);
         etEmail = findViewById(R.id.etEmail);
         btnSave = findViewById(R.id.btnSave);
@@ -50,6 +51,7 @@ public class EditProfileActivity extends AppCompatActivity {
                     UserProfileDto me = response.body();
                     tvUsername.setText("아이디: " + me.getUsername());
                     etNickname.setText(me.getNickname());
+                    etName.setText(me.getName());
                     etPhone.setText(me.getPhone());
                     etEmail.setText(me.getEmail());
                 } else {
@@ -68,6 +70,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private void save() {
         String nickname = etNickname.getText().toString().trim();
+        String name = etName.getText().toString().trim();
         String phone = etPhone.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
 
@@ -77,7 +80,7 @@ public class EditProfileActivity extends AppCompatActivity {
         }
 
         btnSave.setEnabled(false);
-        ApiClient.userApi(this).updateMe(new UpdateProfileRequest(email, phone, nickname))
+        ApiClient.userApi(this).updateMe(new UpdateProfileRequest(email, phone, nickname, name))
                 .enqueue(new Callback<UserProfileDto>() {
                     @Override
                     public void onResponse(Call<UserProfileDto> call, Response<UserProfileDto> response) {
