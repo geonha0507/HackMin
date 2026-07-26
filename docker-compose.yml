@@ -24,7 +24,6 @@ services:
       DB_SSL_CA: ${DB_SSL_CA:-}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
       # CSRF/SSL
       DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
       DJANGO_SSL_REDIRECT: "0"
@@ -67,7 +66,6 @@ services:
       DB_SSL_CA: ${DB_SSL_CA:-}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
       # CSRF/SSL
       DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
       DJANGO_SSL_REDIRECT: "0"
@@ -110,7 +108,6 @@ services:
       DB_SSL_CA: ${DB_SSL_CA:-}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      HACKMIN_MODE: ${HACKMIN_MODE:-vulnerable}
       # CSRF/SSL
       DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
       DJANGO_SSL_REDIRECT: "0"
