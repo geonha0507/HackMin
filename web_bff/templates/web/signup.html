@@ -138,12 +138,12 @@
         >
       </div>
       <div class="field">
-        <label for="rrn">주민등록번호</label>
+        <label for="account_number">계좌번호</label>
         <input
-          id="rrn"
-          name="rrn"
-          maxlength="14"
-          placeholder="990101-1234567"
+          id="account_number"
+          name="account_number"
+          maxlength="25"
+          placeholder="숫자만 입력 (하이픈 허용)"
           autocomplete="off"
           required
         >
@@ -152,7 +152,7 @@
           font-size:12px;
           margin-top:5px;
         ">
-          본인 확인용으로만 사용되며 암호화되어 저장됩니다.
+          암호화되어 안전하게 저장됩니다.
         </div>
       </div>
       <div class="field">
@@ -355,7 +355,7 @@ const REQUIRED_FIELDS = [
   { id: 'username', label: '아이디' },
   { id: 'email', label: '이메일' },
   { id: 'nickname', label: '점주명' },
-  { id: 'rrn', label: '주민등록번호' },
+  { id: 'account_number', label: '계좌번호' },
   { id: 'password', label: '비밀번호' },
   { id: 'password_confirm', label: '비밀번호 확인' },
   { id: 'store_name', label: '매장명' },
@@ -406,11 +406,12 @@ async function checkDuplicate(fieldName) {
       `${encodeURIComponent(value)}`;
 
     /*
-     * 같은 Django 프로젝트이므로 상대 주소를 사용한다.
-     * 현재 8001 서버에서도 /api/v1 경로가 연결되어 있다.
+     * web_bff 의 /web/check-duplicate 로 요청하면, 뷰가 백엔드
+     * /api/v1/auth/check-duplicate 로 중계한다. (web_bff 에는 /api/v1
+     * 라우트가 없으므로 브라우저가 직접 부르면 404 가 난다)
      */
     const response = await fetch(
-      `/api/v1/auth/check-duplicate?${query}`,
+      `/web/check-duplicate?${query}`,
       {
         method: 'GET',
         headers: {
