@@ -1,0 +1,107 @@
+# 운영(EC2) 전용 compose. GitHub Actions 가 이 파일을 서버로 전송해 사용한다.
+#
+# 개발용 docker-compose.yml 과의 차이:
+#   - 소스 바인드마운트(.:/app) 없음 → 코드는 이미지에 구운 것만 사용한다.
+#   - build 대신 GHCR 이미지를 pull 한다.
+#   - media 를 named volume 으로 분리해 재배포 시에도 업로드 파일이 남는다.
+#   - admin-web 은 기본적으로 127.0.0.1 에만 바인딩한다 (nginx 경유만 허용).
+#
+# 환경 파일이 두 개로 나뉘어 있다. 섞으면 안 된다:
+#
+#   .env      compose 가 아래 ${...} 를 치환할 때만 쓴다. compose 의 보간
+#             대상이므로 값에 $ 가 들어가면 깨진다. 시크릿을 넣지 말 것.
+#   app.env   컨테이너에 그대로 전달되는 앱 설정/시크릿. env_file 로 읽히며
+#             보간을 거치지 않으므로 $ 가 든 값도 안전하다.
+#
+# 로컬 개발은 계속 docker-compose.yml 을 쓰면 된다.
+
+name: hackmin
+
+# 세 서비스가 공유하는 설정. YAML 앵커로 중복을 없앤다.
+x-app: &app
+  image: ${HACKMIN_IMAGE:?HACKMIN_IMAGE 가 .env 에 설정되어야 합니다}
+  restart: unless-stopped
+  command: python manage.py runserver 0.0.0.0:8000
+  env_file:
+    - app.env
+  # 소스 바인드마운트(.:/app)를 절대 추가하지 말 것. 추가하는 순간 호스트의
+  # Dockerfile / compose / .env / *.pem 이 컨테이너 /app 에 그대로 드러난다.
+  volumes:
+    - db_data:/data          # SQLite 공유 볼륨 (DB_ENGINE=mysql 이면 미사용)
+    - media_data:/app/media  # 사용자 업로드 파일 (USE_S3=1 이면 미사용)
+    # RDS 강제 SSL 을 쓴다면 CA 번들은 이미지에 굽지 말고 읽기 전용으로 마운트하고
+    # app.env 에 DB_SSL_CA=/app/certs/rds-ca.pem 을 설정한다. (호스트에 파일이
+    # 실제로 있어야 한다. 없으면 도커가 디렉터리를 만들어 버려 기동이 깨진다)
+    # - /opt/hackmin/certs/global-bundle.pem:/app/certs/rds-ca.pem:ro
+  # 컨테이너 내부에서 setuid 바이너리로 권한 상승하는 경로를 막는다.
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # API 서버 (/api/v1). 스키마 마이그레이션과 데모 시드를 담당한다.
+  # ---------------------------------------------------------------------------
+  api:
+    <<: *app
+    ports:
+      - "8000:8000"
+    # env_file 로 들어온 값 위에 서비스별 고정값을 덮어쓴다.
+    environment:
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_ROOT_URLCONF: config.urls_api
+      # 이 컨테이너만 migrate/seed 를 실행한다.
+      RUN_MIGRATIONS: "1"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request,sys;
+          sys.exit(0 if urllib.request.urlopen(
+          'http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # 점주(owner) 웹 (/web). api 가 스키마를 만든 뒤 기동한다.
+  # ---------------------------------------------------------------------------
+  web:
+    <<: *app
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    environment:
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_ROOT_URLCONF: config.urls_web
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
+
+  # ---------------------------------------------------------------------------
+  # 관리자 웹 (/admin-web/, Django 기본 /admin/).
+  # 외부에 직접 노출하지 않고 nginx 가 IP 제한을 건 뒤 프록시한다.
+  # 로컬 검증이 필요하면 .env 에서 ADMIN_BIND=0.0.0.0 으로 임시 변경.
+  # ---------------------------------------------------------------------------
+  admin-web:
+    <<: *app
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
+    environment:
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_ROOT_URLCONF: config.urls_admin
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
+
+volumes:
+  db_data:
+  media_data:
