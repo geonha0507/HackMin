@@ -2,10 +2,14 @@ package com.hackmin.app.network;
 
 import android.content.Context;
 
+import okhttp3.Cache;
 import okhttp3.OkHttpClient;
+import okhttp3.Response;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+
+import java.io.File;
 
 import com.hackmin.app.data.api.AdminApi;
 import com.hackmin.app.data.api.AuthApi;
@@ -37,7 +41,12 @@ public final class ApiClient {
 
     private static final String BASE_URL = "http://54.116.95.188/api/v1/";
 
+    // GET 응답을 짧게(초 단위) 캐시해, 마이페이지에서 미리 받아두면 하위 화면 진입 시 즉시 표시된다.
+    // 변경 요청(POST/PUT/DELETE·로그인/로그아웃 등)이 성공하면 캐시를 전부 비워 최신 데이터를 보장한다.
+    private static final int GET_CACHE_SECONDS = 20;
+
     private static Retrofit retrofit;
+    private static Cache httpCache;
 
     private ApiClient() {}
 
@@ -51,23 +60,55 @@ public final class ApiClient {
         return idx > 0 ? BASE_URL.substring(0, idx) : BASE_URL;
     }
 
+    public static Retrofit getRetrofit(AuthInterceptor.TokenProvider tokenProvider) {
+        return getRetrofit(tokenProvider, null);
+    }
+
     public static synchronized Retrofit getRetrofit(
-            AuthInterceptor.TokenProvider tokenProvider
+            AuthInterceptor.TokenProvider tokenProvider, File cacheDir
     ) {
         if (retrofit == null) {
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
-            OkHttpClient client = new OkHttpClient.Builder()
+            OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                    // 변경 요청(비-GET)이 성공하면 캐시 전체 무효화 → 삭제/등록/로그인 후 항상 최신.
+                    .addInterceptor(chain -> {
+                        okhttp3.Request req = chain.request();
+                        Response resp = chain.proceed(req);
+                        if (!"GET".equals(req.method()) && resp.isSuccessful() && httpCache != null) {
+                            try {
+                                httpCache.evictAll();
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        return resp;
+                    })
                     .addInterceptor(new AuthInterceptor(tokenProvider))
                     .addInterceptor(logging)
+                    // GET 응답에 짧은 캐시 허용(서버가 캐시 헤더를 안 줘도 강제로 붙인다).
+                    .addNetworkInterceptor(chain -> {
+                        Response resp = chain.proceed(chain.request());
+                        if ("GET".equals(chain.request().method()) && resp.isSuccessful()) {
+                            return resp.newBuilder()
+                                    .removeHeader("Pragma")
+                                    .removeHeader("Cache-Control")
+                                    .header("Cache-Control", "public, max-age=" + GET_CACHE_SECONDS)
+                                    .build();
+                        }
+                        return resp;
+                    })
                     .connectTimeout(15, TimeUnit.SECONDS)
-                    .readTimeout(15, TimeUnit.SECONDS)
-                    .build();
+                    .readTimeout(15, TimeUnit.SECONDS);
+
+            if (cacheDir != null) {
+                httpCache = new Cache(new File(cacheDir, "http-cache"), 5L * 1024 * 1024); // 5MB
+                builder.cache(httpCache);
+            }
 
             retrofit = new Retrofit.Builder()
                     .baseUrl(BASE_URL)
-                    .client(client)
+                    .client(builder.build())
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
         }
@@ -85,7 +126,7 @@ public final class ApiClient {
     /** 임의의 Retrofit 서비스를 SessionManager 기반으로 생성한다. */
     public static <T> T api(Context context, Class<T> service) {
         SessionManager session = SessionManager.getInstance(context);
-        return getRetrofit(session).create(service);
+        return getRetrofit(session, context.getCacheDir()).create(service);
     }
 
     public static AuthApi authApi(Context context) { return api(context, AuthApi.class); }
