@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import account, orders, products, restaurants, reviews, sales
+from . import account, orders, products, restaurants, reviews, sales, store
 
 app_name = 'owner'
 
@@ -13,7 +13,15 @@ urlpatterns = [
     path('owner/business-license', account.upload_business_license, name='business-license'),
 
     # Restaurants (점주 소유 매장) — web_bff 대시보드용
-    path('owner/restaurants', restaurants.owner_restaurant_list, name='restaurants'),
+    path('owner/restaurants', restaurants.owner_restaurant_list_create, name='restaurants'),
+    path('owner/restaurants/<int:pk>', store.owner_restaurant_detail, name='restaurant-detail'),
+    path('owner/restaurants/<int:pk>/edit-request', store.owner_restaurant_edit_request, name='restaurant-edit-request'),
+    path('owner/restaurants/<int:pk>/image', store.owner_restaurant_image, name='restaurant-image'),
+    path('owner/restaurants/<int:pk>/closed-dates', store.owner_closed_date_create, name='closed-dates'),
+    path('owner/restaurants/<int:pk>/regular-closed-days', store.owner_regular_closed_days, name='regular-closed-days'),
+    path('owner/restaurants/<int:pk>/notices', store.owner_notice_create, name='restaurant-notices'),
+    path('owner/closed-dates/<int:pk>', store.owner_closed_date_delete, name='closed-date-delete'),
+    path('owner/notices/<int:pk>', store.owner_notice_delete, name='restaurant-notice-delete'),
 
     # Products
     path('owner/products', products.product_list_create, name='products'),

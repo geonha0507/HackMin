@@ -29,6 +29,14 @@ web_patterns = ([
     path('me', views.mypage, name='mypage'),
     path('me/password', views.password_change, name='password_change'),
     path('me/withdraw', views.withdraw, name='withdraw'),
+    path('me/restaurant', views.my_restaurant, name='my_restaurant'),
+    path('me/restaurant/add', views.restaurant_add, name='restaurant_add'),
+    path('me/restaurant/image', views.restaurant_image_upload, name='restaurant_image_upload'),
+    path('me/restaurant/closed-dates/add', views.closed_date_add, name='closed_date_add'),
+    path('me/restaurant/closed-dates/<int:pk>/delete', views.closed_date_delete, name='closed_date_delete'),
+    path('me/restaurant/regular-closed-days', views.regular_closed_days_update, name='regular_closed_days_update'),
+    path('me/restaurant/notices/add', views.notice_add, name='notice_add'),
+    path('me/restaurant/notices/<int:pk>/delete', views.notice_delete, name='notice_delete'),
 ], 'web')
 
 

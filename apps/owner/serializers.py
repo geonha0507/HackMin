@@ -3,7 +3,10 @@ import re
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from restaurants.models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant
+from restaurants.models import (
+    Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant,
+    RestaurantClosedDate, RestaurantEditRequest, RestaurantNotice,
+)
 from orders.serializers import OrderSerializer
 from reviews.serializers import ReviewSerializer
 
@@ -222,4 +225,27 @@ class WithdrawalRequestSerializer(serializers.ModelSerializer):
         from accounts.models import WithdrawalRequest as _WR
         model = _WR
         fields = ['id', 'status', 'status_display', 'requested_at', 'processed_at']
+        read_only_fields = fields
+
+
+class ClosedDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantClosedDate
+        fields = ['id', 'date']
+        read_only_fields = fields
+
+
+class RestaurantNoticeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestaurantNotice
+        fields = ['id', 'title', 'content', 'created_at']
+        read_only_fields = fields
+
+
+class EditRequestSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = RestaurantEditRequest
+        fields = ['id', 'changes', 'status', 'status_display', 'requested_at', 'processed_at']
         read_only_fields = fields

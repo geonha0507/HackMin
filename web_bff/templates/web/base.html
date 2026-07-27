@@ -91,8 +91,7 @@
         <a href="{% url 'web:owner_reviews' %}" class="{% if 'review' in url_name %}active{% endif %}">리뷰 관리</a>
         <div class="sec">마이페이지</div>
         <a href="{% url 'web:mypage' %}" class="{% if url_name == 'mypage' %}active{% endif %}">내 정보 변경</a>
-        <div class="sec">아직 이관 전</div>
-        <span class="off">내 매장 관리</span>
+        <a href="{% url 'web:my_restaurant' %}" class="{% if 'restaurant' in url_name or 'closed' in url_name or 'notice' in url_name %}active{% endif %}">내 매장 관리</a>
       </nav>
       <div class="foot">
         <div>{{ request.web_user.nickname|default:request.web_user.username }}</div>

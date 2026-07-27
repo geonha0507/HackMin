@@ -612,3 +612,257 @@ def withdraw(request):
         except ApiError as exc:
             messages.error(request, _field_message(exc, '탈퇴 요청을 처리하지 못했습니다.'))
     return redirect('web:mypage')
+
+
+# ------------------------------------------------------------------ 내 매장 관리
+CUISINE_PRESETS = ['한식', '중식', '양식', '일식', '분식', '치킨', '피자', '햄버거', '카페/디저트', '아시안']
+
+# apps/restaurants/models.py 의 RestaurantRegularClosedDay.Weekday 와 동기화할 것.
+WEEKDAY_CHOICES = [
+    (0, '월요일'), (1, '화요일'), (2, '수요일'), (3, '목요일'),
+    (4, '금요일'), (5, '토요일'), (6, '일요일'),
+]
+
+
+def _parse_store_form(post):
+    """매장 폼을 API 페이로드로 변환한다.
+
+    주소 조립(우편번호+도로명+상세)과 종류 목록 합치기는 화면 사정이라
+    여기서 처리하고, 값 검증(필수·상한)은 서버가 한다.
+    """
+    checked = post.getlist('cuisine_type')
+    custom = [c.strip() for c in post.getlist('custom_cuisine') if c.strip()]
+    cuisines = []
+    for c in checked + custom:
+        if c and c not in cuisines:
+            cuisines.append(c)
+
+    postcode = (post.get('postcode') or '').strip()
+    road = (post.get('road_address') or '').strip()
+    detail = (post.get('detail_address') or '').strip()
+    # 주소 검색을 새로 했으면 세 값을 합치고, 건드리지 않았으면 상세 칸에 남아
+    # 있는 기존 주소 문자열을 그대로 쓴다.
+    address = f'[{postcode}] {road} {detail}'.strip() if (postcode or road) else detail
+
+    return {
+        'name': (post.get('name') or '').strip(),
+        'cuisine_type': ','.join(cuisines),
+        'description': (post.get('description') or '').strip(),
+        'phone': (post.get('phone') or '').strip(),
+        'address': address,
+        'min_order_amount': post.get('min_order_amount') or 0,
+        'delivery_fee': post.get('delivery_fee') or 0,
+        'is_open': 'true' if post.get('is_open') == 'on' else 'false',
+    }
+
+
+def _split_cuisines(cuisine_type):
+    return [c.strip() for c in (cuisine_type or '').split(',') if c.strip()]
+
+
+def _restaurant_redirect(rid):
+    return redirect(f'/web/me/restaurant?rid={rid}' if rid else '/web/me/restaurant')
+
+
+@owner_required
+def my_restaurant(request):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        rid = request.POST.get('rid')
+        try:
+            api.post(f'/owner/restaurants/{rid}/edit-request',
+                     json=_parse_store_form(request.POST))
+            messages.success(request, '매장 정보 수정 요청이 접수되었습니다. 관리자 승인 후 반영됩니다.')
+        except ApiError as exc:
+            # '변경된 내용이 없습니다'는 오류라기보다 안내에 가깝다.
+            if exc.code == 'no_changes':
+                messages.info(request, exc.message)
+            else:
+                messages.error(request, exc.message)
+        return _restaurant_redirect(rid)
+
+    restaurants, detail = [], None
+    try:
+        restaurants = _owned_restaurants(api)
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    rid = request.GET.get('rid')
+    selected = next((r for r in restaurants if str(r['id']) == str(rid)), None)
+    if selected is None and restaurants:
+        selected = restaurants[0]
+
+    if selected:
+        try:
+            detail = api.get(f"/owner/restaurants/{selected['id']}")
+        except ApiError as exc:
+            messages.error(request, exc.message)
+
+    ctx = {
+        'restaurants': restaurants,
+        'restaurant': None,
+        'cuisine_presets': CUISINE_PRESETS,
+        'selected_presets': [],
+        'custom_cuisines': [],
+        'closed_dates': [],
+        'weekday_choices': WEEKDAY_CHOICES,
+        'regular_closed_weekdays': [],
+        'notices': [],
+        'pending_edit': None,
+        'restaurant_pending_review': False,
+        'restaurant_rejected': False,
+        'restaurant_rejection_reason': '',
+        'restaurant_reviewable': True,
+    }
+
+    if detail:
+        restaurant = detail['restaurant']
+        current = _split_cuisines(restaurant.get('cuisine_type'))
+        enrollment_status = detail.get('enrollment_status', '')
+        pending_edit = detail.get('pending_edit')
+        if pending_edit:
+            pending_edit['requested_display'] = _fmt_dt(
+                pending_edit.get('requested_at'), '%Y-%m-%d %H:%M')
+        for n in detail.get('notices', []):
+            n['created_display'] = _fmt_dt(n.get('created_at'), '%Y-%m-%d %H:%M')
+
+        ctx.update({
+            'restaurant': restaurant,
+            'selected_presets': [c for c in current if c in CUISINE_PRESETS],
+            'custom_cuisines': [c for c in current if c not in CUISINE_PRESETS],
+            'closed_dates': detail.get('closed_dates', []),
+            'regular_closed_weekdays': detail.get('regular_closed_days', []),
+            'notices': detail.get('notices', []),
+            'pending_edit': pending_edit,
+            'restaurant_pending_review': enrollment_status == 'pending',
+            'restaurant_rejected': enrollment_status == 'rejected',
+            'restaurant_rejection_reason': detail.get('rejection_reason', ''),
+            'restaurant_reviewable': restaurant.get('is_reviewable', False),
+            'today': date.today().isoformat(),
+        })
+
+    return render(request, 'web/my_restaurant.html', ctx)
+
+
+@owner_required
+def restaurant_add(request):
+    if request.method == 'POST':
+        payload = _parse_store_form(request.POST)
+        files = {}
+        license_file = request.FILES.get('business_license')
+        image = request.FILES.get('image')
+        if license_file:
+            files['business_license'] = (
+                license_file.name, license_file.file, license_file.content_type)
+        if image:
+            files['image'] = (image.name, image.file, image.content_type)
+
+        if not license_file:
+            messages.error(request, '사업자등록증 파일을 첨부하세요.')
+        else:
+            try:
+                # 파일이 섞이므로 JSON 이 아니라 multipart 로 보낸다.
+                created = client_for(request).post(
+                    '/owner/restaurants', data=payload, files=files)
+                messages.success(request, '매장이 추가되었습니다. 관리자 승인 후 노출됩니다.')
+                return _restaurant_redirect(created.get('id'))
+            except ApiError as exc:
+                messages.error(request, exc.message)
+
+        return render(request, 'web/restaurant_add.html', {
+            'cuisine_presets': CUISINE_PRESETS,
+            'selected_presets': request.POST.getlist('cuisine_type'),
+            'custom_cuisines': [c for c in request.POST.getlist('custom_cuisine') if c.strip()],
+            'form': request.POST,
+        })
+
+    return render(request, 'web/restaurant_add.html', {
+        'cuisine_presets': CUISINE_PRESETS,
+        'selected_presets': [],
+        'custom_cuisines': [],
+        'form': {},
+    })
+
+
+def _store_action(request, call, success_message):
+    """내 매장 화면의 하위 액션 공통 처리 (POST 전용, 항상 원래 매장으로 복귀)."""
+    rid = request.POST.get('rid') or request.GET.get('rid')
+    if request.method != 'POST':
+        return _restaurant_redirect(rid)
+    try:
+        call(client_for(request))
+        messages.success(request, success_message)
+    except ApiError as exc:
+        messages.error(request, exc.message)
+    return _restaurant_redirect(rid)
+
+
+@owner_required
+def restaurant_image_upload(request):
+    rid = request.POST.get('rid')
+    image = request.FILES.get('image')
+    if not image:
+        messages.error(request, '이미지 파일을 선택하세요.')
+        return _restaurant_redirect(rid)
+    return _store_action(
+        request,
+        lambda api: api.post(
+            f'/owner/restaurants/{rid}/image',
+            files={'image': (image.name, image.file, image.content_type)},
+        ),
+        '매장 사진을 변경했습니다.',
+    )
+
+
+@owner_required
+def closed_date_add(request):
+    rid = request.POST.get('rid')
+    return _store_action(
+        request,
+        lambda api: api.post(f'/owner/restaurants/{rid}/closed-dates',
+                             json={'date': (request.POST.get('date') or '').strip()}),
+        '휴무일을 등록했습니다.',
+    )
+
+
+@owner_required
+def closed_date_delete(request, pk):
+    return _store_action(
+        request,
+        lambda api: api.delete(f'/owner/closed-dates/{pk}'),
+        '휴무일을 삭제했습니다.',
+    )
+
+
+@owner_required
+def regular_closed_days_update(request):
+    rid = request.POST.get('rid')
+    return _store_action(
+        request,
+        lambda api: api.put(f'/owner/restaurants/{rid}/regular-closed-days',
+                            json={'weekdays': request.POST.getlist('weekday')}),
+        '정기휴무일을 저장했습니다.',
+    )
+
+
+@owner_required
+def notice_add(request):
+    rid = request.POST.get('rid')
+    return _store_action(
+        request,
+        lambda api: api.post(f'/owner/restaurants/{rid}/notices', json={
+            'title': (request.POST.get('title') or '').strip(),
+            'content': (request.POST.get('content') or '').strip(),
+        }),
+        '공지사항을 등록했습니다.',
+    )
+
+
+@owner_required
+def notice_delete(request, pk):
+    return _store_action(
+        request,
+        lambda api: api.delete(f'/owner/notices/{pk}'),
+        '공지사항을 삭제했습니다.',
+    )
