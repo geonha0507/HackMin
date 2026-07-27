@@ -39,7 +39,8 @@ import retrofit2.Response;
  */
 public class EasyPayActivity extends AppCompatActivity {
 
-    public static final String EXTRA_PROVIDER = "provider";  // "kakao" | "naver"
+    public static final String EXTRA_PROVIDER = "provider";      // "kakao" | "naver" | "card"
+    public static final String EXTRA_FORCE_NEW = "force_new";    // true면 등록 폼을 강제로 보여준다
 
     private String provider;
     private LinearLayout root;
@@ -61,8 +62,13 @@ public class EasyPayActivity extends AppCompatActivity {
         scroll.addView(root);
         setContentView(scroll);
 
-        // 등록 여부에 따라 화면을 구성한다.
-        loadState();
+        if (getIntent().getBooleanExtra(EXTRA_FORCE_NEW, false)) {
+            // "새로 등록" → 이미 등록돼 있어도 등록 폼을 보여준다.
+            showRegisterForm();
+        } else {
+            // 등록 여부에 따라 화면을 구성한다(등록돼 있으면 마스킹+삭제 화면).
+            loadState();
+        }
     }
 
     private void loadState() {

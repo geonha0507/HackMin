@@ -355,11 +355,31 @@ public class OrderActivity extends AppCompatActivity {
         refreshCardBorders();
     }
 
-    /** 새 카드를 랜덤 색상으로 추가하고 저장한다(카드 추가 다이얼로그에서 호출). */
-    private void addCardTile(String cardNo) {
-        int[] colors = randomGradientColors();
-        buildCardTile(new CardData(cardNo, colors[0], colors[1]), true);
-        persistCards();
+    /** 카드번호를 서버에 암호화 저장하고, 성공하면 마스킹 타일을 추가한다. */
+    private void registerCardToServer(String cardNo, AlertDialog dialog) {
+        ApiClient.userApi(this).registerPaymentCard(
+                new com.hackmin.app.data.model.user.CardRegisterRequest("card", cardNo))
+                .enqueue(new Callback<com.hackmin.app.data.model.user.PaymentCardDto>() {
+                    @Override
+                    public void onResponse(@NonNull Call<com.hackmin.app.data.model.user.PaymentCardDto> call,
+                                           @NonNull Response<com.hackmin.app.data.model.user.PaymentCardDto> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            int[] colors = randomGradientColors();
+                            buildCardTile(new CardData(response.body().getId(),
+                                    response.body().getCardMasked(), colors[0], colors[1]), true);
+                            Toast.makeText(OrderActivity.this, "카드가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+                            dialog.dismiss();
+                        } else {
+                            Toast.makeText(OrderActivity.this, "카드 등록에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<com.hackmin.app.data.model.user.PaymentCardDto> call,
+                                          @NonNull Throwable t) {
+                        Toast.makeText(OrderActivity.this, "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     /** CardData로 카드 타일을 생성해 화면에 추가한다(cardAdd 앞에 삽입). */
@@ -415,7 +435,7 @@ public class OrderActivity extends AppCompatActivity {
 
         // 카드번호(마스킹) + 카드명
         TextView num = new TextView(this);
-        num.setText(maskCardNumber(data.number));
+        num.setText(data.masked != null ? data.masked : maskCardNumber(data.number));
         num.setTextColor(Color.WHITE);
         num.setTextSize(16);
         card.addView(num);
@@ -449,13 +469,35 @@ public class OrderActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setMessage("카드를 삭제하시겠습니까?")
                 .setPositiveButton("삭제", (d, w) -> {
-                    boolean wasSelected = (card == selectedCardTile);
-                    cardListContainer.removeView(card);
-                    if (wasSelected) {
-                        selectedCardTile = null;
-                        selectFirstCardOrNone();
+                    Object tag = card.getTag();
+                    long id = (tag instanceof CardData) ? ((CardData) tag).serverId : 0L;
+                    Runnable removeTile = () -> {
+                        boolean wasSelected = (card == selectedCardTile);
+                        cardListContainer.removeView(card);
+                        if (wasSelected) {
+                            selectedCardTile = null;
+                            selectFirstCardOrNone();
+                        }
+                    };
+                    if (id > 0) {
+                        ApiClient.userApi(this).deletePaymentCard(id).enqueue(new Callback<Void>() {
+                            @Override
+                            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                                if (response.isSuccessful()) {
+                                    removeTile.run();
+                                } else {
+                                    Toast.makeText(OrderActivity.this, "삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                                Toast.makeText(OrderActivity.this, "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } else {
+                        removeTile.run();
                     }
-                    persistCards();
                 })
                 .setNegativeButton("취소", null)
                 .show();
@@ -523,27 +565,37 @@ public class OrderActivity extends AppCompatActivity {
         return getSharedPreferences(PREF_CARDS + "_" + uid, MODE_PRIVATE);
     }
 
-    /** 저장된 카드 목록을 불러와 화면에 그린다. 없으면 기본 루키즈카드 1장을 생성·저장한다. */
+    /** 서버에서 등록된 카드(provider=card)를 불러와 화면에 그린다. 마이페이지·다른 곳에서 등록/삭제한 것도 그대로 반영된다. */
     private void loadCards() {
-        String json = cardPrefs().getString(KEY_CARDS, null);
-        List<CardData> list = null;
-        if (json != null) {
-            try {
-                list = new com.google.gson.Gson().fromJson(
-                        json, new com.google.gson.reflect.TypeToken<List<CardData>>() {}.getType());
-            } catch (Exception ignored) {
+        ApiClient.userApi(this).getPaymentCards("card").enqueue(
+                new Callback<PagedResponse<com.hackmin.app.data.model.user.PaymentCardDto>>() {
+            @Override
+            public void onResponse(@NonNull Call<PagedResponse<com.hackmin.app.data.model.user.PaymentCardDto>> call,
+                                   @NonNull Response<PagedResponse<com.hackmin.app.data.model.user.PaymentCardDto>> response) {
+                if (!response.isSuccessful() || response.body() == null || response.body().getResults() == null) {
+                    return;
+                }
+                // 기존 카드 타일 제거 후 서버 목록으로 다시 그린다(카드 추가 타일은 유지).
+                for (int i = cardListContainer.getChildCount() - 1; i >= 0; i--) {
+                    View child = cardListContainer.getChildAt(i);
+                    if (child != cardAddTile) {
+                        cardListContainer.removeView(child);
+                    }
+                }
+                boolean first = true;
+                for (com.hackmin.app.data.model.user.PaymentCardDto c : response.body().getResults()) {
+                    int[] colors = randomGradientColors();
+                    buildCardTile(new CardData(c.getId(), c.getCardMasked(), colors[0], colors[1]), first);
+                    first = false;
+                }
             }
-        }
-        if (list == null || list.isEmpty()) {
-            // 최초 실행: 기본 루키즈카드 1장 생성.
-            int[] colors = randomGradientColors();
-            buildCardTile(new CardData("1234", colors[0], colors[1]), true);
-            persistCards();
-            return;
-        }
-        for (int i = 0; i < list.size(); i++) {
-            buildCardTile(list.get(i), i == 0);  // 첫 카드를 선택 상태로.
-        }
+
+            @Override
+            public void onFailure(@NonNull Call<PagedResponse<com.hackmin.app.data.model.user.PaymentCardDto>> call,
+                                  @NonNull Throwable t) {
+                // 서버 미배포/네트워크 실패 → 카드 없음 상태로 둔다.
+            }
+        });
     }
 
     /** 현재 화면의 카드 타일들을 JSON으로 직렬화해 저장한다. */
@@ -564,13 +616,22 @@ public class OrderActivity extends AppCompatActivity {
 
     /** 등록 카드 1장의 저장 데이터. drawable은 런타임 참조라 저장 대상에서 제외(transient). */
     private static class CardData {
-        String number;
+        long serverId;      // 서버 카드 id(삭제에 사용). 0이면 서버와 연동 안 된 임시 타일.
+        String number;      // 로컬 임시용(서버 카드는 전체번호를 모름)
+        String masked;      // 서버가 준 마스킹값(있으면 표시에 사용)
         int color1;
         int color2;
         transient GradientDrawable drawable;
 
         CardData(String number, int color1, int color2) {
             this.number = number;
+            this.color1 = color1;
+            this.color2 = color2;
+        }
+
+        CardData(long serverId, String masked, int color1, int color2) {
+            this.serverId = serverId;
+            this.masked = masked;
             this.color1 = color1;
             this.color2 = color2;
         }
@@ -684,10 +745,8 @@ public class OrderActivity extends AppCompatActivity {
                 Toast.makeText(this, "비밀번호 앞 2자리를 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // 임의번호이므로 별도 검증 없이 즉시 등록 처리 → 카드 타일 추가.
-            addCardTile(cardNo);
-            Toast.makeText(this, "카드가 등록되었습니다.", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
+            // 서버에 카드번호를 AES-256 암호화 저장(성공 시 마스킹 타일 추가).
+            registerCardToServer(cardNo, dialog);
         }));
 
         dialog.show();
