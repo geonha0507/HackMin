@@ -1,3 +1,23 @@
+# ===========================================================================
+# 로컬 개발 + (CI/CD 도입 전) EC2 수동 배포용 compose.
+#
+# 소스 바인드 마운트(`.:/app`)를 제거했다. 이 마운트는 이미지의 /app 을 호스트
+# 폴더로 통째로 덮어쓰기 때문에, Dockerfile 과 .dockerignore 를 아무리 잘
+# 정리해도 호스트의 Dockerfile / docker-compose.yml / docker/ / .env / *.pem /
+# db.sqlite3 가 그대로 컨테이너 /app 에 나타난다. (파일 읽기·RCE 취약점 하나로
+# 인프라 구성과 시크릿이 함께 털린다) 다시 추가하지 말 것.
+#
+# 대신 코드는 이미지에 구운 것만 쓴다. 따라서 소스를 고쳤으면 반드시 재빌드한다:
+#
+#   docker compose up -d --build          # 전체
+#   docker compose up -d --build api      # 특정 서비스만
+#
+# 마이그레이션은 api 컨테이너만 수행한다(RUN_MIGRATIONS=1). api 가 먼저 뜨도록
+# depends_on 이 걸려 있다.
+#
+# CI/CD 를 붙인 뒤에는 운영은 docker-compose.prod.yml + scripts/deploy_remote.sh
+# 로 옮긴다 (GHCR 이미지 pull, app.env 로 시크릿 분리).
+# ===========================================================================
 services:
   # ---------------------------------------------------------------------------
   # API 서버 (/api/v1). 스키마 마이그레이션과 데모 시드를 담당한다.
@@ -7,9 +27,12 @@ services:
     image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
+    # 소스 바인드마운트(.:/app) 금지. 파일 이름을 지정한 볼륨만 붙인다.
     volumes:
-      - .:/app
       - db_data:/data          # SQLite 공유 볼륨 (web 과 동일 DB 파일)
+      - media_data:/app/media  # 사용자 업로드 파일 (USE_S3=1 이면 미사용)
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "8000:8000"
     environment:
@@ -51,8 +74,10 @@ services:
     depends_on:
       - api
     volumes:
-      - .:/app
       - db_data:/data
+      - media_data:/app/media
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "8001:8000"
     environment:
@@ -93,10 +118,14 @@ services:
     depends_on:
       - api
     volumes:
-      - .:/app
       - db_data:/data
+      - media_data:/app/media
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "8002:8000"   # ← EC2 배포 시 "127.0.0.1:8002:8000" 로 변경할 것
+      # 로컬은 0.0.0.0, EC2 는 127.0.0.1 만 열도록 .env 의 ADMIN_BIND 로 제어한다.
+      # (EC2 에서는 nginx 가 /admin-web/ 에 IP 제한을 건 뒤 localhost:8002 로 프록시)
+      - "${ADMIN_BIND:-0.0.0.0}:8002:8000"
     environment:
       DB_ENGINE: ${DB_ENGINE:-sqlite}
       DB_SQLITE_PATH: /data/db.sqlite3
@@ -121,3 +150,4 @@ services:
 
 volumes:
   db_data:
+  media_data:
