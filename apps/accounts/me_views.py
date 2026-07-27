@@ -27,6 +27,52 @@ def _mask_tail(digits, visible=4):
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
+def payment_cards(request):
+    """등록 카드 목록(GET) / 카드 등록(POST). 카드번호는 AES-128 암호화 저장, 표시는 마스킹값."""
+    from payments.models import PaymentCard
+
+    if request.method == 'GET':
+        # provider 쿼리로 필터 가능(card|kakao|naver). 없으면 전체.
+        provider = request.query_params.get('provider')
+        cards = PaymentCard.objects.filter(user=request.user)
+        if provider:
+            cards = cards.filter(provider=provider)
+        return Response({'results': [
+            {'id': c.id, 'provider': c.provider, 'card_masked': c.card_masked} for c in cards
+        ]})
+
+    # POST: 카드 등록 (provider: card|kakao|naver, 기본 card)
+    provider = (request.data.get('provider') or 'card').strip()
+    card_number = (request.data.get('card_number') or '').replace('-', '').replace(' ', '').strip()
+    if not card_number.isdigit() or len(card_number) != 16:
+        return error_response('bad_request', '카드번호가 올바르지 않습니다.', 400)
+    masked = '****-****-****-' + card_number[-4:]
+    card = PaymentCard.objects.create(
+        user=request.user,
+        provider=provider,
+        card_number_encrypted=encrypt_aes128(card_number),
+        card_masked=masked,
+    )
+    return Response(
+        {'id': card.id, 'provider': card.provider, 'card_masked': card.card_masked},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def payment_card_detail(request, pk):
+    """등록 카드 삭제. 본인 카드만 삭제 가능."""
+    from payments.models import PaymentCard
+
+    card = PaymentCard.objects.filter(pk=pk, user=request.user).first()
+    if not card:
+        return error_response('not_found', '카드를 찾을 수 없습니다.', 404)
+    card.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def payment_password(request):
     """
     결제 비밀번호 설정(POST) / 설정 여부 조회(GET)
@@ -78,52 +124,6 @@ def payment_password_verify(request):
     return Response({
         'valid': valid
     })
-
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def payment_cards(request):
-    """등록 카드 목록(GET) / 카드 등록(POST). 카드번호는 AES-128 암호화 저장, 표시는 마스킹값."""
-    from payments.models import PaymentCard
-
-    if request.method == 'GET':
-        # provider 쿼리로 필터 가능(card|kakao|naver). 없으면 전체.
-        provider = request.query_params.get('provider')
-        cards = PaymentCard.objects.filter(user=request.user)
-        if provider:
-            cards = cards.filter(provider=provider)
-        return Response({'results': [
-            {'id': c.id, 'provider': c.provider, 'card_masked': c.card_masked} for c in cards
-        ]})
-
-    # POST: 카드 등록 (provider: card|kakao|naver, 기본 card)
-    provider = (request.data.get('provider') or 'card').strip()
-    card_number = (request.data.get('card_number') or '').replace('-', '').replace(' ', '').strip()
-    if not card_number.isdigit() or len(card_number) != 16:
-        return error_response('bad_request', '카드번호가 올바르지 않습니다.', 400)
-    masked = '****-****-****-' + card_number[-4:]
-    card = PaymentCard.objects.create(
-        user=request.user,
-        provider=provider,
-        card_number_encrypted=encrypt_aes128(card_number),
-        card_masked=masked,
-    )
-    return Response(
-        {'id': card.id, 'provider': card.provider, 'card_masked': card.card_masked},
-        status=status.HTTP_201_CREATED,
-    )
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def payment_card_detail(request, pk):
-    """등록 카드 삭제. 본인 카드만 삭제 가능."""
-    from payments.models import PaymentCard
-
-    card = PaymentCard.objects.filter(pk=pk, user=request.user).first()
-    if not card:
-        return error_response('not_found', '카드를 찾을 수 없습니다.', 404)
-    card.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET', 'POST'])
