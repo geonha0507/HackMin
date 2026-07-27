@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -231,6 +232,36 @@
                         android:textSize="15sp" />
                 </LinearLayout>
             </LinearLayout>
+
+            <!-- 계좌 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="계좌"
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="6dp" />
+
+            <!-- 등록된 계좌는 코드에서 동적으로 추가됨 -->
+            <LinearLayout
+                android:id="@+id/accountListContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <Button
+                android:id="@+id/btnAddAccount"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="계좌 등록"
+                android:textColor="@color/coral_primary"
+                android:textStyle="bold"
+                android:layout_marginTop="4dp"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/coral_primary"
+                app:strokeWidth="1dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
         </LinearLayout>
 
         <!-- 결제 금액 상세 -->

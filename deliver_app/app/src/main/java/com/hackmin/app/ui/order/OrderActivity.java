@@ -55,6 +55,7 @@ public class OrderActivity extends AppCompatActivity {
 
     // 결제수단 카드/간편결제 뷰 + 현재 선택값(card | kakao | naver)
     private LinearLayout cardListContainer;
+    private LinearLayout accountListContainer;
     private View cardAddTile, payKakao, payNaver;
     private View selectedCardTile;
     private String selectedPayment = "card";
@@ -125,11 +126,183 @@ public class OrderActivity extends AppCompatActivity {
         payNaver = findViewById(R.id.payNaver);
 
         cardAddTile.setOnClickListener(v -> showAddCardDialog());
-        payKakao.setOnClickListener(v -> selectPayment("kakao"));
-        payNaver.setOnClickListener(v -> selectPayment("naver"));
+        payKakao.setOnClickListener(v -> openEasyPay("kakao"));
+        payNaver.setOnClickListener(v -> openEasyPay("naver"));
 
         // 저장된 카드 불러오기(없으면 기본 루키즈카드 1장 생성).
         loadCards();
+
+        // 계좌 등록 섹션: 서버(암호화 저장)에서 목록을 불러오고, 등록 버튼을 연결한다.
+        accountListContainer = findViewById(R.id.accountListContainer);
+        findViewById(R.id.btnAddAccount).setOnClickListener(v -> showAddAccountDialog());
+        loadBankAccounts();
+    }
+
+    // ── 계좌 등록/목록/삭제 (서버 AES-256 저장) ──────────────────────
+    private static final String[] ACCOUNT_BANKS = {
+            "국민", "신한", "우리", "하나", "농협", "기업", "카카오뱅크", "토스뱅크", "SC제일", "케이뱅크"
+    };
+
+    /** 서버에서 등록 계좌 목록을 불러와 화면에 표시한다. */
+    private void loadBankAccounts() {
+        ApiClient.userApi(this).getBankAccounts().enqueue(
+                new Callback<PagedResponse<com.hackmin.app.data.model.user.BankAccountDto>>() {
+            @Override
+            public void onResponse(@NonNull Call<PagedResponse<com.hackmin.app.data.model.user.BankAccountDto>> call,
+                                   @NonNull Response<PagedResponse<com.hackmin.app.data.model.user.BankAccountDto>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getResults() != null) {
+                    accountListContainer.removeAllViews();
+                    for (com.hackmin.app.data.model.user.BankAccountDto a : response.body().getResults()) {
+                        buildAccountTile(a.getId(), a.getBank(), a.getAccountMasked());
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<PagedResponse<com.hackmin.app.data.model.user.BankAccountDto>> call,
+                                  @NonNull Throwable t) {
+                // 목록 로드 실패는 조용히 무시(등록은 여전히 가능).
+            }
+        });
+    }
+
+    /** 계좌 등록 다이얼로그. 은행 선택 + 계좌번호(10~14자리) + 비밀번호 앞 2자리. */
+    private void showAddAccountDialog() {
+        float density = getResources().getDisplayMetrics().density;
+        int pad = (int) (20 * density);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad, pad, 0);
+
+        addFieldLabel(box, "은행", density);
+        final android.widget.Spinner spBank = new android.widget.Spinner(this);
+        spBank.setAdapter(new android.widget.ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_dropdown_item, ACCOUNT_BANKS));
+        box.addView(spBank);
+
+        addFieldLabel(box, "계좌번호", density);
+        final android.widget.EditText etAccount = new android.widget.EditText(this);
+        etAccount.setHint("숫자 10~14자리");
+        etAccount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        etAccount.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(14)});
+        box.addView(etAccount);
+
+        addFieldLabel(box, "비밀번호 앞 2자리", density);
+        final android.widget.EditText etPwd = new android.widget.EditText(this);
+        etPwd.setHint("2자리");
+        etPwd.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        etPwd.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(2)});
+        box.addView(etPwd);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("계좌 등록")
+                .setView(box)
+                .setPositiveButton("등록", null)
+                .setNegativeButton("취소", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String bank = (String) spBank.getSelectedItem();
+            String account = etAccount.getText().toString().replaceAll("[^0-9]", "");
+            String pwd = etPwd.getText().toString().trim();
+
+            if (account.length() < 10 || account.length() > 14) {
+                Toast.makeText(this, "계좌번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (pwd.length() != 2) {
+                Toast.makeText(this, "비밀번호 앞 2자리를 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 비밀번호는 저장하지 않는다. 은행+계좌번호만 서버로 보내 암호화 저장.
+            ApiClient.userApi(this).registerBankAccount(
+                    new com.hackmin.app.data.model.user.AccountRegisterRequest(bank, account))
+                    .enqueue(new Callback<com.hackmin.app.data.model.user.BankAccountDto>() {
+                        @Override
+                        public void onResponse(@NonNull Call<com.hackmin.app.data.model.user.BankAccountDto> call,
+                                               @NonNull Response<com.hackmin.app.data.model.user.BankAccountDto> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                com.hackmin.app.data.model.user.BankAccountDto a = response.body();
+                                buildAccountTile(a.getId(), a.getBank(), a.getAccountMasked());
+                                Toast.makeText(OrderActivity.this, "계좌가 등록되었습니다.", Toast.LENGTH_SHORT).show();
+                                dialog.dismiss();
+                            } else {
+                                Toast.makeText(OrderActivity.this, "계좌 등록에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<com.hackmin.app.data.model.user.BankAccountDto> call,
+                                              @NonNull Throwable t) {
+                            Toast.makeText(OrderActivity.this, "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        }));
+
+        dialog.show();
+    }
+
+    /** 등록 계좌 한 줄(은행 + 마스킹 계좌번호 + 삭제 X)을 화면에 추가한다. */
+    private void buildAccountTile(long id, String bank, String masked) {
+        float density = getResources().getDisplayMetrics().density;
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rlp.bottomMargin = (int) (6 * density);
+        row.setLayoutParams(rlp);
+        int rp = (int) (14 * density);
+        row.setPadding(rp, rp, rp, rp);
+        GradientDrawable rbg = new GradientDrawable();
+        rbg.setColor(Color.parseColor("#F8F9FA"));
+        rbg.setCornerRadius(12 * density);
+        row.setBackground(rbg);
+
+        TextView info = new TextView(this);
+        info.setText(bank + "  " + masked);
+        info.setTextColor(getColor(R.color.text_primary));
+        info.setTextSize(14);
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(info);
+
+        TextView btnDelete = new TextView(this);
+        btnDelete.setText("✕");
+        btnDelete.setTextColor(getColor(R.color.text_secondary));
+        btnDelete.setTextSize(16);
+        int xp = (int) (4 * density);
+        btnDelete.setPadding(xp, 0, xp, 0);
+        btnDelete.setOnClickListener(v -> confirmDeleteAccount(id, row));
+        row.addView(btnDelete);
+
+        accountListContainer.addView(row);
+    }
+
+    /** 계좌 삭제 확인 다이얼로그 → 서버에서 삭제. */
+    private void confirmDeleteAccount(long id, View row) {
+        new AlertDialog.Builder(this)
+                .setMessage("계좌를 삭제하시겠습니까?")
+                .setPositiveButton("삭제", (d, w) ->
+                        ApiClient.userApi(this).deleteBankAccount(id).enqueue(new Callback<Void>() {
+                            @Override
+                            public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                                if (response.isSuccessful()) {
+                                    accountListContainer.removeView(row);
+                                } else {
+                                    Toast.makeText(OrderActivity.this, "삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                                Toast.makeText(OrderActivity.this, "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_SHORT).show();
+                            }
+                        }))
+                .setNegativeButton("취소", null)
+                .show();
     }
 
     /** 간편결제(카카오/네이버) 선택 처리 + 안내 토스트. */
@@ -139,11 +312,38 @@ public class OrderActivity extends AppCompatActivity {
         refreshCardBorders();
         payKakao.setSelected("kakao".equals(type));
         payNaver.setSelected("naver".equals(type));
-        if ("kakao".equals(type)) {
-            Toast.makeText(this, "카카오로 선택되었습니다.", Toast.LENGTH_SHORT).show();
-        } else if ("naver".equals(type)) {
-            Toast.makeText(this, "네이버로 선택되었습니다.", Toast.LENGTH_SHORT).show();
-        }
+    }
+
+    /** 카카오/네이버 버튼 → 해당 간편결제를 선택하고 전체화면 등록/관리 화면을 연다. */
+    private void openEasyPay(String provider) {
+        selectPayment(provider);
+        Intent intent = new Intent(this, EasyPayActivity.class);
+        intent.putExtra(EasyPayActivity.EXTRA_PROVIDER, provider);
+        startActivity(intent);
+    }
+
+    /** 결제 비밀번호 6자리를 보안 키패드(랜덤 배치)로 입력받아 서버 검증. 성공 시 onSuccess 실행. */
+    private void promptPaymentPassword(Runnable onSuccess) {
+        com.hackmin.app.ui.common.SecurityKeypadDialog.show(this, selectedPayment, pin ->
+                ApiClient.userApi(this).verifyPaymentPassword(
+                        new com.hackmin.app.data.model.user.PaymentPasswordRequest(pin))
+                        .enqueue(new Callback<com.hackmin.app.data.model.user.PaymentPasswordResponse>() {
+                            @Override
+                            public void onResponse(@NonNull Call<com.hackmin.app.data.model.user.PaymentPasswordResponse> call,
+                                                   @NonNull Response<com.hackmin.app.data.model.user.PaymentPasswordResponse> response) {
+                                if (response.isSuccessful() && response.body() != null && response.body().isValid()) {
+                                    onSuccess.run();
+                                } else {
+                                    Toast.makeText(OrderActivity.this, "결제 비밀번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(@NonNull Call<com.hackmin.app.data.model.user.PaymentPasswordResponse> call,
+                                                  @NonNull Throwable t) {
+                                Toast.makeText(OrderActivity.this, "네트워크 오류 (서버 확인 필요)", Toast.LENGTH_SHORT).show();
+                            }
+                        }));
     }
 
     /** 카드 타일 선택 처리(간편결제 선택 해제). */
@@ -247,7 +447,7 @@ public class OrderActivity extends AppCompatActivity {
     /** 카드 삭제 확인 다이얼로그. */
     private void confirmDeleteCard(View card) {
         new AlertDialog.Builder(this)
-                .setMessage("등록된 카드를 지우겠습니까?")
+                .setMessage("카드를 삭제하시겠습니까?")
                 .setPositiveButton("삭제", (d, w) -> {
                     boolean wasSelected = (card == selectedCardTile);
                     cardListContainer.removeView(card);
@@ -859,6 +1059,16 @@ public class OrderActivity extends AppCompatActivity {
             return;
         }
 
+        // 간편결제(카카오/네이버)는 결제 비밀번호 6자리 검증 후 진행(빌링키 방식). 카드는 기존대로.
+        if ("kakao".equals(selectedPayment) || "naver".equals(selectedPayment)) {
+            promptPaymentPassword(this::proceedSubmitOrder);
+        } else {
+            proceedSubmitOrder();
+        }
+    }
+
+    /** 실제 주문 생성/결제 진행(결제수단 확인 이후 호출). */
+    private void proceedSubmitOrder() {
         submitting = true;
         btnPay.setEnabled(false);
 
