@@ -9,6 +9,7 @@ urlpatterns = [
     path('owner/signup', account.owner_signup, name='signup'),
     path('owner/profile', account.owner_profile, name='profile'),
     path('owner/password', account.owner_password_change, name='password'),
+    path('owner/withdrawal', account.owner_withdrawal, name='withdrawal'),
     path('owner/business-license', account.upload_business_license, name='business-license'),
 
     # Restaurants (점주 소유 매장) — web_bff 대시보드용

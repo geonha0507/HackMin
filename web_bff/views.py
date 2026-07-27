@@ -47,6 +47,24 @@ def _fmt_dt(iso_string, fmt='%m/%d %H:%M'):
         return str(iso_string)[:16]
 
 
+def _field_message(exc, fallback):
+    """DRF 필드 검증 오류를 화면에 띄울 한 줄로 만든다.
+
+    serializer 오류는 {"email": ["올바른 이메일 형식이 아닙니다."]} 형태라
+    ApiError.message 가 비어 있다. 그 경우 첫 필드의 첫 메시지를 꺼낸다.
+    """
+    if exc.message and exc.message != '요청을 처리하지 못했습니다.':
+        return exc.message
+    payload = exc.payload
+    if isinstance(payload, dict):
+        for value in payload.values():
+            if isinstance(value, list) and value:
+                return str(value[0])
+            if isinstance(value, str):
+                return value
+    return fallback
+
+
 def _safe_next(raw):
     """오픈 리다이렉트 방지: 같은 사이트 경로만 허용한다."""
     if raw and raw.startswith('/') and not raw.startswith('//'):
@@ -522,3 +540,75 @@ def review_delete(request, pk):
         except ApiError as exc:
             messages.error(request, exc.message)
     return _reviews_redirect(selected)
+
+
+# ------------------------------------------------------------------ 마이페이지
+@owner_required
+def mypage(request):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        try:
+            # 이메일 형식·중복 검사는 서버(OwnerProfileSerializer)가 한다.
+            api.put('/owner/profile', json={
+                'nickname': (request.POST.get('nickname') or '').strip(),
+                'email': (request.POST.get('email') or '').strip(),
+                'phone': (request.POST.get('phone') or '').strip(),
+            })
+            messages.success(request, '내 정보가 저장되었습니다.')
+            return redirect('web:mypage')
+        except ApiError as exc:
+            messages.error(request, _field_message(exc, '내 정보를 저장하지 못했습니다.'))
+
+    profile, pending_withdrawal = {}, None
+    try:
+        profile = api.get('/owner/profile')
+        pending_withdrawal = api.get('/owner/withdrawal').get('pending')
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    profile['joined_display'] = _fmt_dt(profile.get('date_joined'), '%Y-%m-%d')
+    if pending_withdrawal:
+        pending_withdrawal['requested_display'] = _fmt_dt(
+            pending_withdrawal.get('requested_at'), '%Y-%m-%d %H:%M',
+        )
+
+    return render(request, 'web/mypage.html', {
+        'u': profile,
+        'pending_withdrawal': pending_withdrawal,
+    })
+
+
+@owner_required
+def password_change(request):
+    if request.method == 'POST':
+        new = request.POST.get('new_password') or ''
+        new2 = request.POST.get('new_password2') or ''
+        if new != new2:
+            # 확인란 일치 여부는 화면 관심사라 여기서 본다.
+            messages.error(request, '새 비밀번호와 확인이 일치하지 않습니다.')
+        else:
+            try:
+                api = client_for(request)
+                api.put('/owner/password', json={
+                    'old_password': request.POST.get('old_password') or '',
+                    'new_password': new,
+                })
+                # 비밀번호가 바뀌어도 세션의 JWT 는 그대로 유효하다.
+                # (apps/web 은 update_session_auth_hash 가 필요했지만 여기선 불필요)
+                messages.success(request, '비밀번호가 변경되었습니다.')
+            except ApiError as exc:
+                messages.error(request, _field_message(exc, '비밀번호를 변경하지 못했습니다.'))
+    return redirect('web:mypage')
+
+
+@owner_required
+def withdraw(request):
+    if request.method == 'POST':
+        try:
+            client_for(request).post('/owner/withdrawal',
+                                     json={'password': request.POST.get('password') or ''})
+            messages.success(request, '탈퇴 요청이 접수되었습니다. 관리자 승인 후 처리됩니다.')
+        except ApiError as exc:
+            messages.error(request, _field_message(exc, '탈퇴 요청을 처리하지 못했습니다.'))
+    return redirect('web:mypage')

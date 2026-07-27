@@ -26,6 +26,9 @@ web_patterns = ([
     path('owner/sales/report/<int:pk>', views.sales_report_download, name='owner_sales_report'),
     path('owner/reviews', views.review_list, name='owner_reviews'),
     path('owner/reviews/<int:pk>/delete', views.review_delete, name='owner_review_delete'),
+    path('me', views.mypage, name='mypage'),
+    path('me/password', views.password_change, name='password_change'),
+    path('me/withdraw', views.withdraw, name='withdraw'),
 ], 'web')
 
 

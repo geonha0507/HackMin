@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -33,16 +35,43 @@ class OwnerSignupSerializer(serializers.Serializer):
         return user
 
 
+EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
 class OwnerProfileSerializer(serializers.ModelSerializer):
+    # 마이페이지 화면이 쓰는 표시용 필드. 웹이 ORM 으로 user 객체를 직접 읽던
+    # 시절에는 get_role_display() / date_joined 를 그냥 참조할 수 있었다.
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'nickname', 'email', 'phone', 'role']
-        read_only_fields = ['id', 'username', 'role']
+        fields = ['id', 'username', 'nickname', 'email', 'phone', 'role',
+                  'role_display', 'date_joined']
+        read_only_fields = ['id', 'username', 'role', 'role_display', 'date_joined']
+
+    def validate_email(self, value):
+        # 형식·중복 검사는 apps/web 화면에만 있었다. API 로는 아무 문자열이나
+        # 넣을 수 있었으므로 서버로 옮긴다.
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('이메일을 입력해주세요.')
+        if not EMAIL_RE.fullmatch(value):
+            raise serializers.ValidationError('올바른 이메일 형식이 아닙니다.')
+        dup = User.objects.filter(email__iexact=value)
+        if self.instance:
+            dup = dup.exclude(pk=self.instance.pk)
+        if dup.exists():
+            raise serializers.ValidationError('이미 사용 중인 이메일입니다.')
+        return value
 
 
 class OwnerPasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=4)
+    # apps/web 화면은 8자 이상을 요구했는데 API 는 4자였다. 강한 쪽으로 맞춘다.
+    new_password = serializers.CharField(
+        write_only=True, min_length=8,
+        error_messages={'min_length': '새 비밀번호는 8자 이상이어야 합니다.'},
+    )
 
 
 # 비정상적으로 큰 가격 입력을 막는다. 예전에는 apps/web 화면에서만 검사해서
@@ -184,3 +213,13 @@ class OwnerReviewSerializer(ReviewSerializer):
         if not obj.user:
             return '(탈퇴한 사용자)'
         return obj.user.nickname or obj.user.username
+
+
+class WithdrawalRequestSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        from accounts.models import WithdrawalRequest as _WR
+        model = _WR
+        fields = ['id', 'status', 'status_display', 'requested_at', 'processed_at']
+        read_only_fields = fields
