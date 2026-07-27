@@ -15,6 +15,7 @@ web_patterns = ([
     path('login', views.login_view, name='login'),
     path('logout', views.logout_view, name='logout'),
     path('signup', views.signup_view, name='signup'),
+    path('check-duplicate', views.check_duplicate, name='check_duplicate'),
     path('owner/', views.dashboard, name='owner_dashboard'),
     path('owner/orders', views.order_list, name='owner_orders'),
     path('owner/orders/<int:pk>', views.order_detail, name='owner_order_detail'),

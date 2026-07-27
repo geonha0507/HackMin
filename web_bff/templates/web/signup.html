@@ -406,11 +406,12 @@ async function checkDuplicate(fieldName) {
       `${encodeURIComponent(value)}`;
 
     /*
-     * 같은 Django 프로젝트이므로 상대 주소를 사용한다.
-     * 현재 8001 서버에서도 /api/v1 경로가 연결되어 있다.
+     * web_bff 의 /web/check-duplicate 로 요청하면, 뷰가 백엔드
+     * /api/v1/auth/check-duplicate 로 중계한다. (web_bff 에는 /api/v1
+     * 라우트가 없으므로 브라우저가 직접 부르면 404 가 난다)
      */
     const response = await fetch(
-      `/api/v1/auth/check-duplicate?${query}`,
+      `/web/check-duplicate?${query}`,
       {
         method: 'GET',
         headers: {
