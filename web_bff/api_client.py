@@ -116,6 +116,25 @@ class ApiClient:
             return {}
         return resp.json()
 
+    def raw(self, method, path, *, params=None, _retried=False):
+        """JSON 파싱 없이 httpx 응답 객체를 그대로 돌려준다.
+
+        파일 다운로드 중계에 쓴다. 브라우저는 JWT 를 갖고 있지 않으므로
+        API 의 다운로드 URL 을 직접 열 수 없다. web_bff 가 대신 받아서
+        스트림을 그대로 넘겨준다.
+        """
+        try:
+            resp = _client.request(method, path, params=params, headers=self._headers())
+        except httpx.HTTPError as exc:
+            logger.warning('API 다운로드 실패 %s %s: %s', method, path, exc)
+            raise ApiError(503, 'api_unreachable', '백엔드 API에 연결하지 못했습니다.') from exc
+
+        if resp.status_code == 401 and not _retried and self._try_refresh():
+            return self.raw(method, path, params=params, _retried=True)
+        if resp.status_code >= 400:
+            raise _parse_error(resp)
+        return resp
+
     def get(self, path, **kw):
         return self.request('GET', path, **kw)
 

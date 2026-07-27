@@ -1,0 +1,87 @@
+{# apps/web/templates/web/owner/sales.html 기반. 바뀐 부분:                     #}
+{#   r.pk                  → r.id                                             #}
+{#   d.created_at__date    → d.date        (API 응답 키)                       #}
+{#   d.amount              → d.sales                                          #}
+{#   m.items__menu_name    → m.menu_name                                      #}
+{#   m.qty / m.amount      → m.quantity / m.sales                             #}
+{#   /api/v1/downloads/... 직접 링크 → web_bff 중계 (브라우저에 JWT 가 없다)     #}
+{% extends 'web/base.html' %}
+{% load humanize %}
+{% block title %}매출 분석{% endblock %}
+{% block heading %}매출 분석{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <div>
+    <label>매장</label>
+    <select name="restaurant_id" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for r in restaurants %}
+        <option value="{{ r.id }}" {% if selected_restaurant_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div><label>시작일</label><input type="date" name="start" value="{{ start }}"></div>
+  <div><label>종료일</label><input type="date" name="end" value="{{ end }}"></div>
+  <button class="btn btn-primary" type="submit">조회</button>
+</form>
+
+<div class="cards">
+  <div class="card"><div class="label">기간 매출</div><div class="value">{{ total_sales|floatformat:0|intcomma }}원</div></div>
+  <div class="card"><div class="label">주문 수</div><div class="value">{{ order_count }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>매출 보고서 다운로드</h2>
+  <p class="muted">매장별 전체 누적 매출 기준 보고서입니다. (조회 중인 기간과는 별개로 집계됩니다)</p>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">
+    {% for r in restaurants %}
+      <a class="btn" href="{% url 'web:owner_sales_report' r.id %}">
+        {{ r.name }} 보고서 다운로드
+      </a>
+    {% empty %}
+      <p class="muted">등록된 매장이 없습니다.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>일별 매출</h2>
+  {% if daily %}
+  <table>
+    <thead><tr><th style="width:110px">날짜</th><th style="width:70px">주문</th><th>매출</th></tr></thead>
+    <tbody>
+    {% for d in daily %}
+      <tr>
+        <td>{{ d.date }}</td>
+        <td>{{ d.order_count }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="bar" style="width:{{ d.pct }}%;min-width:2px"></div>
+            <span>{{ d.sales|floatformat:0|intcomma }}원</span>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">해당 기간 매출이 없습니다.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>메뉴별 매출 TOP 20</h2>
+  {% if by_menu %}
+  <table>
+    <thead><tr><th>메뉴</th><th>판매수량</th><th class="right">매출</th></tr></thead>
+    <tbody>
+    {% for m in by_menu %}
+      <tr>
+        <td>{{ m.menu_name }}</td>
+        <td>{{ m.quantity }}</td>
+        <td class="right">{{ m.sales|floatformat:0|intcomma }}원</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">데이터가 없습니다.</p>{% endif %}
+</div>
+{% endblock %}

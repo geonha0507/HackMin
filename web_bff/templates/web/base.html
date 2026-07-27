@@ -86,9 +86,10 @@
         <div class="sec">상품</div>
         <a href="{% url 'web:owner_products' %}" class="{% if 'product' in url_name %}active{% endif %}">상품 관리</a>
         <a href="{% url 'web:owner_categories' %}" class="{% if url_name == 'owner_categories' %}active{% endif %}">카테고리</a>
+        <div class="sec">운영</div>
+        <a href="{% url 'web:owner_sales' %}" class="{% if url_name == 'owner_sales' %}active{% endif %}">매출 분석</a>
+        <a href="{% url 'web:owner_reviews' %}" class="{% if 'review' in url_name %}active{% endif %}">리뷰 관리</a>
         <div class="sec">아직 이관 전</div>
-        <span class="off">매출 분석</span>
-        <span class="off">리뷰 관리</span>
         <span class="off">내 정보 변경</span>
         <span class="off">내 매장 관리</span>
       </nav>

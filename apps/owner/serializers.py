@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from restaurants.models import Menu, MenuCategory, MenuOption, MenuOptionGroup, Restaurant
 from orders.serializers import OrderSerializer
+from reviews.serializers import ReviewSerializer
 
 User = get_user_model()
 
@@ -159,3 +160,27 @@ class OwnerRestaurantSerializer(serializers.ModelSerializer):
     def get_is_reviewable(self, obj):
         from restaurants.selectors import is_reviewable_restaurant
         return is_reviewable_restaurant(obj)
+
+
+class OwnerReviewSerializer(ReviewSerializer):
+    """점주 리뷰 관리 화면용.
+
+    기본 ReviewSerializer 에는 매장명과 소프트 삭제 정보가 없다. 고객용
+    응답에 삭제 사유까지 실어 보낼 이유는 없으므로 여기서만 확장한다.
+    """
+
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True, default='')
+    author_name = serializers.SerializerMethodField()
+
+    class Meta(ReviewSerializer.Meta):
+        fields = ReviewSerializer.Meta.fields + [
+            'restaurant_name', 'author_name',
+            'is_deleted', 'delete_reason', 'deleted_at',
+        ]
+        read_only_fields = fields
+
+    def get_author_name(self, obj):
+        # ReviewSerializer.author 는 nickname 만 보는데 비어 있을 수 있다.
+        if not obj.user:
+            return '(탈퇴한 사용자)'
+        return obj.user.nickname or obj.user.username

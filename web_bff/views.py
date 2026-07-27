@@ -5,10 +5,10 @@ api_client 를 통해 /api/v1 에서 가져온다.
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.contrib import messages
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 
 from .api_client import ApiError, client_for
@@ -389,3 +389,136 @@ def category_list(request):
         'categories': categories,
         'restaurants': restaurants,
     })
+
+
+# ------------------------------------------------------------------ 매출 분석
+@owner_required
+def sales(request):
+    api = client_for(request)
+    today = date.today()
+    start = request.GET.get('start') or str(today - timedelta(days=29))
+    end = request.GET.get('end') or str(today)
+
+    restaurants = []
+    try:
+        restaurants = _owned_restaurants(api)
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    selected = _selected_restaurant_id(request, restaurants)
+    params = {'start': start, 'end': end}
+    if selected:
+        params['restaurant_id'] = selected
+
+    daily, by_menu = [], []
+    total_sales, order_count = 0, 0
+    try:
+        summary = api.get('/owner/sales', params=params)
+        daily = summary.get('daily', [])
+        total_sales = summary.get('total_sales', 0)
+        order_count = summary.get('order_count', 0)
+        by_menu = api.get('/owner/sales/by-menu', params=params).get('results', [])
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    # 막대 폭은 화면 표현이라 서버에서 계산하지 않고 여기서 만든다.
+    max_amount = max([d.get('sales') or 0 for d in daily], default=0)
+    for d in daily:
+        d['pct'] = round((d.get('sales') or 0) / max_amount * 100) if max_amount else 0
+
+    return render(request, 'web/owner/sales.html', {
+        'start': start, 'end': end,
+        'daily': daily,
+        'by_menu': by_menu,
+        'total_sales': total_sales,
+        'order_count': order_count,
+        'restaurants': restaurants,
+        'selected_restaurant_id': selected,
+    })
+
+
+@owner_required
+def sales_report_download(request, pk):
+    """매출 보고서 다운로드 중계.
+
+    예전에는 템플릿이 /api/v1/downloads/... 를 직접 링크했다. 같은 Django
+    프로세스라 세션 인증이 통했기 때문이다. 이제 API 는 별도 컨테이너이고
+    브라우저에는 JWT 가 없으므로 web_bff 가 대신 받아 넘긴다.
+    """
+    try:
+        upstream = client_for(request).raw('GET', f'/downloads/sales-report/{pk}')
+    except ApiError as exc:
+        messages.error(request, exc.message)
+        return redirect('web:owner_sales')
+
+    response = HttpResponse(
+        upstream.content,
+        content_type=upstream.headers.get('content-type', 'application/octet-stream'),
+    )
+    disposition = upstream.headers.get('content-disposition')
+    if disposition:
+        response['Content-Disposition'] = disposition
+    return response
+
+
+# ------------------------------------------------------------------ 리뷰 관리
+def _reviews_redirect(selected):
+    url = '/web/owner/reviews'
+    return redirect(f'{url}?restaurant_id={selected}' if selected else url)
+
+
+@owner_required
+def review_list(request):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        selected = request.POST.get('restaurant_id') or ''
+        review_id = request.POST.get('review_id')
+        try:
+            api.post(f'/owner/reviews/{review_id}/reply',
+                     json={'content': (request.POST.get('content') or '').strip()})
+            messages.success(request, '답변을 등록했습니다.')
+        except ApiError as exc:
+            messages.error(request, exc.message)
+        return _reviews_redirect(selected)
+
+    restaurants, reviews = [], []
+    try:
+        restaurants = _owned_restaurants(api)
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    selected = _selected_restaurant_id(request, restaurants)
+    try:
+        params = {'restaurant_id': selected} if selected else None
+        reviews = api.get('/owner/reviews', params=params).get('results', [])
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    for r in reviews:
+        r['created_display'] = _fmt_dt(r.get('created_at'), '%Y-%m-%d')
+        r['deleted_display'] = _fmt_dt(r.get('deleted_at'), '%Y-%m-%d %H:%M')
+        if r.get('reply'):
+            r['reply']['created_display'] = _fmt_dt(r['reply'].get('created_at'), '%Y-%m-%d')
+
+    return render(request, 'web/owner/reviews.html', {
+        'reviews': reviews,
+        'restaurants': restaurants,
+        'selected_restaurant_id': selected,
+    })
+
+
+@owner_required
+def review_delete(request, pk):
+    """점주의 리뷰 소프트 삭제(사유 필수)."""
+    selected = request.GET.get('restaurant_id') or ''
+    if request.method == 'POST':
+        try:
+            client_for(request).post(
+                f'/owner/reviews/{pk}/delete',
+                json={'reason': (request.POST.get('reason') or '').strip()},
+            )
+            messages.success(request, '리뷰를 삭제했습니다.')
+        except ApiError as exc:
+            messages.error(request, exc.message)
+    return _reviews_redirect(selected)

@@ -50,4 +50,5 @@ urlpatterns = [
     # Reviews
     path('owner/reviews', reviews.owner_review_list, name='reviews'),
     path('owner/reviews/<int:pk>/reply', reviews.owner_review_reply, name='review-reply'),
+    path('owner/reviews/<int:pk>/delete', reviews.owner_review_delete, name='review-delete'),
 ]

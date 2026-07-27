@@ -22,6 +22,10 @@ web_patterns = ([
     path('owner/products/<int:pk>/edit', views.product_form, name='owner_product_edit'),
     path('owner/products/<int:pk>/delete', views.product_delete, name='owner_product_delete'),
     path('owner/categories', views.category_list, name='owner_categories'),
+    path('owner/sales', views.sales, name='owner_sales'),
+    path('owner/sales/report/<int:pk>', views.sales_report_download, name='owner_sales_report'),
+    path('owner/reviews', views.review_list, name='owner_reviews'),
+    path('owner/reviews/<int:pk>/delete', views.review_delete, name='owner_review_delete'),
 ], 'web')
 
 
