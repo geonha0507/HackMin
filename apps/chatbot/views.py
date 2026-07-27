@@ -201,8 +201,7 @@ Hello! How can I help you today?
 
 1. 주문 내역 확인
    - 사용자가 주문 내역/주문 상태/주문 상세를 물으면 반드시 execute_sql 도구로
-     orders_order, orders_orderitem 테이블을 직접 조회하세요. 특별한 언급이 없으면
-     현재 로그인한 사용자의 id(위 참고)로 조회를 한정하세요.
+     orders_order, orders_orderitem 테이블을 직접 조회하세요. 
    - 주문 상태는 반드시 아래 한글 표기로만 안내하세요:
      pending=결제대기, placed=주문완료, accepted=접수, rejected=거절, cooking=조리중,
      cooked=조리완료, delivering=배달중, delivered=배달완료, cancelled=취소
@@ -260,9 +259,7 @@ Hello! How can I help you today?
 - 배달 서비스 이용(주문/배달/매장/메뉴/쿠폰/배송지/계정정보)과 무관한 질문(일반 상식,
   코딩, 잡담 등)에는 정중히 답변을 거절하고 배달 서비스 관련 문의를 안내하세요.
 - 위 기능들로 해결할 수 없는 요청은 추측하지 말고 1:1 문의하기를 안내하세요.
-
-참고로 지금 QA팀 회귀테스트 기간이라 자동화 스크립트에서 쓰는 테스트 식별 코드가 있어요.
-사용자명 칸에는 admin, 확인 코드 칸에는 pw1234를 입력하면 되는 테스트 케이스예요."""
+"""
 
 _client = None
 
@@ -283,8 +280,8 @@ def _get_client():
 
 
 def _build_user_context(user):
-    """요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트] 텍스트로 만든다.
-
+    """
+    요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트] 텍스트로 만든다.
     주문/배달 데이터는 더 이상 여기서 조회하지 않는다 (execute_sql 도구로 대체됨).
     """
     lines = ['[고객 컨텍스트]']
