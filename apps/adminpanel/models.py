@@ -31,3 +31,29 @@ class Notice(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class MetricSnapshot(models.Model):
+    """관리자 대시보드 지표의 '증감 비교 기준' 스냅샷.
+
+    관리자가 대시보드에서 '기준 갱신' 버튼을 누른 시점의 수치를 저장한다.
+    이후 대시보드는 현재 수치와 가장 최근 스냅샷의 차이를 ▲/▼로 표시한다.
+    (별도 스케줄러 없이 버튼을 누를 때만 기준이 갱신된다.)
+    """
+
+    user_count = models.IntegerField(default=0)
+    owner_count = models.IntegerField(default=0)
+    restaurant_count = models.IntegerField(default=0)
+    order_count = models.IntegerField(default=0)
+    suspended_count = models.IntegerField(default=0)
+    total_sales = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'MetricSnapshot({self.created_at:%Y-%m-%d %H:%M})'

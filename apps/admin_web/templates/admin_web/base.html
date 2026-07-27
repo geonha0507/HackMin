@@ -35,6 +35,20 @@
     .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
     .card .label{color:var(--muted);font-size:12px;margin-bottom:6px}
     .card .value{font-size:24px;font-weight:700}
+    .card .delta{font-size:12px;font-weight:700;margin-top:5px}
+    .card .delta.up{color:var(--bad)}     /* 증가 = 빨강 ▲ */
+    .card .delta.down{color:var(--info)}  /* 감소 = 파랑 ▼ */
+    .card .delta.flat{color:#9ca3af;font-weight:500}
+    .metrics-head{display:flex;align-items:center;justify-content:space-between;
+      gap:12px;margin-bottom:14px;flex-wrap:wrap}
+    .metrics-head form{margin:0}
+    .refresh-btn{border:none;background:none;cursor:pointer;color:var(--muted);
+      padding:7px;border-radius:8px;line-height:0;display:inline-flex}
+    .refresh-btn svg{display:block;transition:transform .2s}
+    .refresh-btn:hover{background:#eef0f3;color:var(--ink)}
+    .refresh-btn:hover svg{transform:rotate(-40deg)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .refresh-btn.spinning svg{animation:spin .7s linear infinite}
     .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:22px}
     .panel h2{margin:0 0 14px;font-size:15px}
     table{width:100%;border-collapse:collapse;font-size:13px}

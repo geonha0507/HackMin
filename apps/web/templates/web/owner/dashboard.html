@@ -5,12 +5,12 @@
 {% block content %}
 {% with active='dashboard' %}{% endwith %}
 <div class="cards">
-  <div class="card"><div class="label">신규 주문(접수 대기)</div><div class="value">{{ pending_count }}</div></div>
-  <div class="card"><div class="label">조리 중</div><div class="value">{{ cooking_count }}</div></div>
-  <div class="card"><div class="label">오늘 주문</div><div class="value">{{ today_order_count }}</div></div>
+  <div class="card"><div class="label">신규 주문(접수 대기)</div><div class="value">{{ pending_count|intcomma }}건</div></div>
+  <div class="card"><div class="label">조리 중</div><div class="value">{{ cooking_count|intcomma }}건</div></div>
+  <div class="card"><div class="label">오늘 주문</div><div class="value">{{ today_order_count|intcomma }}건</div></div>
   <div class="card"><div class="label">오늘 매출</div><div class="value">{{ today_sales|floatformat:0|intcomma }}원</div></div>
   <div class="card"><div class="label">누적 매출</div><div class="value">{{ total_sales|floatformat:0|intcomma }}원</div></div>
-  <div class="card"><div class="label">등록 상품</div><div class="value">{{ menu_count }}</div></div>
+  <div class="card"><div class="label">등록 상품</div><div class="value">{{ menu_count|intcomma }}개</div></div>
 </div>
 
 <div class="panel">

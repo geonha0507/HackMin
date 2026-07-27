@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.models import WithdrawalRequest
-from adminpanel.models import Notice
+from adminpanel.models import MetricSnapshot, Notice
 from orders.models import Order
 from payments.models import Payment
 from restaurants.models import Restaurant, RestaurantEditRequest
@@ -124,15 +124,50 @@ def _store_review_status(store):
     }
     return mapping.get(store.owner.status, 'pending')
 
+# (key, label, is_money, unit) — unit 은 값 뒤에 붙는 단위(예: '2명', '3개')
+_DASHBOARD_METRIC_CARDS = [
+    ('user_count', '일반 회원', False, '명'),
+    ('owner_count', '점주', False, '명'),
+    ('restaurant_count', '등록 매장', False, '개'),
+    ('order_count', '전체 주문', False, '개'),
+    ('suspended_count', '정지 계정', False, '개'),
+    ('total_sales', '결제 완료액', True, '원'),
+]
+
+
 @admin_required
 def dashboard(request):
-    ctx = {
+    metrics = {
         'user_count': User.objects.filter(role=User.Role.CUSTOMER).count(),
         'owner_count': User.objects.filter(role=User.Role.OWNER).count(),
         'restaurant_count': Restaurant.objects.count(),
         'order_count': Order.objects.count(),
         'suspended_count': User.objects.filter(status=User.Status.SUSPENDED).count(),
         'total_sales': Payment.objects.filter(status=Payment.Status.PAID).aggregate(s=Sum('amount'))['s'] or 0,
+    }
+
+    # '기준 갱신' 버튼: 현재 수치를 새 비교 기준 스냅샷으로 저장한다.
+    # 갱신 시각은 상단 '갱신되었습니다 {시각}' 라벨로 바로 확인되므로 별도 알림은 띄우지 않는다.
+    if request.method == 'POST' and request.POST.get('action') == 'refresh_baseline':
+        MetricSnapshot.objects.create(created_by=request.user, **metrics)
+        return redirect('admin_web:admin_dashboard')
+
+    baseline = MetricSnapshot.objects.first()  # ordering = ['-created_at'] → 최신 스냅샷
+
+    cards = []
+    for key, label, is_money, unit in _DASHBOARD_METRIC_CARDS:
+        value = metrics[key]
+        card = {'label': label, 'value': value, 'is_money': is_money, 'unit': unit, 'has_delta': False}
+        if baseline is not None:
+            diff = value - getattr(baseline, key)
+            card['has_delta'] = True
+            card['diff_abs'] = abs(diff)
+            card['direction'] = 'up' if diff > 0 else ('down' if diff < 0 else 'flat')
+        cards.append(card)
+
+    ctx = {
+        'cards': cards,
+        'baseline_at': baseline.created_at if baseline else None,
         'recent_orders': Order.objects.select_related('restaurant', 'user')[:8],
         'recent_users': User.objects.order_by('-date_joined')[:8],
     }
