@@ -52,14 +52,39 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     name = models.CharField(max_length=64, blank=True)          # 실명
+    # --- 점주 결제정보 (점주 웹 가입 시 수집) ---
+    bank_name = models.CharField(
+        max_length=64, blank=True, null=True,
+        help_text="은행명 (점주웹)",
+    )
     account_number_encrypted = models.CharField(
         max_length=255, blank=True, null=True,
         help_text="계좌번호 (AES-128 암호화). accounts.crypto_utils.encrypt_aes128 으로 저장한다.",
     )
+
+    # --- 고객 결제정보 (앱 내정보에서 등록) ---
+    # NOTE: CVC 와 카드 비밀번호는 원칙적으로 보관 대상이 아니다(PCI DSS).
+    #       모의해킹 시나리오용으로 남겨두는 것이라면 docs 에 의도된 항목으로 표시할 것.
+    card_number = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드번호 (AES-128 암호화)",
+    )
+    card_cvc = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드 CVC (AES-128 암호화)",
+    )
+    card_password_2digit = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드 비밀번호 2자리 (AES-128 암호화)",
+    )
+
+    # 결제 비밀번호. me_views 의 payment_password / payment_password_verify 가 쓴다.
     payment_pw_hash = models.CharField(
         max_length=128, blank=True, default='',
         help_text="6자리 결제 비밀번호 해시(Django 해시). 평문은 저장하지 않는다.",
     )
+
+
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 
