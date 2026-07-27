@@ -1,4 +1,5 @@
 {% extends 'admin_web/base.html' %}
+{% load humanize %}
 {% block title %}회원 상세{% endblock %}
 {% block heading %}회원 상세 · {{ obj.username }}{% endblock %}
 {% block content %}
@@ -40,7 +41,7 @@
       <tr>
         <td>{{ o.order_number }}</td>
         <td>{{ o.restaurant.name|default:'-' }}</td>
-        <td>{{ o.total|floatformat:0 }}원</td>
+        <td>{{ o.total|floatformat:0|intcomma }}원</td>
         <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
         <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
       </tr>
