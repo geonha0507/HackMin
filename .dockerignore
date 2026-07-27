@@ -8,12 +8,17 @@
 # ---------------------------------------------------------------------------
 *
 
-# 이미지에 필요한 것만 다시 허용
+# API 이미지(루트 Dockerfile)에 필요한 것
 !requirements.txt
 !manage.py
 !apps/
 !config/
 !docker/entrypoint.sh
+
+# 점주 웹 BFF 이미지(docker/Dockerfile.web)에 필요한 것
+!requirements-web.txt
+!manage_web.py
+!web_bff/
 
 # 허용한 디렉터리 안에서도 아래는 다시 제외한다.
 **/__pycache__/

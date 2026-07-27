@@ -148,6 +148,51 @@ services:
       RUN_MIGRATIONS: "0"
       SEED_DEMO: "0"
 
+  # ---------------------------------------------------------------------------
+  # [3-tier PoC] 점주 웹 BFF (docker/Dockerfile.web).
+  #
+  # 위의 web(8001) 과 같은 화면을 보여주지만 구현이 다르다:
+  #   - 이미지에 apps/ config/ 가 없다. DB 드라이버조차 없다.
+  #   - 데이터는 전부 api 컨테이너의 /api/v1 HTTP 호출로 가져온다.
+  #   - 세션(JWT 보관)은 redis 에 둔다. django_session 테이블을 쓰면 DB 의존이
+  #     되살아나기 때문이다.
+  #
+  # 기존 web 과 나란히 띄워 8001 vs 8003 으로 비교 검증한다.
+  # PoC 가 끝나면 web 서비스를 이쪽으로 교체한다.
+  # ---------------------------------------------------------------------------
+  web-bff:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: hackmin-web-bff
+    restart: unless-stopped
+    depends_on:
+      - api
+      - redis
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8003:8000"
+    environment:
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      # API 컨테이너와 다른 키를 쓴다. 세션 쿠키 서명 전용.
+      DJANGO_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
+      DJANGO_ALLOWED_HOSTS: "*"
+      DJANGO_CSRF_ORIGINS: "http://localhost:8003,http://127.0.0.1:8003"
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      REDIS_URL: redis://redis:6379/0
+
+  # ---------------------------------------------------------------------------
+  # web-bff 세션 저장소. 외부로 포트를 열지 않는다 (컨테이너 네트워크 전용).
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # 세션만 담으므로 디스크 영속화가 필요 없다.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   db_data:
   media_data:
