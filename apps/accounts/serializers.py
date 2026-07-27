@@ -16,7 +16,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=4)
-    rrn = serializers.CharField(write_only=True, required=True, help_text="주민등록번호 (예: 990101-1234567)")
+    # 주민등록번호는 더 이상 회원가입에서 수집하지 않는다(선택항목). 값이 오면 형식 검증 후 암호화 저장.
+    rrn = serializers.CharField(write_only=True, required=False, allow_blank=True, help_text="주민등록번호 (예: 990101-1234567)")
 
     class Meta:
         model = User
@@ -28,27 +29,26 @@ class SignupSerializer(serializers.ModelSerializer):
         return value
 
     def validate_rrn(self, value):
-        """주민등록번호 형식 검증 (XXXXXX-XXXXXXX)."""
+        """주민등록번호가 들어온 경우에만 형식 검증 (XXXXXX-XXXXXXX). 미입력이면 통과."""
         if not value:
-            raise serializers.ValidationError('주민등록번호는 필수입니다.')
-        
-        # 기본 형식 검증: 숫자와 하이픈만 허용
+            return value
         value_clean = value.replace('-', '')
         if not value_clean.isdigit() or len(value_clean) != 13:
             raise serializers.ValidationError('주민등록번호 형식이 올바르지 않습니다. (XXXXXX-XXXXXXX)')
-        
         return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        rrn = validated_data.pop('rrn')
-        
-        # 주민등록번호 암호화
-        try:
-            rrn_encrypted = encrypt_aes128(rrn)
-        except Exception as e:
-            raise serializers.ValidationError(f'주민등록번호 암호화 중 오류가 발생했습니다: {str(e)}')
-        
+        rrn = validated_data.pop('rrn', None)
+
+        # 주민등록번호가 입력된 경우에만 암호화해 저장한다.
+        rrn_encrypted = ''
+        if rrn:
+            try:
+                rrn_encrypted = encrypt_aes128(rrn)
+            except Exception as e:
+                raise serializers.ValidationError(f'주민등록번호 암호화 중 오류가 발생했습니다: {str(e)}')
+
         user = User(
             role=User.Role.CUSTOMER,
             rrn_encrypted=rrn_encrypted,
