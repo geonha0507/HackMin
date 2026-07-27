@@ -16,42 +16,41 @@ class UserSerializer(serializers.ModelSerializer):
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=4)
-    # 주민등록번호는 더 이상 회원가입에서 수집하지 않는다(선택항목). 값이 오면 형식 검증 후 암호화 저장.
-    rrn = serializers.CharField(write_only=True, required=False, allow_blank=True, help_text="주민등록번호 (예: 990101-1234567)")
+    account_number = serializers.CharField(write_only=True, required=True, help_text="계좌번호 (숫자, 하이픈 허용)")
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'email', 'phone', 'nickname', 'name', 'rrn']
+        fields = ['username', 'password', 'email', 'phone', 'nickname', 'name', 'account_number']
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError('이미 사용 중인 아이디입니다.')
         return value
 
-    def validate_rrn(self, value):
-        """주민등록번호가 들어온 경우에만 형식 검증 (XXXXXX-XXXXXXX). 미입력이면 통과."""
+    def validate_account_number(self, value):
+        """계좌번호 형식 검증 (하이픈 제외 8~20자리 숫자)."""
         if not value:
-            return value
-        value_clean = value.replace('-', '')
-        if not value_clean.isdigit() or len(value_clean) != 13:
-            raise serializers.ValidationError('주민등록번호 형식이 올바르지 않습니다. (XXXXXX-XXXXXXX)')
+            raise serializers.ValidationError('계좌번호는 필수입니다.')
+
+        digits = value.replace('-', '')
+        if not digits.isdigit() or not (8 <= len(digits) <= 20):
+            raise serializers.ValidationError('계좌번호 형식이 올바르지 않습니다.')
+
         return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        rrn = validated_data.pop('rrn', None)
+        account_number = validated_data.pop('account_number')
 
-        # 주민등록번호가 입력된 경우에만 암호화해 저장한다.
-        rrn_encrypted = ''
-        if rrn:
-            try:
-                rrn_encrypted = encrypt_aes128(rrn)
-            except Exception as e:
-                raise serializers.ValidationError(f'주민등록번호 암호화 중 오류가 발생했습니다: {str(e)}')
+        # 계좌번호 암호화 (기존 AES-128 방식 재사용)
+        try:
+            account_number_encrypted = encrypt_aes128(account_number)
+        except Exception as e:
+            raise serializers.ValidationError(f'계좌번호 암호화 중 오류가 발생했습니다: {str(e)}')
 
         user = User(
             role=User.Role.CUSTOMER,
-            rrn_encrypted=rrn_encrypted,
+            account_number_encrypted=account_number_encrypted,
             **validated_data
         )
         user.set_password(password)
