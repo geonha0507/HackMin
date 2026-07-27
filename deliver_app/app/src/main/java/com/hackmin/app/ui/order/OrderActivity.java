@@ -59,6 +59,8 @@ public class OrderActivity extends AppCompatActivity {
     private View cardAddTile, payKakao, payNaver;
     private View selectedCardTile;
     private String selectedPayment = "card";
+    private View selectedAccountRow;   // 선택된 계좌 행(결제수단=account일 때)
+    private long selectedAccountId = -1;
 
     private CartApi cartApi;
     private OrderApi orderApi;
@@ -125,17 +127,32 @@ public class OrderActivity extends AppCompatActivity {
         payKakao = findViewById(R.id.payKakao);
         payNaver = findViewById(R.id.payNaver);
 
-        cardAddTile.setOnClickListener(v -> showAddCardDialog());
+        // 카드 추가 → 허브와 동일한 등록 화면(카드정보 + 6자리 결제비밀번호). 등록 내용은 서버에 저장돼 허브와 연동된다.
+        cardAddTile.setOnClickListener(v -> {
+            Intent i = new Intent(this, EasyPayActivity.class);
+            i.putExtra(EasyPayActivity.EXTRA_PROVIDER, "card");
+            i.putExtra(EasyPayActivity.EXTRA_FORCE_NEW, true);
+            startActivity(i);
+        });
         payKakao.setOnClickListener(v -> openEasyPay("kakao"));
         payNaver.setOnClickListener(v -> openEasyPay("naver"));
-
-        // 저장된 카드 불러오기(없으면 기본 루키즈카드 1장 생성).
-        loadCards();
 
         // 계좌 등록 섹션: 서버(암호화 저장)에서 목록을 불러오고, 등록 버튼을 연결한다.
         accountListContainer = findViewById(R.id.accountListContainer);
         findViewById(R.id.btnAddAccount).setOnClickListener(v -> showAddAccountDialog());
-        loadBankAccounts();
+        // 카드/계좌 목록 로드는 onResume에서 수행(등록/삭제 후 돌아왔을 때 최신 반영).
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 다른 화면(마이페이지 결제수단 등록·카드 등록 화면)에서 등록/삭제한 내용을 최신으로 반영한다.
+        if (cardListContainer != null) {
+            loadCards();
+        }
+        if (accountListContainer != null) {
+            loadBankAccounts();
+        }
     }
 
     // ── 계좌 등록/목록/삭제 (서버 AES-256 저장) ──────────────────────
@@ -261,6 +278,20 @@ public class OrderActivity extends AppCompatActivity {
         rbg.setColor(Color.parseColor("#F8F9FA"));
         rbg.setCornerRadius(12 * density);
         row.setBackground(rbg);
+        row.setTag(rbg);   // 선택 테두리(refreshAccountBorders)에서 사용
+        row.setOnClickListener(v -> selectAccount(id, row));
+
+        // 은행 로고(있는 은행만).
+        int logo = bankLogoRes(bank);
+        if (logo != 0) {
+            android.widget.ImageView iv = new android.widget.ImageView(this);
+            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams((int) (44 * density), (int) (30 * density));
+            llp.setMarginEnd((int) (12 * density));
+            iv.setLayoutParams(llp);
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            iv.setImageResource(logo);
+            row.addView(iv);
+        }
 
         TextView info = new TextView(this);
         info.setText(bank + "  " + masked);
@@ -279,6 +310,22 @@ public class OrderActivity extends AppCompatActivity {
         row.addView(btnDelete);
 
         accountListContainer.addView(row);
+    }
+
+    /** 은행명 → 로고 리소스. 이미지가 없는 은행은 0. */
+    private int bankLogoRes(String bank) {
+        if (bank == null) return 0;
+        if (bank.contains("국민")) return R.drawable.bank_kookmin;
+        if (bank.contains("기업")) return R.drawable.bank_ibk;
+        if (bank.contains("농협")) return R.drawable.bank_nonghyup;
+        if (bank.contains("신한")) return R.drawable.bank_shinhan;
+        if (bank.contains("우리")) return R.drawable.bank_woori;
+        if (bank.contains("하나")) return R.drawable.bank_hana;
+        if (bank.contains("카카오")) return R.drawable.bank_kakaobank;
+        if (bank.contains("토스")) return R.drawable.bank_tossbank;
+        if (bank.contains("SC")) return R.drawable.bank_sc;
+        if (bank.contains("케이")) return R.drawable.bank_kbank;
+        return 0;
     }
 
     /** 계좌 삭제 확인 다이얼로그 → 서버에서 삭제. */
@@ -312,6 +359,43 @@ public class OrderActivity extends AppCompatActivity {
         refreshCardBorders();
         payKakao.setSelected("kakao".equals(type));
         payNaver.setSelected("naver".equals(type));
+        clearAccountSelection();
+    }
+
+    /** 계좌를 결제수단으로 선택(카드·간편결제 해제). */
+    private void selectAccount(long id, View row) {
+        selectedPayment = "account";
+        selectedAccountId = id;
+        selectedAccountRow = row;
+        selectedCardTile = null;
+        refreshCardBorders();
+        payKakao.setSelected(false);
+        payNaver.setSelected(false);
+        refreshAccountBorders();
+    }
+
+    private void clearAccountSelection() {
+        selectedAccountRow = null;
+        selectedAccountId = -1;
+        refreshAccountBorders();
+    }
+
+    /** 선택된 계좌 행만 테두리를 강조한다. */
+    private void refreshAccountBorders() {
+        if (accountListContainer == null) return;
+        float density = getResources().getDisplayMetrics().density;
+        for (int i = 0; i < accountListContainer.getChildCount(); i++) {
+            View child = accountListContainer.getChildAt(i);
+            Object tag = child.getTag();
+            if (tag instanceof GradientDrawable) {
+                GradientDrawable gd = (GradientDrawable) tag;
+                if (child == selectedAccountRow) {
+                    gd.setStroke((int) (2 * density), Color.parseColor("#FF6F61"));
+                } else {
+                    gd.setStroke(0, Color.TRANSPARENT);
+                }
+            }
+        }
     }
 
     /** 카카오/네이버 버튼 → 해당 간편결제를 선택하고 전체화면 등록/관리 화면을 연다. */
@@ -324,7 +408,9 @@ public class OrderActivity extends AppCompatActivity {
 
     /** 결제 비밀번호 6자리를 보안 키패드(랜덤 배치)로 입력받아 서버 검증. 성공 시 onSuccess 실행. */
     private void promptPaymentPassword(Runnable onSuccess) {
-        com.hackmin.app.ui.common.SecurityKeypadDialog.show(this, selectedPayment, pin ->
+        // 계좌는 별도 브랜드색이 없으니 카드(코랄) 키패드 색을 쓴다.
+        String keypadTheme = "account".equals(selectedPayment) ? "card" : selectedPayment;
+        com.hackmin.app.ui.common.SecurityKeypadDialog.show(this, keypadTheme, pin ->
                 ApiClient.userApi(this).verifyPaymentPassword(
                         new com.hackmin.app.data.model.user.PaymentPasswordRequest(pin))
                         .enqueue(new Callback<com.hackmin.app.data.model.user.PaymentPasswordResponse>() {
@@ -353,6 +439,7 @@ public class OrderActivity extends AppCompatActivity {
         payKakao.setSelected(false);
         payNaver.setSelected(false);
         refreshCardBorders();
+        clearAccountSelection();
     }
 
     /** 카드번호를 서버에 암호화 저장하고, 성공하면 마스킹 타일을 추가한다. */
@@ -1118,8 +1205,9 @@ public class OrderActivity extends AppCompatActivity {
             return;
         }
 
-        // 간편결제(카카오/네이버)는 결제 비밀번호 6자리 검증 후 진행(빌링키 방식). 카드는 기존대로.
-        if ("kakao".equals(selectedPayment) || "naver".equals(selectedPayment)) {
+        // 간편결제(카카오/네이버)·계좌는 결제 비밀번호 6자리 검증 후 진행. 카드는 기존대로.
+        if ("kakao".equals(selectedPayment) || "naver".equals(selectedPayment)
+                || "account".equals(selectedPayment)) {
             promptPaymentPassword(this::proceedSubmitOrder);
         } else {
             proceedSubmitOrder();
