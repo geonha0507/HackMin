@@ -72,6 +72,8 @@ public class MyPageActivity extends AppCompatActivity {
                 startActivity(new Intent(this, MyReviewsActivity.class)));
         findViewById(R.id.menu_coupons).setOnClickListener(v ->
                 startActivity(new Intent(this, CouponsActivity.class)));
+        findViewById(R.id.menu_payment_methods).setOnClickListener(v ->
+                startActivity(new Intent(this, com.hackmin.app.ui.order.PaymentMethodsActivity.class)));
         findViewById(R.id.menu_inquiries).setOnClickListener(v ->
                 startActivity(new Intent(this, InquiryListActivity.class)));
         findViewById(R.id.menu_change_password).setOnClickListener(v ->

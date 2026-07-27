@@ -23,6 +23,17 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # 점주에 의한 소프트 삭제. 실제 행은 남기고 목록에서만 숨긴다.
+    is_deleted = models.BooleanField(default=False)
+    delete_reason = models.TextField(blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='deleted_reviews',
+    )
+
     class Meta:
         ordering = ['-created_at']
 

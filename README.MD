@@ -38,7 +38,6 @@ HackMin/
 │   ├── common/                    # 공통 유틸리티
 │   │   ├── exceptions.py          # 통합 에러 핸들러
 │   │   ├── management/commands/   # seed_demo 커맨드
-│   │   ├── mode.py                # 모드 판별 (is_vulnerable)
 │   │   ├── pagination.py          # 표준 페이지네이션
 │   │   └── permissions.py         # 역할 기반 권한 (IsOwner, IsAdmin 등)
 │   ├── downloads/                 # 파일 다운로드 (/downloads)
@@ -125,8 +124,8 @@ HackMin/
 │   │   │   │       └── common/    # ApiErrorResponse, PagedResponse 등
 │   │   │   ├── network/           # 네트워크 설정
 │   │   │   │   ├── ApiClient.java             # Retrofit/OkHttp 클라이언트 설정
-│   │   │   │   ├── HackminMode.java           # 모드 열거형
-│   │   │   │   └── HackminModeInterceptor.java # X-Hackmin-Mode 헤더 인터셉터
+│   │   │   │   ├── AuthInterceptor.java       # 인증 토큰 헤더 인터셉터
+│   │   │   │   └── SessionManager.java        # 토큰/세션 저장 및 관리
 │   │   │   └── ui/                # 화면 (Activity)
 │   │   │       ├── auth/          # LoginActivity, SignupActivity, ForgotPasswordActivity
 │   │   │       ├── home/          # HomeActivity (메인 화면)

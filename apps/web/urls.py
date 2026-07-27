@@ -34,6 +34,7 @@ urlpatterns = [
     path('owner/categories', owner.category_list, name='owner_categories'),
     path('owner/sales', owner.sales, name='owner_sales'),
     path('owner/reviews', owner.review_list, name='owner_reviews'),
+    path('owner/reviews/<int:pk>/delete', owner.review_delete, name='owner_review_delete'),
 
     # 관리자 화면은 apps/admin_web 앱(별도 컨테이너)으로 이동함.
     # (config/urls_admin.py 에서 'admin_web.urls' 로 include)

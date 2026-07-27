@@ -102,11 +102,16 @@ class MenuDetailView(generics.RetrieveAPIView):
 class RestaurantReviewListView(generics.ListAPIView):
     serializer_class = RestaurantReviewSerializer
     permission_classes = [AllowAny]
-
+   
+  
     def get_queryset(self):
         from reviews.models import Review
+        # 점주가 삭제한 리뷰는 고객 화면에 노출하지 않는다.
         return (
-            Review.objects.filter(restaurant_id=self.kwargs['pk'])
+            Review.objects.filter(restaurant_id=self.kwargs['pk'], is_deleted=False)
             .select_related('user', 'reply')
             .prefetch_related('images')
         )
+
+
+
