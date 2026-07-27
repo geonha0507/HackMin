@@ -25,6 +25,7 @@ urlpatterns = [
     # Categories
     path('owner/categories', products.category_list_create, name='categories'),
     path('owner/categories/<int:pk>', products.category_detail, name='category-detail'),
+    path('owner/categories/<int:pk>/move', products.category_move, name='category-move'),
 
     # Orders
     path('owner/orders', orders.owner_order_list, name='orders'),

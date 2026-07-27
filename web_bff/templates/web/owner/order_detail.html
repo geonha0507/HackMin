@@ -1,0 +1,103 @@
+{# apps/web/templates/web/owner/order_detail.html 기반. dict 접근으로 바뀐 부분:  #}
+{#   order.items.all → order.items   (직렬화된 리스트라 .all 이 없다)            #}
+{#   order.user.*    → order.customer_name / order.customer_phone               #}
+{% extends 'web/base.html' %}
+{% load humanize %}
+{% block title %}주문 상세{% endblock %}
+{% block heading %}주문 상세 · {{ order.order_number }}{% endblock %}
+{% block content %}
+<a href="{% url 'web:owner_orders' %}" class="muted">← 주문 목록</a>
+
+<div class="panel" style="margin-top:14px">
+  <h2>주문 정보
+    {% include 'web/_order_badge.html' with status=order.status label=order.status_display %}
+  </h2>
+  <table>
+    <tr><th style="width:140px">매장</th><td>{{ order.restaurant_name|default:'-' }}</td></tr>
+    <tr><th>주문자</th><td>{{ order.customer_name|default:'-' }} ({{ order.customer_phone|default:'-' }})</td></tr>
+    <tr><th>배송지</th><td>{{ order.address }} {{ order.address_detail }}</td></tr>
+    <tr><th>요청사항</th><td>{{ order.request_note|default:'-' }}</td></tr>
+    <tr><th>주문시각</th><td>{{ order.created_display }}</td></tr>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>주문 항목</h2>
+  <table>
+    <thead><tr><th>메뉴</th><th>단가</th><th>수량</th><th class="right">합계</th></tr></thead>
+    <tbody>
+    {% for it in order.items %}
+      <tr>
+        <td>{{ it.menu_name }}{% if it.options %}<div class="muted" style="font-size:12px">{{ it.options }}</div>{% endif %}</td>
+        <td>{{ it.unit_price|floatformat:0|intcomma }}원</td>
+        <td>{{ it.quantity }}</td>
+        <td class="right">{{ it.line_total|floatformat:0|intcomma }}원</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3" class="right muted">상품합계</td><td class="right">{{ order.subtotal|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right muted">배달비</td><td class="right">{{ order.delivery_fee|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right muted">할인</td><td class="right">-{{ order.discount|floatformat:0|intcomma }}원</td></tr>
+      <tr><td colspan="3" class="right"><strong>총 결제금액</strong></td><td class="right"><strong>{{ order.total|floatformat:0|intcomma }}원</strong></td></tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>상태 변경</h2>
+  {% if order.status == 'placed' %}
+    <form method="post" style="display:inline">{% csrf_token %}
+      <input type="hidden" name="action" value="accept">
+      <button class="btn btn-primary" type="submit">주문 접수</button>
+    </form>
+    <form method="post" style="display:inline">{% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <button class="btn btn-danger" type="submit">주문 거절</button>
+    </form>
+  {% endif %}
+  <form id="statusForm" method="post" class="row" style="margin-top:14px">{% csrf_token %}
+    <input type="hidden" name="action" value="status">
+    <div style="min-width:200px">
+      <label>진행 상태 직접 변경</label>
+      <select name="status">
+        {% for val, lbl in status_choices %}
+          <option value="{{ val }}" {% if val == order.status %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">변경</button>
+  </form>
+  <p class="muted" style="margin:12px 0 0;font-size:12px">
+    허용되지 않는 상태 전이는 서버가 거부합니다. 예전에는 화면에서 검사했지만
+    지금은 규칙이 API 한 곳에만 있어 앱과 웹의 동작이 어긋나지 않습니다.
+  </p>
+</div>
+
+<div id="statusConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,17,23,.45);align-items:center;justify-content:center;z-index:100">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;width:280px;box-shadow:0 12px 28px rgba(0,0,0,.18)">
+    <h3 style="margin:0 0 10px;font-size:15px">변경 확인</h3>
+    <p style="margin:0 0 18px;font-size:13px;color:var(--muted)">정말 변경하시겠습니까?</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button type="button" class="btn" id="statusConfirmCancel">취소</button>
+      <button type="button" class="btn btn-primary" id="statusConfirmOk">확인</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('statusForm');
+  var overlay = document.getElementById('statusConfirmOverlay');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    overlay.style.display = 'flex';
+  });
+  document.getElementById('statusConfirmOk').addEventListener('click', function () {
+    form.submit();
+  });
+  document.getElementById('statusConfirmCancel').addEventListener('click', function () {
+    overlay.style.display = 'none';
+  });
+})();
+</script>
+{% endblock %}

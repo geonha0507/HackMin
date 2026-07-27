@@ -25,3 +25,21 @@ def owns_restaurant(user, restaurant_id):
 def owned_menus(user):
     """해당 사용자 소유 매장의 메뉴 쿼리셋."""
     return Menu.objects.filter(restaurant__owner=user)
+
+
+def is_reviewable_restaurant(restaurant):
+    """이 매장이 정상 운영 가능(승인 완료) 상태인지.
+
+    상품·카테고리 등록 가능 여부의 기준이다.
+    - 점주가 나중에 추가한 매장은 EnrollmentRequest.status 로 판단한다.
+    - 회원가입 시 만들어진 최초 매장은 EnrollmentRequest 가 없을 수 있어
+      소유자 계정 상태로 판단한다.
+
+    NOTE: apps/web/views/restaurant.py 에 같은 로직의 사본이 있다. 그쪽은
+    web_bff 이관이 끝나면 제거될 예정이라 당분간 중복을 허용한다.
+    """
+    enrollment = getattr(restaurant, 'enrollment_request', None)
+    if enrollment:
+        return enrollment.status == 'approved'
+    owner = restaurant.owner
+    return bool(owner) and owner.status == owner.Status.ACTIVE

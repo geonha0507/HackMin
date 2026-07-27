@@ -15,6 +15,13 @@ web_patterns = ([
     path('login', views.login_view, name='login'),
     path('logout', views.logout_view, name='logout'),
     path('owner/', views.dashboard, name='owner_dashboard'),
+    path('owner/orders', views.order_list, name='owner_orders'),
+    path('owner/orders/<int:pk>', views.order_detail, name='owner_order_detail'),
+    path('owner/products', views.product_list, name='owner_products'),
+    path('owner/products/new', views.product_form, name='owner_product_new'),
+    path('owner/products/<int:pk>/edit', views.product_form, name='owner_product_edit'),
+    path('owner/products/<int:pk>/delete', views.product_delete, name='owner_product_delete'),
+    path('owner/categories', views.category_list, name='owner_categories'),
 ], 'web')
 
 

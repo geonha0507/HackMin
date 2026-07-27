@@ -81,10 +81,12 @@
       <div class="role">점주 센터 · BFF</div>
       <nav class="nav">
         <a href="{% url 'web:owner_dashboard' %}" class="{% if url_name == 'owner_dashboard' %}active{% endif %}">대시보드</a>
-        <div class="sec">PoC 미구현</div>
-        <span class="off">주문 관리</span>
-        <span class="off">상품 관리</span>
-        <span class="off">카테고리</span>
+        <div class="sec">주문</div>
+        <a href="{% url 'web:owner_orders' %}" class="{% if url_name == 'owner_orders' or url_name == 'owner_order_detail' %}active{% endif %}">주문 관리</a>
+        <div class="sec">상품</div>
+        <a href="{% url 'web:owner_products' %}" class="{% if 'product' in url_name %}active{% endif %}">상품 관리</a>
+        <a href="{% url 'web:owner_categories' %}" class="{% if url_name == 'owner_categories' %}active{% endif %}">카테고리</a>
+        <div class="sec">아직 이관 전</div>
         <span class="off">매출 분석</span>
         <span class="off">리뷰 관리</span>
         <span class="off">내 정보 변경</span>

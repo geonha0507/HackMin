@@ -8,6 +8,7 @@ import logging
 from datetime import date, datetime
 
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import redirect, render
 
 from .api_client import ApiError, client_for
@@ -19,25 +20,29 @@ logger = logging.getLogger(__name__)
 SALES_STATUSES = {'placed', 'accepted', 'cooking', 'cooked', 'delivering', 'delivered'}
 COOKING_STATUSES = {'accepted', 'cooking', 'cooked'}
 
-ORDER_STATUS_LABELS = {
-    'placed': '접수 대기',
-    'accepted': '접수됨',
-    'cooking': '조리중',
-    'cooked': '조리완료',
-    'delivering': '배달중',
-    'delivered': '배달완료',
-    'rejected': '거절됨',
-    'cancelled': '취소됨',
-}
+# apps/orders/models.py 의 Order.Status 와 동기화할 것.
+# (API 응답의 status_display 를 우선 쓰지만, 필터 드롭다운에는 순서 있는 목록이 필요하다)
+ORDER_STATUS_CHOICES = [
+    ('pending', '결제대기'),
+    ('placed', '점주확인대기'),
+    ('accepted', '주문접수'),
+    ('rejected', '주문거절'),
+    ('cooking', '조리중'),
+    ('cooked', '조리완료'),
+    ('delivering', '배달중'),
+    ('delivered', '배달완료'),
+    ('cancelled', '주문취소'),
+]
+ORDER_STATUS_LABELS = dict(ORDER_STATUS_CHOICES)
 
 
-def _fmt_dt(iso_string):
+def _fmt_dt(iso_string, fmt='%m/%d %H:%M'):
     """API 가 주는 ISO8601 문자열을 'm/d H:i' 로. ORM 직결일 때는 date 필터가
     datetime 객체를 알아서 포맷했지만, 이제는 문자열이라 직접 파싱해야 한다."""
     if not iso_string:
         return ''
     try:
-        return datetime.fromisoformat(iso_string).strftime('%m/%d %H:%M')
+        return datetime.fromisoformat(iso_string).strftime(fmt)
     except (TypeError, ValueError):
         return str(iso_string)[:16]
 
@@ -155,3 +160,232 @@ def dashboard(request):
         messages.error(request, '일부 데이터를 불러오지 못했습니다. 표시된 수치가 정확하지 않을 수 있습니다.')
 
     return render(request, 'web/owner/dashboard.html', ctx)
+
+
+# ------------------------------------------------------------------ 주문 관리
+@owner_required
+def order_list(request):
+    api = client_for(request)
+    status = request.GET.get('status', '')
+
+    orders = []
+    try:
+        payload = api.get('/owner/orders', params={'status': status} if status else None)
+        orders = payload.get('results', [])[:200]
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    for o in orders:
+        o['created_display'] = _fmt_dt(o.get('created_at'))
+
+    return render(request, 'web/owner/orders.html', {
+        'orders': orders,
+        'status': status,
+        'status_choices': ORDER_STATUS_CHOICES,
+    })
+
+
+# 화면의 action 값 → 호출할 API 경로. 상태 전이 규칙(placed 에서만 accept 가능 등)은
+# 서버가 판단한다. 예전 apps/web 은 여기서 직접 검사했지만, 이제 규칙이 한 곳에만
+# 존재하므로 웹과 앱의 동작이 어긋날 수 없다.
+_ORDER_ACTION_PATHS = {
+    'accept': 'accept',
+    'reject': 'reject',
+    'cancel': 'cancel',
+}
+
+
+@owner_required
+def order_detail(request, pk):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action in _ORDER_ACTION_PATHS:
+                api.post(f'/owner/orders/{pk}/{_ORDER_ACTION_PATHS[action]}')
+            elif action == 'status':
+                api.post(f'/owner/orders/{pk}/status',
+                         json={'status': request.POST.get('status')})
+            else:
+                messages.error(request, '알 수 없는 요청입니다.')
+                return redirect('web:owner_order_detail', pk=pk)
+            messages.success(request, '주문 상태를 변경했습니다.')
+        except ApiError as exc:
+            messages.error(request, exc.message)
+        return redirect('web:owner_order_detail', pk=pk)
+
+    try:
+        order = api.get(f'/owner/orders/{pk}')
+    except ApiError as exc:
+        if exc.status_code == 404:
+            raise Http404('주문을 찾을 수 없습니다.')
+        messages.error(request, exc.message)
+        return redirect('web:owner_orders')
+
+    order['created_display'] = _fmt_dt(order.get('created_at'), '%Y-%m-%d %H:%M')
+
+    return render(request, 'web/owner/order_detail.html', {
+        'order': order,
+        'status_choices': ORDER_STATUS_CHOICES,
+    })
+
+
+# ------------------------------------------------------------------ 상품/카테고리
+# apps/restaurants/models.py 의 Menu.Status 와 동기화할 것.
+# 모델의 choices 라벨은 영어라 화면용 한글 라벨을 여기서 정의한다.
+MENU_STATUS_CHOICES = [
+    ('on_sale', '판매중'),
+    ('sold_out', '품절'),
+    ('hidden', '숨김'),
+]
+MAX_MENU_PRICE = 10_000_000
+
+
+def _owned_restaurants(api, reviewable_only=False):
+    params = {'reviewable': '1'} if reviewable_only else None
+    return api.get('/owner/restaurants', params=params).get('results', [])
+
+
+def _selected_restaurant_id(request, restaurants):
+    """GET 파라미터 restaurant_id 로 필터. 소유하지 않은 ID 는 무시한다."""
+    try:
+        sel = int(request.GET.get('restaurant_id', ''))
+    except (TypeError, ValueError):
+        return ''
+    return sel if any(r['id'] == sel for r in restaurants) else ''
+
+
+@owner_required
+def product_list(request):
+    api = client_for(request)
+    restaurants, menus = [], []
+    try:
+        restaurants = _owned_restaurants(api)
+        menus = api.get('/owner/products').get('results', [])
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    selected = _selected_restaurant_id(request, restaurants)
+    if selected:
+        menus = [m for m in menus if m.get('restaurant') == selected]
+
+    return render(request, 'web/owner/products.html', {
+        'menus': menus,
+        'restaurants': restaurants,
+        'selected_restaurant_id': selected,
+    })
+
+
+@owner_required
+def product_form(request, pk=None):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        try:
+            price = int(request.POST.get('price') or 0)
+        except (TypeError, ValueError):
+            price = -1
+
+        payload = {
+            'restaurant': request.POST.get('restaurant'),
+            'category': request.POST.get('category') or None,
+            'name': (request.POST.get('name') or '').strip(),
+            'price': price,
+            'description': (request.POST.get('description') or '').strip(),
+            'status': request.POST.get('status') or 'on_sale',
+        }
+
+        if price < 0:
+            messages.error(request, '가격을 올바르게 입력하세요.')
+        else:
+            try:
+                # 값 검증(상품명 공백, 가격 상한, 매장 승인 여부)은 서버가 한다.
+                if pk:
+                    saved = api.put(f'/owner/products/{pk}', json=payload)
+                else:
+                    saved = api.post('/owner/products', json=payload)
+
+                upload = request.FILES.get('image')
+                if upload:
+                    # 이미지는 별도 multipart 엔드포인트로 중계한다.
+                    # (상품 본문은 JSON, 파일은 multipart 로 나뉜 구조)
+                    api.post(
+                        f"/owner/products/{saved['id']}/image",
+                        files={'image': (upload.name, upload.file, upload.content_type)},
+                    )
+                messages.success(request, '상품을 저장했습니다.')
+                return redirect('web:owner_products')
+            except ApiError as exc:
+                messages.error(request, exc.message)
+
+    menu, restaurants, categories = None, [], []
+    try:
+        # 등록 대상은 승인 완료된 매장만 노출한다.
+        restaurants = _owned_restaurants(api, reviewable_only=True)
+        categories = api.get('/owner/categories').get('results', [])
+        if pk:
+            menu = api.get(f'/owner/products/{pk}')
+    except ApiError as exc:
+        if pk and exc.status_code == 404:
+            raise Http404('상품을 찾을 수 없습니다.')
+        messages.error(request, exc.message)
+
+    return render(request, 'web/owner/product_form.html', {
+        'menu': menu,
+        'restaurants': restaurants,
+        'categories': categories,
+        'status_choices': MENU_STATUS_CHOICES,
+    })
+
+
+@owner_required
+def product_delete(request, pk):
+    if request.method == 'POST':
+        try:
+            client_for(request).delete(f'/owner/products/{pk}')
+            messages.success(request, '상품을 삭제했습니다.')
+        except ApiError as exc:
+            messages.error(request, exc.message)
+    return redirect('web:owner_products')
+
+
+@owner_required
+def category_list(request):
+    api = client_for(request)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        category_id = request.POST.get('category_id')
+        try:
+            if action == 'create':
+                api.post('/owner/categories', json={
+                    'restaurant': request.POST.get('restaurant'),
+                    'name': (request.POST.get('name') or '').strip(),
+                })
+                messages.success(request, '카테고리를 추가했습니다.')
+            elif action == 'delete':
+                api.delete(f'/owner/categories/{category_id}')
+                messages.success(request, '카테고리를 삭제했습니다.')
+            elif action in ('move_up', 'move_down'):
+                # 순서 교환은 서버가 한 트랜잭션으로 처리한다.
+                api.post(f'/owner/categories/{category_id}/move',
+                         json={'direction': 'up' if action == 'move_up' else 'down'})
+                messages.success(request, '순서를 변경했습니다.')
+            else:
+                messages.error(request, '알 수 없는 요청입니다.')
+        except ApiError as exc:
+            messages.error(request, exc.message)
+        return redirect('web:owner_categories')
+
+    categories, restaurants = [], []
+    try:
+        categories = api.get('/owner/categories').get('results', [])
+        restaurants = _owned_restaurants(api, reviewable_only=True)
+    except ApiError as exc:
+        messages.error(request, exc.message)
+
+    return render(request, 'web/owner/categories.html', {
+        'categories': categories,
+        'restaurants': restaurants,
+    })
