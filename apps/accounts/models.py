@@ -52,13 +52,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     name = models.CharField(max_length=64, blank=True)          # 실명
-    rrn_encrypted = models.CharField(
+    account_number_encrypted = models.CharField(
         max_length=255, blank=True, null=True,
-        help_text="주민등록번호 (AES-128 암호화)"
-    )
-    rrn_hash = models.CharField(
-        max_length=64, unique=True, null=True, blank=True,
-        help_text="주민등록번호 중복 확인용 해시(SHA-256). 복호화 불가능해서 이 값만으로는 원본을 알 수 없다.",
+        help_text="계좌번호 (AES-128 암호화). accounts.crypto_utils.encrypt_aes128 으로 저장한다.",
     )
     payment_pw_hash = models.CharField(
         max_length=128, blank=True, default='',

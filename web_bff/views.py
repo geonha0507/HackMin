@@ -8,7 +8,7 @@ import logging
 from datetime import date, datetime, timedelta
 
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
 from .api_client import ApiClient, ApiError, client_for
@@ -869,11 +869,32 @@ def notice_delete(request, pk):
 
 
 # ------------------------------------------------------------------ 점주 회원가입
+def check_duplicate(request):
+    """회원가입 중복확인(아이디/이메일/닉네임)을 백엔드로 중계한다.
+
+    로그인 전 호출이므로 authed=False. web_bff 에는 /api/v1 라우트가 없어
+    브라우저가 API 를 직접 부를 수 없으므로 여기서 대신 호출한다.
+    """
+    params = {}
+    for key in ('username', 'email', 'nickname'):
+        value = request.GET.get(key)
+        if value:
+            params[key] = value
+    if not params:
+        return JsonResponse(
+            {'message': 'username, email 또는 nickname 파라미터가 필요합니다.'}, status=400)
+    try:
+        data = ApiClient().get('/auth/check-duplicate', params=params, authed=False)
+    except ApiError as exc:
+        return JsonResponse({'message': exc.message}, status=exc.status_code or 502)
+    return JsonResponse(data)
+
+
 SIGNUP_FIELDS = [
     'username', 'email', 'phone', 'nickname',
     'store_name', 'store_phone',
     'store_postcode', 'store_road_address', 'store_detail_address',
-    # rrn 은 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
+    # 계좌번호는 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
 ]
 
 
@@ -907,7 +928,7 @@ def signup_view(request):
                 'email': form_data['email'],
                 'phone': form_data['phone'],
                 'nickname': form_data['nickname'],
-                'rrn': (request.POST.get('rrn') or '').strip(),
+                'account_number': (request.POST.get('account_number') or '').strip(),
                 'password': password,
                 'store_name': form_data['store_name'],
                 'store_phone': form_data['store_phone'],
