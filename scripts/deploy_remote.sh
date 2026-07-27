@@ -15,6 +15,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/hackmin}"
 STAGE_DIR="${STAGE_DIR:-/tmp/hackmin-deploy}"
 COMPOSE_FILE="docker-compose.prod.yml"
+RDS_CA_URL="https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
 
 log() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
 
@@ -37,14 +38,30 @@ cd "$APP_DIR"
 [ -f app.env ] && cp app.env app.env.bak
 
 umask 077
-# .env  = compose 보간용 (HACKMIN_IMAGE, ADMIN_BIND)
+# .env  = compose 보간용 (HACKMIN_IMAGE, HACKMIN_WEB_IMAGE, ADMIN_BIND)
 # app.env = 컨테이너 전달용 앱 설정/시크릿
 install -m 600 "$STAGE_DIR/compose.env" .env
 install -m 600 "$STAGE_DIR/app.env" app.env
 install -m 644 "$STAGE_DIR/$COMPOSE_FILE" "$COMPOSE_FILE"
 
+# RDS 강제 SSL 을 쓰면 CA 번들이 컨테이너에 마운트돼야 한다. AWS 공개 번들이라
+# 시크릿이 아니므로 없으면 여기서 내려받는다. 파일이 없는 채로 compose 가 뜨면
+# 도커가 같은 이름의 '빈 디렉터리'를 만들어 원인 찾기 어려운 TLS 오류가 난다.
+if grep -q '^DB_SSL_CA=..*' app.env; then
+  if [ ! -f global-bundle.pem ]; then
+    log "RDS CA 번들 내려받기"
+    curl -fsS -o global-bundle.pem "$RDS_CA_URL"
+  fi
+  [ -f global-bundle.pem ] || { echo "ERROR: global-bundle.pem 준비 실패" >&2; exit 1; }
+  chmod 644 global-bundle.pem
+fi
+
 IMAGE_REF="$(grep -E '^HACKMIN_IMAGE=' .env | cut -d= -f2-)"
-log "배포 이미지: ${IMAGE_REF:-<미지정>}"
+WEB_IMAGE_REF="$(grep -E '^HACKMIN_WEB_IMAGE=' .env | cut -d= -f2-)"
+log "배포 이미지"
+echo "  api/admin-web: ${IMAGE_REF:-<미지정>}"
+echo "  점주 웹      : ${WEB_IMAGE_REF:-<미지정>}"
+[ -n "$WEB_IMAGE_REF" ] || { echo "ERROR: HACKMIN_WEB_IMAGE 가 .env 에 없습니다." >&2; exit 1; }
 
 # GHCR 이 비공개 패키지인 경우에만 로그인한다. 토큰은 stdin 으로만 흘려보내
 # 원격 프로세스 목록(ps)에 남지 않게 한다.
@@ -75,8 +92,24 @@ for i in $(seq 1 30); do
   sleep 4
 done
 
-log "web / admin-web 기동"
+log "redis / web / admin-web 기동"
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+
+log "점주 웹 헬스 대기"
+for i in $(seq 1 15); do
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 \
+           http://127.0.0.1:8001/web/health || echo 000)
+  if [ "$code" = "200" ]; then
+    echo "  점주 웹 정상 (${i}회차)"
+    break
+  fi
+  if [ "$i" -eq 15 ]; then
+    echo "ERROR: 점주 웹 헬스체크 실패 (HTTP $code). 최근 로그:" >&2
+    docker compose -f "$COMPOSE_FILE" logs --tail=80 web >&2
+    exit 1
+  fi
+  sleep 3
+done
 
 if [ -f "$STAGE_DIR/ghcr.token" ]; then
   docker logout ghcr.io >/dev/null 2>&1 || true

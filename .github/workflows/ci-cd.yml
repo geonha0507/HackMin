@@ -83,11 +83,47 @@ jobs:
         run: python manage.py check --deploy --fail-level ERROR
 
   # ---------------------------------------------------------------------------
-  # 2) 빌드 — Dockerfile 빌드 검증, main 에서만 GHCR 로 push
+  # 2) 검증 — 점주 웹(web_bff) 이미지
+  #
+  # web_bff 는 DB에 접속하지 않고 의존성도 다르다(Django/httpx/redis 뿐).
+  # api 검증과 섞으면 requirements.txt 가 함께 설치돼 "DB 없이도 뜨는지"를
+  # 확인하지 못하므로 별도 job 으로 둔다.
+  # ---------------------------------------------------------------------------
+  validate-web:
+    name: 점주 웹 검증
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치 (web 전용)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-web.txt
+
+      # DATABASES = {} 인 상태로 정상 부팅되는지 확인한다.
+      # ORM 을 실수로 호출하는 코드가 들어가면 여기서 걸린다.
+      - name: manage_web.py check
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+          DJANGO_ALLOWED_HOSTS: example.com
+          REDIS_URL: redis://localhost:6379/0
+        run: python manage_web.py check
+
+  # ---------------------------------------------------------------------------
+  # 3) 빌드 — 이미지 2개. main 에서만 GHCR 로 push
+  #
+  #   <repo>       : api / admin-web 용 (루트 Dockerfile)
+  #   <repo>-web   : 점주 웹 용 (docker/Dockerfile.web)
   # ---------------------------------------------------------------------------
   build:
     name: 이미지 빌드
-    needs: validate
+    needs: [validate, validate-web]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -95,6 +131,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
+      web_image: ${{ steps.meta.outputs.web_image }}
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
@@ -106,6 +143,7 @@ jobs:
           REQUESTED_TAG: ${{ inputs.image_tag }}
         run: |
           echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "web_image=${REGISTRY}/${GITHUB_REPOSITORY,,}-web" >> "$GITHUB_OUTPUT"
           echo "tag=${REQUESTED_TAG:-$GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
@@ -119,21 +157,46 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # workflow_dispatch 로 기존 태그를 지정한 롤백이면 재빌드하지 않는다.
-      - name: 빌드 & 푸시
+      - name: 빌드 & 푸시 (api)
         if: ${{ !inputs.image_tag }}
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.image }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: 빌드 & 푸시 (점주 웹)
+        if: ${{ !inputs.image_tag }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.web
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.meta.outputs.web_image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.web_image }}:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   # ---------------------------------------------------------------------------
-  # 3) 배포 — EC2 에 SSH 접속해 새 이미지로 교체
+  # 4) 배포 — EC2 에 SSH 접속해 새 이미지로 교체
+  #
+  # 리포지토리 변수 DEPLOY_ENABLED=true 일 때만 실행된다. 변수가 없으면 job 이
+  # '실패'가 아니라 'skipped' 로 지나가므로, 개발 중 푸시마다 빨간 X 가 뜨지 않는다.
+  #
+  # 켜는 법: Settings > Secrets and variables > Actions 에서 아래를 먼저 등록한 뒤
+  #          맨 마지막에 DEPLOY_ENABLED 를 추가한다.
+  #   Variables: EC2_HOST, EC2_USER, DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_ORIGINS,
+  #              WEB_BFF_CSRF_ORIGINS, DB_ENGINE, DB_HOST, DB_SSL_CA ...
+  #   Secrets  : EC2_SSH_KEY, EC2_KNOWN_HOSTS, DJANGO_SECRET_KEY,
+  #              WEB_BFF_SECRET_KEY, DB_PASSWORD ...
   # ---------------------------------------------------------------------------
   deploy:
     name: EC2 배포
@@ -150,6 +213,7 @@ jobs:
       packages: read
     env:
       IMAGE: ${{ needs.build.outputs.image }}
+      WEB_IMAGE: ${{ needs.build.outputs.web_image }}
       TAG: ${{ needs.build.outputs.tag }}
       APP_DIR: ${{ vars.APP_DIR || '/opt/hackmin' }}
       STAGE_DIR: /tmp/hackmin-deploy
@@ -163,11 +227,13 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          WEB_BFF_SECRET_KEY: ${{ secrets.WEB_BFF_SECRET_KEY }}
         run: |
           fail=0
-          [ -n "$SSH_HOST" ]           || { echo "::error::리포지토리 변수 EC2_HOST 미설정"; fail=1; }
-          [ -n "$SSH_KEY" ]            || { echo "::error::시크릿 EC2_SSH_KEY 미설정"; fail=1; }
-          [ -n "$DJANGO_SECRET_KEY" ]  || { echo "::error::시크릿 DJANGO_SECRET_KEY 미설정"; fail=1; }
+          [ -n "$SSH_HOST" ]              || { echo "::error::리포지토리 변수 EC2_HOST 미설정"; fail=1; }
+          [ -n "$SSH_KEY" ]               || { echo "::error::시크릿 EC2_SSH_KEY 미설정"; fail=1; }
+          [ -n "$DJANGO_SECRET_KEY" ]     || { echo "::error::시크릿 DJANGO_SECRET_KEY 미설정"; fail=1; }
+          [ -n "$WEB_BFF_SECRET_KEY" ]    || { echo "::error::시크릿 WEB_BFF_SECRET_KEY 미설정 (점주 웹 세션 서명용)"; fail=1; }
           exit $fail
 
       - name: SSH 준비
@@ -207,11 +273,21 @@ jobs:
           DB_USER: ${{ vars.DB_USER || 'hackmin' }}
           DB_HOST: ${{ vars.DB_HOST }}
           DB_PORT: ${{ vars.DB_PORT || '3306' }}
+          # RDS 강제 SSL 을 쓰면 컨테이너 안 경로를 넣는다: /app/certs/rds-ca.pem
+          DB_SSL_CA: ${{ vars.DB_SSL_CA }}
           USE_S3: ${{ vars.USE_S3 || '0' }}
           AWS_S3_BUCKET_NAME: ${{ vars.AWS_S3_BUCKET_NAME || 'hackmin-media-bucket' }}
           AWS_S3_REGION_NAME: ${{ vars.AWS_S3_REGION_NAME || 'ap-northeast-2' }}
           SEED_DEMO: ${{ vars.SEED_DEMO || '0' }}
           ADMIN_BIND: ${{ vars.ADMIN_BIND || '127.0.0.1' }}
+          # --- 점주 웹(web_bff) 전용 ---
+          # api 와 다른 키를 쓴다. 세션 쿠키 서명 전용.
+          WEB_BFF_SECRET_KEY: ${{ secrets.WEB_BFF_SECRET_KEY }}
+          # 스킴까지 정확히 맞아야 한다. HTTPS 를 쓰면 https:// 를 반드시 포함할 것.
+          WEB_BFF_CSRF_ORIGINS: ${{ vars.WEB_BFF_CSRF_ORIGINS }}
+          WEB_BFF_ALLOWED_HOSTS: ${{ vars.WEB_BFF_ALLOWED_HOSTS || '*' }}
+          # nginx 등 프록시가 X-Forwarded-Proto 를 붙여줄 때만 1.
+          USE_X_FORWARDED_PROTO: ${{ vars.USE_X_FORWARDED_PROTO || '0' }}
         run: |
           umask 077
           mkdir -p stage
@@ -219,9 +295,11 @@ jobs:
           APP_KEYS="DJANGO_ENV DJANGO_DEBUG DJANGO_SECRET_KEY
                     DJANGO_ALLOWED_HOSTS DJANGO_CSRF_ORIGINS DJANGO_CORS_ORIGINS
                     DJANGO_SSL_REDIRECT DB_ENGINE DB_NAME DB_USER DB_PASSWORD
-                    DB_HOST DB_PORT USE_S3 AWS_S3_BUCKET_NAME AWS_S3_REGION_NAME
-                    AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY
-                    SEED_DEMO"
+                    DB_HOST DB_PORT DB_SSL_CA USE_S3 AWS_S3_BUCKET_NAME
+                    AWS_S3_REGION_NAME AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+                    OPENAI_API_KEY SEED_DEMO
+                    WEB_BFF_SECRET_KEY WEB_BFF_CSRF_ORIGINS WEB_BFF_ALLOWED_HOSTS
+                    USE_X_FORWARDED_PROTO"
 
           # docker compose 의 env_file 파서는 따옴표 없는 값에서 줄바꿈을 만나면
           # 형식이 깨지고, 공백 뒤의 #부터는 주석으로 잘라낸다. 조용히 잘린 채
@@ -245,7 +323,8 @@ jobs:
           done > stage/app.env
 
           # .env — compose 파일의 ${...} 치환에만 쓴다. 시크릿을 넣지 않는다.
-          printf 'HACKMIN_IMAGE=%s\nADMIN_BIND=%s\n' "$IMAGE:$TAG" "$ADMIN_BIND" > stage/compose.env
+          printf 'HACKMIN_IMAGE=%s\nHACKMIN_WEB_IMAGE=%s\nADMIN_BIND=%s\n' \
+            "$IMAGE:$TAG" "$WEB_IMAGE:$TAG" "$ADMIN_BIND" > stage/compose.env
 
           expected=$(echo $APP_KEYS | wc -w)
           actual=$(wc -l < stage/app.env)
@@ -282,13 +361,18 @@ jobs:
           for port in 8000 8001 8002; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
                      "http://127.0.0.1:$port/api/v1/health" || echo 000)
-            # web/admin-web 은 URLConf 가 달라 health 가 404 인 게 정상이다.
+            # web(8001)/admin-web(8002) 는 이 경로를 서비스하지 않아 404 가 정상이다.
             # 컨테이너가 죽어 있으면 000(연결 실패)이 나온다.
             case "$port:$code" in
               8000:200|8001:404|8002:404) echo "  포트 $port → $code (정상)" ;;
               *) echo "  포트 $port → $code (비정상)"; exit 1 ;;
             esac
           done
+          # 점주 웹은 전용 헬스 경로로 따로 확인한다.
+          web=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                  "http://127.0.0.1:8001/web/health" || echo 000)
+          [ "$web" = "200" ] || { echo "  점주 웹 /web/health → $web (비정상)"; exit 1; }
+          echo "  점주 웹 /web/health → 200 (정상)"
           echo "전체 서비스 정상"
           EOF
 
