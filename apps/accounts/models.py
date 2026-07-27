@@ -52,18 +52,31 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=32, blank=True)
     nickname = models.CharField(max_length=64, blank=True)
     name = models.CharField(max_length=64, blank=True)          # 실명
-    rrn_encrypted = models.CharField(
+    
+    # Owner payment info
+    bank_name = models.CharField(
+        max_length=64, blank=True, null=True,
+        help_text="은행명 (점주웹)"
+    )
+    account_number = models.CharField(
         max_length=255, blank=True, null=True,
-        help_text="주민등록번호 (AES-128 암호화)"
+        help_text="계좌번호 암호화 (점주웹, AES-128)"
     )
-    rrn_hash = models.CharField(
-        max_length=64, unique=True, null=True, blank=True,
-        help_text="주민등록번호 중복 확인용 해시(SHA-256). 복호화 불가능해서 이 값만으로는 원본을 알 수 없다.",
+    
+    # Customer payment info
+    card_number = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드번호 암호화 (사용자앱, AES-128)"
     )
-    payment_pw_hash = models.CharField(
-        max_length=128, blank=True, default='',
-        help_text="6자리 결제 비밀번호 해시(Django 해시). 평문은 저장하지 않는다.",
+    card_cvc = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드 CVC 암호화 (AES-128)"
     )
+    card_password_2digit = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="카드 비밀번호 2자리 암호화 (AES-128)"
+    )
+    
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.CUSTOMER)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 
