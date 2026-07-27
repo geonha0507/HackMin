@@ -873,7 +873,7 @@ SIGNUP_FIELDS = [
     'username', 'email', 'phone', 'nickname',
     'store_name', 'store_phone',
     'store_postcode', 'store_road_address', 'store_detail_address',
-    # rrn 은 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
+    # 계좌번호는 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
 ]
 
 
@@ -907,7 +907,7 @@ def signup_view(request):
                 'email': form_data['email'],
                 'phone': form_data['phone'],
                 'nickname': form_data['nickname'],
-                'rrn': (request.POST.get('rrn') or '').strip(),
+                'account_number': (request.POST.get('account_number') or '').strip(),
                 'password': password,
                 'store_name': form_data['store_name'],
                 'store_phone': form_data['store_phone'],
