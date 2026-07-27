@@ -25,6 +25,59 @@ def _mask_tail(digits, visible=4):
         return digits
     return '*' * (len(digits) - visible) + digits[-visible:]
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def payment_password(request):
+    """
+    결제 비밀번호 설정(POST) / 설정 여부 조회(GET)
+    6자리 숫자를 Django 해시로 저장한다.
+    """
+    from django.contrib.auth.hashers import make_password
+
+    if request.method == 'GET':
+        return Response({
+            'is_set': bool(request.user.payment_pw_hash)
+        })
+
+    pw = (request.data.get('password') or '').strip()
+
+    if not pw.isdigit() or len(pw) != 6:
+        return error_response(
+            'bad_request',
+            '결제 비밀번호는 6자리 숫자여야 합니다.',
+            400,
+        )
+
+    request.user.payment_pw_hash = make_password(pw)
+    request.user.save(update_fields=['payment_pw_hash'])
+
+    return Response({
+        'is_set': True
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def payment_password_verify(request):
+    """
+    결제 비밀번호 검증
+    """
+    from django.contrib.auth.hashers import check_password
+
+    pw = (request.data.get('password') or '').strip()
+
+    if not request.user.payment_pw_hash:
+        return error_response(
+            'not_set',
+            '결제 비밀번호가 설정되지 않았습니다.',
+            400,
+        )
+
+    valid = check_password(pw, request.user.payment_pw_hash)
+
+    return Response({
+        'valid': valid
+    })
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
