@@ -106,10 +106,14 @@ services:
     ports:
       - "8001:8000"
     environment:
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
-      DJANGO_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
-      DJANGO_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8001,http://127.0.0.1:8001}
+      # 변수 이름을 운영(app.env)과 동일하게 WEB_BFF_ 접두사로 통일한다.
+      # settings.py 가 WEB_BFF_* 를 먼저 읽고 없으면 DJANGO_* 로 떨어진다.
+      WEB_BFF_DEBUG: ${DJANGO_DEBUG:-1}
+      # api 컨테이너와 다른 키를 쓴다. 세션 쿠키·CSRF 토큰 서명 전용.
+      WEB_BFF_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
+      WEB_BFF_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
+      # 스킴까지 정확히 맞아야 한다. HTTPS 를 쓰면 https:// 를 반드시 포함할 것.
+      WEB_BFF_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8001,http://127.0.0.1:8001}
       USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-0}
       HACKMIN_API_BASE: http://api:8000/api/v1
       REDIS_URL: redis://redis:6379/0

@@ -17,17 +17,38 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-web-bff-dev-key')
-DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()]
+def _env(name, default=''):
+    """WEB_BFF_<name> 을 우선 읽고, 없거나 비어 있으면 DJANGO_<name> 으로 떨어진다.
+
+    빈 문자열을 '미설정'으로 취급하는 게 핵심이다. os.environ.get(k, default) 은
+    변수가 '존재하지만 비어 있는' 경우 default 를 쓰지 않고 '' 를 돌려주는데,
+    CI 가 값 없는 항목도 `KEY=` 형태로 env 파일에 써 넣기 때문에 이 구분이 없으면
+    ALLOWED_HOSTS 가 빈 리스트가 되어 DEBUG=False 에서 부팅이 실패한다.
+
+    운영에서는 api 와 같은 app.env 를 공유하므로, 접두사가 붙은 값이 있으면
+    그쪽을 써서 api 와 키·오리진을 분리한다.
+    """
+    for key in (f'WEB_BFF_{name}', f'DJANGO_{name}'):
+        value = os.environ.get(key)
+        if value:
+            return value
+    return default
+
+
+def _env_list(name, default=''):
+    return [v.strip() for v in _env(name, default).split(',') if v.strip()]
+
+
+# api 와 다른 키를 쓰는 것이 원칙이다. WEB_BFF_SECRET_KEY 를 설정할 것.
+SECRET_KEY = _env('SECRET_KEY', 'django-insecure-web-bff-dev-key')
+DEBUG = _env('DEBUG', '0') == '1'
+ALLOWED_HOSTS = _env_list('ALLOWED_HOSTS', '*')
 
 # Django 4+ 는 스킴까지 포함한 정확한 값을 요구한다.
 # nginx 로 HTTPS 종단을 하면 브라우저가 보내는 Origin 은 https:// 이므로
 # http:// 만 넣어두면 로그인 POST 가 403 으로 막힌다. 둘 다 넣을 것.
 #   WEB_BFF_CSRF_ORIGINS=https://54.116.95.188,http://54.116.95.188
-CSRF_TRUSTED_ORIGINS = [
-    o.strip() for o in os.environ.get('DJANGO_CSRF_ORIGINS', '').split(',') if o.strip()
-]
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_ORIGINS')
 
 # 리버스 프록시 뒤에서 HTTPS 를 종단하면 Django 는 요청을 http 로 인식한다.
 # 프록시가 X-Forwarded-Proto 를 붙여준다는 전제에서만 켠다(기본 꺼짐).
