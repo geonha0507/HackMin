@@ -110,6 +110,7 @@ services:
       DJANGO_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
       DJANGO_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
       DJANGO_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8001,http://127.0.0.1:8001}
+      USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-0}
       HACKMIN_API_BASE: http://api:8000/api/v1
       REDIS_URL: redis://redis:6379/0
 

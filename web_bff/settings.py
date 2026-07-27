@@ -21,9 +21,19 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-web-bff-dev-ke
 DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
+# Django 4+ 는 스킴까지 포함한 정확한 값을 요구한다.
+# nginx 로 HTTPS 종단을 하면 브라우저가 보내는 Origin 은 https:// 이므로
+# http:// 만 넣어두면 로그인 POST 가 403 으로 막힌다. 둘 다 넣을 것.
+#   WEB_BFF_CSRF_ORIGINS=https://54.116.95.188,http://54.116.95.188
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.environ.get('DJANGO_CSRF_ORIGINS', '').split(',') if o.strip()
 ]
+
+# 리버스 프록시 뒤에서 HTTPS 를 종단하면 Django 는 요청을 http 로 인식한다.
+# 프록시가 X-Forwarded-Proto 를 붙여준다는 전제에서만 켠다(기본 꺼짐).
+# 프록시 없이 켜면 클라이언트가 헤더를 위조해 secure 판정을 우회할 수 있다.
+if os.environ.get('USE_X_FORWARDED_PROTO', '0') == '1':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # --- 앱 -------------------------------------------------------------------
