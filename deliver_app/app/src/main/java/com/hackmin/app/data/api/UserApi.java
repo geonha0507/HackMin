@@ -44,4 +44,40 @@ public interface UserApi {
     /** 배송지 삭제 */
     @DELETE("me/addresses/{id}")
     Call<Void> deleteAddress(@Path("id") long addressId);
+
+    /** 등록 카드/간편결제 목록 (provider: card|kakao|naver, 생략 시 전체) */
+    @GET("me/payment-cards")
+    Call<PagedResponse<PaymentCardDto>> getPaymentCards(@Query("provider") String provider);
+
+    /** 결제 카드/간편결제 등록 (카드번호는 서버가 AES-256 암호화 저장). 등록된 값(마스킹) 반환 */
+    @POST("me/payment-cards")
+    Call<PaymentCardDto> registerPaymentCard(@Body CardRegisterRequest request);
+
+    /** 등록 카드/간편결제 삭제 */
+    @DELETE("me/payment-cards/{id}")
+    Call<Void> deletePaymentCard(@Path("id") long cardId);
+
+    /** 결제 비밀번호 설정 여부 조회 */
+    @GET("me/payment-password")
+    Call<PaymentPasswordResponse> getPaymentPasswordStatus();
+
+    /** 결제 비밀번호(6자리) 설정 */
+    @POST("me/payment-password")
+    Call<PaymentPasswordResponse> setPaymentPassword(@Body PaymentPasswordRequest request);
+
+    /** 결제 비밀번호(6자리) 검증 */
+    @POST("me/payment-password/verify")
+    Call<PaymentPasswordResponse> verifyPaymentPassword(@Body PaymentPasswordRequest request);
+
+    /** 등록 계좌 목록 조회 (응답: {results:[...]}) */
+    @GET("me/bank-accounts")
+    Call<PagedResponse<BankAccountDto>> getBankAccounts();
+
+    /** 계좌 등록 (계좌번호는 서버가 AES-256 암호화 저장). 등록된 계좌(마스킹값)를 반환 */
+    @POST("me/bank-accounts")
+    Call<BankAccountDto> registerBankAccount(@Body AccountRegisterRequest request);
+
+    /** 등록 계좌 삭제 */
+    @DELETE("me/bank-accounts/{id}")
+    Call<Void> deleteBankAccount(@Path("id") long accountId);
 }
