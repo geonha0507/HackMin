@@ -27,6 +27,13 @@ services:
     image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
+    # 바인드 마운트를 없애면서 컨테이너 안의 /app/.env 도 함께 사라졌다.
+    # config/settings/base.py 는 load_dotenv(BASE_DIR/'.env') 로 설정을 읽으므로,
+    # 아래 environment: 에 나열되지 않은 값(DJANGO_ENV, DJANGO_ALLOWED_HOSTS,
+    # AWS 키 등)이 전부 누락된다. env_file 로 통째로 주입해 이를 메운다.
+    # (파일은 컨테이너 안에 생기지 않고 값만 환경변수로 들어간다)
+    env_file:
+      - .env
     # 소스 바인드마운트(.:/app) 금지. 파일 이름을 지정한 볼륨만 붙인다.
     volumes:
       - db_data:/data          # SQLite 공유 볼륨 (web 과 동일 DB 파일)
@@ -83,6 +90,9 @@ services:
     image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
+    # api 와 동일. 사라진 /app/.env 자리를 메운다.
+    env_file:
+      - .env
     depends_on:
       - api
     volumes:
@@ -129,6 +139,9 @@ services:
     image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
+    # api 와 동일. 사라진 /app/.env 자리를 메운다.
+    env_file:
+      - .env
     depends_on:
       - api
     volumes:
@@ -139,9 +152,12 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-      # 로컬은 0.0.0.0, EC2 는 127.0.0.1 만 열도록 .env 의 ADMIN_BIND 로 제어한다.
-      # (EC2 에서는 nginx 가 /admin-web/ 에 IP 제한을 건 뒤 localhost:8002 로 프록시)
-      - "${ADMIN_BIND:-0.0.0.0}:8002:8000"
+      # 기본값을 127.0.0.1 로 둔다. .env 설정을 깜빡해도 관리자 웹이 인터넷에
+      # 노출되지 않도록 안전한 쪽을 기본으로 잡은 것이다. 로컬 개발에서도
+      # 브라우저로 localhost:8002 접속은 그대로 된다.
+      # EC2 에서는 nginx 가 /admin-web/ 에 IP 제한을 건 뒤 여기로 프록시한다.
+      # 다른 기기에서 접속해야 하면 .env 에 ADMIN_BIND=0.0.0.0 을 넣는다.
+      - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
     environment:
       DB_ENGINE: ${DB_ENGINE:-sqlite}
       DB_SQLITE_PATH: /data/db.sqlite3
