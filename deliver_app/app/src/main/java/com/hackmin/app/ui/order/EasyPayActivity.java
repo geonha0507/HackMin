@@ -210,12 +210,19 @@ public class EasyPayActivity extends AppCompatActivity {
         addTitle(providerName());
         addLabel("등록된 결제수단");
 
-        TextView masked = new TextView(this);
-        masked.setText(card.getCardMasked());
-        masked.setTextSize(20);
-        masked.setTextColor(Color.parseColor("#222222"));
-        masked.setPadding(0, dp(8), 0, dp(24));
-        root.addView(masked);
+        // 카카오/네이버는 브랜드 이미지 타일, 일반 카드는 그라데이션 타일로 표시.
+        int brand = brandLogoRes();
+        View tile = brand != 0
+                ? com.hackmin.app.ui.common.CardTileFactory.createImageTile(
+                        this, brand, card.getCardMasked(), false, null, null)
+                : com.hackmin.app.ui.common.CardTileFactory.create(
+                        this, providerName(), card.getCardMasked(), false, null, null);
+        root.addView(tile);
+
+        View gap = new View(this);
+        gap.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(16)));
+        root.addView(gap);
 
         root.addView(textButton("삭제", v -> confirmDelete(card.getId())));
         root.addView(textButton("닫기", v -> finish()));
@@ -247,6 +254,13 @@ public class EasyPayActivity extends AppCompatActivity {
         if ("naver".equals(provider)) return Color.parseColor("#C6F0C2");  // 연두 (네이버)
         if ("card".equals(provider)) return Color.parseColor("#ECEFF1");   // 연회색 (일반 카드)
         return Color.parseColor("#FEE500");                                 // 노랑 (카카오)
+    }
+
+    /** 카카오/네이버 브랜드 이미지 리소스. 일반 카드는 0(그라데이션 타일). */
+    private int brandLogoRes() {
+        if ("kakao".equals(provider)) return com.hackmin.app.R.drawable.logo_kakaopay;
+        if ("naver".equals(provider)) return com.hackmin.app.R.drawable.logo_naverpay;
+        return 0;
     }
 
     private String providerName() {

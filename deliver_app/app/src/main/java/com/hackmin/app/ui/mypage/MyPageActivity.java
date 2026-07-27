@@ -91,6 +91,34 @@ public class MyPageActivity extends AppCompatActivity {
         super.onResume();
         // 내 정보 수정 화면에서 돌아왔을 때 최신 값 반영.
         loadProfile();
+        // 하위 목록(리뷰/주문/배송지/문의/결제수단)을 미리 받아 캐시에 채운다 →
+        // 각 메뉴 진입 시 네트워크 대기 없이 즉시 표시(20초 GET 캐시 활용).
+        prefetchMyPageLists();
+    }
+
+    /** 마이페이지 하위 화면 데이터를 백그라운드로 미리 호출해 HTTP 캐시를 데운다. */
+    private void prefetchMyPageLists() {
+        try {
+            ApiClient.reviewApi(this).getMyReviews(null).enqueue(MyPageActivity.noop());
+            ApiClient.orderApi(this).getMyOrders(null, 1).enqueue(MyPageActivity.noop());
+            ApiClient.userApi(this).getAddresses().enqueue(MyPageActivity.noop());
+            ApiClient.inquiryApi(this).getInquiries().enqueue(MyPageActivity.noop());
+            ApiClient.userApi(this).getPaymentCards(null).enqueue(MyPageActivity.noop());
+            ApiClient.userApi(this).getBankAccounts().enqueue(MyPageActivity.noop());
+        } catch (Exception ignored) {
+            // 프리페치는 실패해도 무시(각 화면이 자체적으로 다시 불러옴).
+        }
+    }
+
+    /** 결과를 쓰지 않는 프리페치용 콜백(응답이 HTTP 캐시에 저장되는 것만으로 충분). */
+    private static <T> retrofit2.Callback<T> noop() {
+        return new retrofit2.Callback<T>() {
+            @Override
+            public void onResponse(retrofit2.Call<T> call, retrofit2.Response<T> response) {}
+
+            @Override
+            public void onFailure(retrofit2.Call<T> call, Throwable t) {}
+        };
     }
 
     /** 로그아웃: 확인 다이얼로그 후 세션 정리 → 로그인 화면. */
