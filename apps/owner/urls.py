@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import account, orders, products, reviews, sales
+from . import account, orders, products, restaurants, reviews, sales
 
 app_name = 'owner'
 
@@ -10,6 +10,9 @@ urlpatterns = [
     path('owner/profile', account.owner_profile, name='profile'),
     path('owner/password', account.owner_password_change, name='password'),
     path('owner/business-license', account.upload_business_license, name='business-license'),
+
+    # Restaurants (점주 소유 매장) — web_bff 대시보드용
+    path('owner/restaurants', restaurants.owner_restaurant_list, name='restaurants'),
 
     # Products
     path('owner/products', products.product_list_create, name='products'),

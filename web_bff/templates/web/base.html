@@ -1,0 +1,116 @@
+{# apps/web/templates/web/base.html 에서 가져옴.                                #}
+{# 차이점: request.user → request.web_user (django.contrib.auth 를 안 쓴다),     #}
+{#        PoC 미구현 메뉴는 링크가 아니라 비활성 항목으로 표시.                   #}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HackMin{% endblock %} · HackMin</title>
+  <style>
+    :root{
+      --bg:#f4f5f7; --panel:#ffffff; --ink:#1f2430; --muted:#6b7280;
+      --line:#e5e7eb; --brand:#4f46e5; --brand-d:#4338ca;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',-apple-system,'Malgun Gothic',sans-serif;
+      background:var(--bg);color:var(--ink);font-size:14px;}
+    a{color:inherit;text-decoration:none}
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:#1f2430;color:#cbd2e0;display:flex;flex-direction:column;flex-shrink:0}
+    .sidebar .brand{padding:20px 22px;font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px}
+    .sidebar .brand span{color:#818cf8}
+    .sidebar .role{padding:0 22px 16px;font-size:12px;color:#6b7280}
+    .nav a{display:block;padding:11px 22px;color:#cbd2e0;font-weight:500;border-left:3px solid transparent}
+    .nav a:hover{background:#2a3040;color:#fff}
+    .nav a.active{background:#2a3040;color:#fff;border-left-color:var(--brand)}
+    .nav .off{display:block;padding:11px 22px;color:#565f73;font-weight:500;cursor:not-allowed}
+    .nav .sec{padding:16px 22px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#565f73}
+    .sidebar .foot{margin-top:auto;padding:16px 22px;border-top:1px solid #2a3040;font-size:13px}
+    .main{flex:1;display:flex;flex-direction:column;min-width:0}
+    .topbar{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 28px;
+      display:flex;align-items:center;justify-content:space-between}
+    .topbar h1{margin:0;font-size:18px}
+    .topbar .user{font-size:13px;color:var(--muted)}
+    .content{padding:26px 28px;max-width:1200px;width:100%}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+    .card .label{color:var(--muted);font-size:12px;margin-bottom:6px}
+    .card .value{font-size:24px;font-weight:700}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:22px}
+    .panel h2{margin:0 0 14px;font-size:15px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+    th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+    tr:last-child td{border-bottom:none}
+    .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600}
+    .b-gray{background:#eef0f3;color:#475569}
+    .b-green{background:#dcfce7;color:#15803d}
+    .b-amber{background:#fef3c7;color:#b45309}
+    .b-red{background:#fee2e2;color:#b91c1c}
+    .b-blue{background:#dbeafe;color:#1d4ed8}
+    .btn{display:inline-block;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
+      background:#fff;font-weight:600;cursor:pointer;font-size:13px}
+    .btn:hover{background:#f8fafc}
+    .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn-primary:hover{background:var(--brand-d)}
+    .btn-sm{padding:5px 10px;font-size:12px}
+    input,select,textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;
+      font-family:inherit;width:100%}
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px}
+    .field{margin-bottom:14px}
+    .msg{padding:11px 15px;border-radius:8px;margin-bottom:14px;font-size:13px}
+    .msg.error{background:#fee2e2;color:#b91c1c}
+    .msg.success{background:#dcfce7;color:#15803d}
+    .msg.info{background:#dbeafe;color:#1d4ed8}
+    .muted{color:var(--muted)}
+    .right{text-align:right}
+    .poc{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:8px;
+      padding:9px 13px;font-size:12px;margin-bottom:16px}
+  </style>
+</head>
+<body>
+{% if hide_chrome %}
+  {% block bare %}{% endblock %}
+{% else %}
+  {% with url_name=request.resolver_match.url_name %}
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Hack<span>Min</span></div>
+      <div class="role">점주 센터 · BFF</div>
+      <nav class="nav">
+        <a href="{% url 'web:owner_dashboard' %}" class="{% if url_name == 'owner_dashboard' %}active{% endif %}">대시보드</a>
+        <div class="sec">PoC 미구현</div>
+        <span class="off">주문 관리</span>
+        <span class="off">상품 관리</span>
+        <span class="off">카테고리</span>
+        <span class="off">매출 분석</span>
+        <span class="off">리뷰 관리</span>
+        <span class="off">내 정보 변경</span>
+        <span class="off">내 매장 관리</span>
+      </nav>
+      <div class="foot">
+        <div>{{ request.web_user.nickname|default:request.web_user.username }}</div>
+        <a href="{% url 'web:logout' %}" class="muted">로그아웃 →</a>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <h1>{% block heading %}{% endblock %}</h1>
+        <div class="user">{{ request.web_user.username }} · {{ request.web_user.get_role_display }}</div>
+      </div>
+      <div class="content">
+        {% if messages %}
+          {% for m in messages %}
+            <div class="msg {{ m.tags }}">{{ m }}</div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+{% endif %}
+</body>
+</html>
