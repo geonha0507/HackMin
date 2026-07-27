@@ -387,6 +387,7 @@ def chatbot_message(request):
     history = list(session.messages.order_by('-created_at')[:_MAX_HISTORY_MESSAGES])
     history.reverse()
 
+    system_content = SYSTEM_PROMPT
     system_content += '\n\n' + _build_user_context(request.user)
     enrichment = _detect_and_enrich(message, request.user)
     if enrichment:
