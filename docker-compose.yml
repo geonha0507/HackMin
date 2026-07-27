@@ -82,51 +82,36 @@ services:
       SEED_DEMO: ${SEED_DEMO:-1}
 
   # ---------------------------------------------------------------------------
-  # 점주(owner) 웹 (/web). 같은 이미지·같은 DB 를 공유하며, DB 스키마가
-  # 준비될 때까지 대기했다가 기동한다. 관리자 화면은 admin-web 서비스로 분리됨.
+  # 점주 웹 (/web). DB에 접속하지 않는다.
+  #
+  # 예전에는 api 와 같은 이미지를 공유하며 ORM 으로 DB를 직접 읽었다. 지금은
+  # 전용 이미지(docker/Dockerfile.web)로 뜨며 모든 데이터를 api 컨테이너의
+  # /api/v1 HTTP 호출로 가져온다. 이미지에 apps/ 도 config/ 도 DB 드라이버도
+  # 없으므로, 이 컨테이너가 침해당해도 DB 로 넘어갈 수단이 없다.
+  #
+  # 세션(JWT 보관)은 redis 에 둔다. Django 기본 세션은 django_session 테이블이라
+  # 그대로 두면 DB 의존이 되살아난다.
   # ---------------------------------------------------------------------------
   web:
-    build: .
-    image: hackmin-app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: hackmin-web
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
-    # api 와 동일. 사라진 /app/.env 자리를 메운다.
-    env_file:
-      - .env
     depends_on:
       - api
-    volumes:
-      - db_data:/data
-      - media_data:/app/media
-      # api 와 동일한 CA 번들 (프로젝트 최상위의 global-bundle.pem)
-      - ${RDS_CA_PATH:-./global-bundle.pem}:/app/certs/rds-ca.pem:ro
+      - redis
     security_opt:
       - no-new-privileges:true
     ports:
       - "8001:8000"
     environment:
-      DB_ENGINE: ${DB_ENGINE:-sqlite}
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DB_NAME: ${DB_NAME:-hackmin}
-      DB_USER: ${DB_USER:-hackmin}
-      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
-      DB_HOST: ${DB_HOST:-}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_SSL_CA: ${DB_SSL_CA:-}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
-      DJANGO_SSL_REDIRECT: "0"
-      # S3 파일 스토리지
-      USE_S3: ${USE_S3:-0}
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
-      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
-      # 이 컨테이너는 /web/ 만 응답한다 (/api/v1/, /admin-web/, /admin/ 은 404).
-      DJANGO_ROOT_URLCONF: config.urls_web
-      # web 은 마이그레이션/시드를 하지 않고 api 가 만든 스키마를 기다린다.
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+      DJANGO_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
+      DJANGO_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
+      DJANGO_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8001,http://127.0.0.1:8001}
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      REDIS_URL: redis://redis:6379/0
 
   # ---------------------------------------------------------------------------
   # 관리자 웹 (/admin-web/, Django 기본 /admin/). 로컬 개발 시에는 localhost로
@@ -179,42 +164,6 @@ services:
       DJANGO_ROOT_URLCONF: config.urls_admin
       RUN_MIGRATIONS: "0"
       SEED_DEMO: "0"
-
-  # ---------------------------------------------------------------------------
-  # [3-tier PoC] 점주 웹 BFF (docker/Dockerfile.web).
-  #
-  # 위의 web(8001) 과 같은 화면을 보여주지만 구현이 다르다:
-  #   - 이미지에 apps/ config/ 가 없다. DB 드라이버조차 없다.
-  #   - 데이터는 전부 api 컨테이너의 /api/v1 HTTP 호출로 가져온다.
-  #   - 세션(JWT 보관)은 redis 에 둔다. django_session 테이블을 쓰면 DB 의존이
-  #     되살아나기 때문이다.
-  #
-  # 기존 web 과 나란히 띄워 8001 vs 8003 으로 비교 검증한다.
-  # PoC 가 끝나면 web 서비스를 이쪽으로 교체한다.
-  # ---------------------------------------------------------------------------
-  web-bff:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
-    image: hackmin-web-bff
-    restart: unless-stopped
-    depends_on:
-      - api
-      - redis
-    security_opt:
-      - no-new-privileges:true
-    ports:
-      - "8003:8000"
-    environment:
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      # API 컨테이너와 다른 키를 쓴다. 세션 쿠키 서명 전용.
-      DJANGO_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
-      DJANGO_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
-      # EC2 에서 테스트할 때는 .env 에 실제 접속 주소를 넣는다.
-      #   WEB_BFF_CSRF_ORIGINS=http://54.116.95.188:8003
-      DJANGO_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8003,http://127.0.0.1:8003}
-      HACKMIN_API_BASE: http://api:8000/api/v1
-      REDIS_URL: redis://redis:6379/0
 
   # ---------------------------------------------------------------------------
   # web-bff 세션 저장소. 외부로 포트를 열지 않는다 (컨테이너 네트워크 전용).

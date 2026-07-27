@@ -1,5 +1,0 @@
-{% if status == 'delivered' %}<span class="badge b-green">{{ label }}</span>
-{% elif status == 'placed' or status == 'delivering' %}<span class="badge b-blue">{{ label }}</span>
-{% elif status == 'accepted' or status == 'cooking' or status == 'cooked' %}<span class="badge b-amber">{{ label }}</span>
-{% elif status == 'rejected' or status == 'cancelled' %}<span class="badge b-red">{{ label }}</span>
-{% else %}<span class="badge b-gray">{{ label }}</span>{% endif %}

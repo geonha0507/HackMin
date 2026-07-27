@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 
-from .api_client import ApiError, client_for
+from .api_client import ApiClient, ApiError, client_for
 from .auth import login_session, logout_session, owner_required
 
 logger = logging.getLogger(__name__)
@@ -866,3 +866,75 @@ def notice_delete(request, pk):
         lambda api: api.delete(f'/owner/notices/{pk}'),
         '공지사항을 삭제했습니다.',
     )
+
+
+# ------------------------------------------------------------------ 점주 회원가입
+SIGNUP_FIELDS = [
+    'username', 'email', 'phone', 'nickname',
+    'store_name', 'store_phone',
+    'store_postcode', 'store_road_address', 'store_detail_address',
+    # rrn 은 민감정보라 비밀번호처럼 화면에 다시 채워주지 않는다.
+]
+
+
+def signup_view(request):
+    """점주 계정 + 매장 입점 신청. 로그인 없이 접근하는 유일한 화면이다."""
+    if request.web_user.is_authenticated and request.web_user.role == 'owner':
+        return redirect('web:owner_dashboard')
+
+    form_data = {f: '' for f in SIGNUP_FIELDS}
+
+    if request.method == 'POST':
+        form_data = {f: (request.POST.get(f) or '').strip() for f in SIGNUP_FIELDS}
+
+        password = request.POST.get('password') or ''
+        password_confirm = request.POST.get('password_confirm') or ''
+        postcode = form_data['store_postcode']
+        road = form_data['store_road_address']
+        detail = form_data['store_detail_address']
+
+        # 확인란 일치와 주소 조립은 화면 사정이라 여기서 본다.
+        # 나머지 값 검증·중복 검사·파일 검사는 전부 서버가 한다.
+        if password != password_confirm:
+            messages.error(request, '비밀번호가 일치하지 않습니다.')
+        elif not postcode or not road:
+            messages.error(request, '주소 검색으로 매장 주소를 입력하세요.')
+        elif not detail:
+            messages.error(request, '상세 주소를 입력하세요.')
+        else:
+            payload = {
+                'username': form_data['username'],
+                'email': form_data['email'],
+                'phone': form_data['phone'],
+                'nickname': form_data['nickname'],
+                'rrn': (request.POST.get('rrn') or '').strip(),
+                'password': password,
+                'store_name': form_data['store_name'],
+                'store_phone': form_data['store_phone'],
+                'store_address': f'[{postcode}] {road} {detail}',
+            }
+            license_file = request.FILES.get('business_license')
+            files = {}
+            if license_file:
+                files['business_license'] = (
+                    license_file.name, license_file.file, license_file.content_type)
+
+            try:
+                # 인증 전 호출이라 토큰을 붙이지 않는다.
+                result = ApiClient().request(
+                    'POST', '/owner/signup/store',
+                    data=payload, files=files, authed=False,
+                )
+                messages.success(
+                    request,
+                    result.get('detail')
+                    or '입점 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.',
+                )
+                return redirect('web:login')
+            except ApiError as exc:
+                messages.error(request, exc.message)
+
+    return render(request, 'web/signup.html', {
+        'form_data': form_data,
+        'hide_chrome': True,
+    })

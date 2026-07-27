@@ -31,7 +31,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/health', health),
     path('api/v1/', include((api_v1, 'api_v1'))),
-    path('web/', include('web.urls')),
+    # 점주 웹(/web/)은 web_bff 컨테이너가 담당한다. 이 프로세스에는 없다.
 ]
 
 if settings.DEBUG:

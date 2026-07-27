@@ -59,7 +59,8 @@ INSTALLED_APPS = [
     'rider',
     'enrollment',
     'downloads',
-    'web',
+    # 'web' (점주 SSR 콘솔)은 web_bff 컨테이너로 이관되어 제거되었다.
+    # 점주 웹은 이제 DB에 붙지 않고 /api/v1 만 호출한다.
     'admin_web',
 ]
 

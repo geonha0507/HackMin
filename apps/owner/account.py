@@ -1,7 +1,11 @@
 """Owner account endpoints (/api/v1/owner/{signup,profile,business-license})."""
 
+import hashlib
 import os
+import re
 
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -119,3 +123,112 @@ def owner_withdrawal(request):
 
     created = WithdrawalRequest.objects.create(user=request.user)
     return Response(WithdrawalRequestSerializer(created).data, status=201)
+
+
+# --------------------------------------------------------------- 입점 신청 가입
+_RRN_DIGITS = 13
+User = get_user_model()
+
+
+def _is_valid_rrn(rrn):
+    """13자리 주민등록번호 형식만 검증한다 (앞 6자리-뒤 7자리)."""
+    digits = (rrn or '').replace('-', '')
+    return digits.isdigit() and len(digits) == _RRN_DIGITS
+
+
+def _hash_rrn(rrn):
+    """중복 확인 전용 해시. 단방향이라 이 값만으로는 원본 복원이 불가능하다."""
+    return hashlib.sha256((rrn or '').replace('-', '').encode()).hexdigest()
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def store_signup(request):
+    """점주 계정 + 매장 입점 신청을 함께 생성한다.
+
+    기존 owner_signup 은 계정만 만드는 단순 가입이다. 이쪽은 웹 회원가입
+    화면의 흐름으로, 주민등록번호와 사업자등록증을 받고 계정을 PENDING
+    상태로 만들어 관리자 승인 전에는 로그인할 수 없게 한다.
+    이 로직은 그동안 apps/web 화면에만 있었다.
+    """
+    data = request.data
+    username = (data.get('username') or '').strip()
+    email = (data.get('email') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    nickname = (data.get('nickname') or '').strip()
+    rrn = (data.get('rrn') or '').strip()
+    password = data.get('password') or ''
+
+    store_name = (data.get('store_name') or '').strip()
+    store_phone = (data.get('store_phone') or '').strip()
+    store_address = (data.get('store_address') or '').strip()
+
+    license_file = request.FILES.get('business_license')
+
+    # 화면 순서와 같은 순서로 검사해 사용자가 받는 메시지를 유지한다.
+    checks = [
+        (not username, '아이디를 입력하세요.'),
+        (not email, '이메일을 입력하세요.'),
+        (not nickname, '점주명을 입력하세요.'),
+        (not rrn, '주민등록번호를 입력하세요.'),
+        (rrn and not _is_valid_rrn(rrn), '주민등록번호 형식이 올바르지 않습니다.'),
+        (not store_name, '매장명을 입력하세요.'),
+        (not store_address, '매장 주소를 입력하세요.'),
+        (not license_file, '사업자등록증 파일을 첨부하세요.'),
+        (not password, '비밀번호를 입력하세요.'),
+        (bool(password) and len(password) < 8, '비밀번호는 8자 이상 입력하세요.'),
+    ]
+    for failed, message in checks:
+        if failed:
+            return error_response('bad_request', message, 400)
+
+    if User.objects.filter(rrn_hash=_hash_rrn(rrn)).exists():
+        return error_response('duplicate_rrn', '이미 등록된 주민등록번호입니다.', 409)
+    if User.objects.filter(username=username).exists():
+        return error_response('duplicate_username', '이미 사용 중인 아이디입니다.', 409)
+    if User.objects.filter(email__iexact=email).exists():
+        return error_response('duplicate_email', '이미 사용 중인 이메일입니다.', 409)
+
+    ext = os.path.splitext(license_file.name)[1].lower()
+    if ext not in _ALLOWED_DOC_EXT:
+        return error_response(
+            'invalid_file_type', '사업자등록증은 PDF, JPG, JPEG, PNG 파일만 가능합니다.', 400,
+        )
+    if license_file.size > _MAX_DOC_BYTES:
+        return error_response('file_too_large', '사업자등록증 파일은 10MB 이하만 가능합니다.', 400)
+
+    from accounts.crypto_utils import encrypt_aes128
+
+    try:
+        # User 와 Restaurant 중 하나만 저장되는 일을 막는다.
+        with transaction.atomic():
+            owner = User.objects.create_user(
+                username=username,
+                password=password,
+                email=email,
+                phone=phone,
+                nickname=nickname,
+                role=User.Role.OWNER,
+                # 관리자 승인 전 상태. 로그인은 auth/login 이 status 로 막는다.
+                status=User.Status.PENDING,
+                is_active=True,
+                rrn_hash=_hash_rrn(rrn),
+                rrn_encrypted=encrypt_aes128(rrn),
+            )
+            Restaurant.objects.create(
+                owner=owner,
+                name=store_name,
+                phone=store_phone or phone,
+                address=store_address,
+                business_license=license_file,
+                # 승인 전에는 영업 중으로 표시하지 않는다.
+                is_open=False,
+            )
+    except IntegrityError:
+        return error_response('duplicate', '이미 사용 중인 계정 정보입니다.', 409)
+
+    return Response(
+        {'detail': '입점 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.'},
+        status=status.HTTP_201_CREATED,
+    )

@@ -7,6 +7,7 @@ app_name = 'owner'
 urlpatterns = [
     # Account / 마이페이지
     path('owner/signup', account.owner_signup, name='signup'),
+    path('owner/signup/store', account.store_signup, name='store-signup'),
     path('owner/profile', account.owner_profile, name='profile'),
     path('owner/password', account.owner_password_change, name='password'),
     path('owner/withdrawal', account.owner_withdrawal, name='withdrawal'),

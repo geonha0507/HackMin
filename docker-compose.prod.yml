@@ -77,18 +77,35 @@ services:
   # ---------------------------------------------------------------------------
   # 점주(owner) 웹 (/web). api 가 스키마를 만든 뒤 기동한다.
   # ---------------------------------------------------------------------------
+  # 점주 웹은 더 이상 api 와 같은 이미지를 쓰지 않는다. DB에 붙지 않고
+  # /api/v1 만 호출하는 전용 이미지(docker/Dockerfile.web)로 뜬다.
+  # 세션(JWT 보관)은 redis 에 둔다.
+  #
+  # NOTE: CI 워크플로가 아직 이미지를 하나만 빌드한다. 배포를 다시 켜기 전에
+  #       docker/Dockerfile.web 빌드/푸시 단계를 추가하고 HACKMIN_WEB_IMAGE 를
+  #       .env 에 넣어야 한다.
   web:
-    <<: *app
+    image: ${HACKMIN_WEB_IMAGE:?HACKMIN_WEB_IMAGE 가 .env 에 설정되어야 합니다}
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "8001:8000"
+    env_file:
+      - app.env
     environment:
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DJANGO_ROOT_URLCONF: config.urls_web
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      REDIS_URL: redis://redis:6379/0
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # 관리자 웹 (/admin-web/, Django 기본 /admin/).
@@ -107,6 +124,14 @@ services:
       DJANGO_ROOT_URLCONF: config.urls_admin
       RUN_MIGRATIONS: "0"
       SEED_DEMO: "0"
+
+  # 점주 웹 세션 저장소. 외부로 포트를 열지 않는다.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   db_data:
