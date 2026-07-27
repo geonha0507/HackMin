@@ -11,6 +11,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='payment_pw_hash',
-            field=models.CharField(blank=True, default='', max_length=128),
+            field=models.CharField(blank=True, default='', help_text='6자리 결제 비밀번호 해시(Django 해시). 평문은 저장하지 않는다.', max_length=128),
         ),
     ]
