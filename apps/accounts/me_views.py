@@ -7,9 +7,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from .crypto_utils import encrypt_aes256
+from .crypto_utils import encrypt_aes128
 from .models import Address
-from .serializers import AddressSerializer, PasswordChangeSerializer, UserSerializer
+from .serializers import (
+    AddressSerializer, 
+    PasswordChangeSerializer, 
+    UserSerializer,
+    UserPaymentSerializer,  # 추가
+)
 
 User = get_user_model()
 
@@ -24,7 +29,7 @@ def _mask_tail(digits, visible=4):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def payment_cards(request):
-    """등록 카드 목록(GET) / 카드 등록(POST). 카드번호는 AES-256 암호화 저장, 표시는 마스킹값."""
+    """등록 카드 목록(GET) / 카드 등록(POST). 카드번호는 AES-128 암호화 저장, 표시는 마스킹값."""
     from payments.models import PaymentCard
 
     if request.method == 'GET':
@@ -46,7 +51,7 @@ def payment_cards(request):
     card = PaymentCard.objects.create(
         user=request.user,
         provider=provider,
-        card_number_encrypted=encrypt_aes256(card_number),
+        card_number_encrypted=encrypt_aes128(card_number),
         card_masked=masked,
     )
     return Response(
@@ -70,39 +75,8 @@ def payment_card_detail(request, pk):
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def payment_password(request):
-    """결제 비밀번호 설정(POST) / 설정 여부 조회(GET). 6자리 숫자를 해시로 저장한다."""
-    from django.contrib.auth.hashers import make_password
-
-    if request.method == 'GET':
-        return Response({'is_set': bool(request.user.payment_pw_hash)})
-
-    # POST: 설정/변경
-    pw = (request.data.get('password') or '').strip()
-    if not pw.isdigit() or len(pw) != 6:
-        return error_response('bad_request', '결제 비밀번호는 6자리 숫자여야 합니다.', 400)
-    request.user.payment_pw_hash = make_password(pw)
-    request.user.save(update_fields=['payment_pw_hash'])
-    return Response({'is_set': True})
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def payment_password_verify(request):
-    """결제 비밀번호 검증. 결제 시 6자리를 서버 해시와 대조한다."""
-    from django.contrib.auth.hashers import check_password
-
-    pw = (request.data.get('password') or '').strip()
-    if not request.user.payment_pw_hash:
-        return error_response('not_set', '결제 비밀번호가 설정되지 않았습니다.', 400)
-    valid = check_password(pw, request.user.payment_pw_hash)
-    return Response({'valid': valid})
-
-
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
 def bank_accounts(request):
-    """등록 계좌 목록(GET) / 계좌 등록(POST). 계좌번호는 AES-256 암호화 저장, 표시는 마스킹값."""
+    """등록 계좌 목록(GET) / 계좌 등록(POST). 계좌번호는 AES-128 암호화 저장, 표시는 마스킹값."""
     from payments.models import BankAccount
 
     if request.method == 'GET':
@@ -121,7 +95,7 @@ def bank_accounts(request):
     account = BankAccount.objects.create(
         user=request.user,
         bank=bank,
-        account_number_encrypted=encrypt_aes256(account_number),
+        account_number_encrypted=encrypt_aes128(account_number),
         account_masked=_mask_tail(account_number, 4),
     )
     return Response(
@@ -167,6 +141,7 @@ def me(request):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
+    """비밀번호 변경"""
     serializer = PasswordChangeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = request.user
@@ -175,6 +150,23 @@ def change_password(request):
     user.set_password(serializer.validated_data['new_password'])
     user.save(update_fields=['password'])
     return Response({'detail': '비밀번호가 변경되었습니다.'})
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def payment_info(request):
+    """사용자 내정보에서 카드정보 등록/수정. User 모델의 카드정보 필드 직접 수정."""
+    serializer = UserPaymentSerializer(
+        request.user,
+        data=request.data,
+        partial=False,
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    return Response({
+        "detail": "결제정보가 저장되었습니다."
+    })
 
 
 class AddressListCreateView(generics.ListCreateAPIView):
