@@ -156,7 +156,14 @@ def order_list(request):
     if status:
         orders = orders.filter(status=status)
     return Response({
-        'results': OrderSerializer(orders[:300], many=True).data,
+        'results': [
+            {
+                **OrderSerializer(o).data,
+                # 주문자 표시는 관리자 화면에만 필요하다. 고객용 응답에는 넣지 않는다.
+                'customer_name': (o.user.nickname or o.user.username) if o.user else '',
+            }
+            for o in orders[:300]
+        ],
         'status_choices': [{'value': v, 'label': l} for v, l in Order.Status.choices],
     })
 

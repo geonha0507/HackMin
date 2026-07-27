@@ -24,7 +24,7 @@
         <tr>
           <td>
             {% if n.image %}
-              <img src="{{ n.image.url }}" alt="{{ n.title }}"
+              <img src="{{ n.image }}" alt="{{ n.title }}"
                    style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">
             {% else %}
               <span class="muted">-</span>
@@ -33,10 +33,10 @@
           <td><strong>{{ n.title }}</strong></td>
           <td class="muted" style="max-width:320px">{{ n.content|truncatechars:60 }}</td>
           <td>{% if n.is_pinned %}<span class="badge b-amber">고정</span>{% endif %}</td>
-          <td class="muted">{{ n.created_at|date:'Y-m-d H:i' }}</td>
+          <td class="muted">{{ n.created_display }}</td>
           <td class="right">
-            <a class="btn btn-sm" href="{% url 'admin_web:admin_notice_edit' n.pk %}">수정</a>
-            <form method="post" action="{% url 'admin_web:admin_notice_delete' n.pk %}" style="display:inline">
+            <a class="btn btn-sm" href="{% url 'admin_web:admin_notice_edit' n.id %}">수정</a>
+            <form method="post" action="{% url 'admin_web:admin_notice_delete' n.id %}" style="display:inline">
               {% csrf_token %}
               <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('삭제하시겠습니까?')">삭제</button>
             </form>

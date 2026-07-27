@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HackMin 클라우드 구성도</title>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#6b7280; --line:#d7dbe3; --bg:#f6f7f9; --panel:#fff;
+    --api:#4f46e5; --web:#0d9488; --admin:#b45309; --data:#be123c; --ext:#475569;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px;background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',-apple-system,'Malgun Gothic',sans-serif}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px;margin-bottom:20px}
+  svg{width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:18px;font-size:12px;color:var(--muted);
+    margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:22px;height:0;border-top-width:2.5px;border-top-style:solid;display:inline-block}
+  h2{font-size:14px;margin:0 0 10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  tr:last-child td{border-bottom:none}
+  code{background:#f1f3f7;padding:1px 5px;border-radius:4px;font-size:12px}
+  .note{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HackMin 클라우드 구성도</h1>
+  <p class="sub">2026-07-27 기준 · 점주 웹 3-tier 분리 적용 후</p>
+
+  <div class="card">
+  <svg viewBox="0 0 1140 830" role="img" aria-label="HackMin 클라우드 아키텍처 다이어그램">
+    <defs>
+      <marker id="a-api" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#4f46e5"/></marker>
+      <marker id="a-web" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#0d9488"/></marker>
+      <marker id="a-admin" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#b45309"/></marker>
+      <marker id="a-data" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#be123c"/></marker>
+      <marker id="a-ext" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#475569"/></marker>
+    </defs>
+
+    <!-- ============ 클라이언트 ============ -->
+    <text x="24" y="26" font-size="12" font-weight="700" fill="#6b7280" letter-spacing="1">CLIENT</text>
+    <rect x="24" y="40" width="176" height="66" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="112" y="66" text-anchor="middle" font-size="13" font-weight="700">모바일 앱</text>
+    <text x="112" y="86" text-anchor="middle" font-size="11" fill="#6b7280">Android · 고객</text>
+
+    <rect x="24" y="122" width="176" height="66" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="112" y="148" text-anchor="middle" font-size="13" font-weight="700">점주 브라우저</text>
+    <text x="112" y="168" text-anchor="middle" font-size="11" fill="#6b7280">세션 쿠키</text>
+
+    <rect x="24" y="204" width="176" height="66" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="112" y="230" text-anchor="middle" font-size="13" font-weight="700">관리자 브라우저</text>
+    <text x="112" y="250" text-anchor="middle" font-size="11" fill="#6b7280">사내 IP 만 허용</text>
+
+    <!-- ============ EC2 ============ -->
+    <rect x="250" y="14" width="560" height="500" rx="16" fill="#fbfcfd" stroke="#c7cdd8" stroke-dasharray="6 4"/>
+    <text x="268" y="38" font-size="12" font-weight="700" fill="#6b7280" letter-spacing="1">AWS EC2 · ap-northeast-2</text>
+    <text x="268" y="56" font-size="11" fill="#9aa2b1">54.116.95.188 (ip-10-0-12-19)</text>
+
+    <!-- nginx -->
+    <rect x="272" y="72" width="120" height="58" rx="9" fill="#fff" stroke="#c7cdd8" stroke-dasharray="4 3"/>
+    <text x="332" y="96" text-anchor="middle" font-size="12" font-weight="700">nginx</text>
+    <text x="332" y="114" text-anchor="middle" font-size="10" fill="#6b7280">80/443 · IP 제한</text>
+
+    <!-- docker network -->
+    <rect x="272" y="150" width="516" height="342" rx="13" fill="#fff" stroke="#d7dbe3"/>
+    <text x="290" y="173" font-size="11" font-weight="700" fill="#6b7280">docker network · hackmin_default</text>
+
+    <!-- api -->
+    <rect x="292" y="190" width="212" height="94" rx="10" fill="#eef0fd" stroke="#4f46e5" stroke-width="1.6"/>
+    <text x="398" y="214" text-anchor="middle" font-size="13" font-weight="700" fill="#312e81">api</text>
+    <text x="398" y="233" text-anchor="middle" font-size="10.5" fill="#4f46e5">hackmin-app · :8000</text>
+    <text x="398" y="252" text-anchor="middle" font-size="10.5" fill="#6b7280">/api/v1 · JWT 발급</text>
+    <text x="398" y="270" text-anchor="middle" font-size="10.5" fill="#6b7280">마이그레이션 담당</text>
+
+    <!-- web -->
+    <rect x="292" y="300" width="212" height="106" rx="10" fill="#e9f6f4" stroke="#0d9488" stroke-width="1.6"/>
+    <text x="398" y="324" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">web (점주)</text>
+    <text x="398" y="343" text-anchor="middle" font-size="10.5" fill="#0d9488">hackmin-web · :8001</text>
+    <text x="398" y="362" text-anchor="middle" font-size="10.5" fill="#6b7280">web_bff · DB 미접속</text>
+    <text x="398" y="380" text-anchor="middle" font-size="10.5" fill="#6b7280">DB 드라이버 없음</text>
+    <text x="398" y="396" text-anchor="middle" font-size="10" fill="#0d9488" font-weight="600">모든 데이터를 api 로 요청</text>
+
+    <!-- admin-web -->
+    <rect x="292" y="422" width="212" height="56" rx="10" fill="#fdf3e7" stroke="#b45309" stroke-width="1.6"/>
+    <text x="398" y="444" text-anchor="middle" font-size="13" font-weight="700" fill="#7c2d12">admin-web</text>
+    <text x="398" y="463" text-anchor="middle" font-size="10.5" fill="#b45309">127.0.0.1:8002 · ORM 직결</text>
+
+    <!-- redis -->
+    <rect x="540" y="300" width="120" height="72" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="600" y="326" text-anchor="middle" font-size="12" font-weight="700">redis</text>
+    <text x="600" y="344" text-anchor="middle" font-size="10" fill="#6b7280">점주 세션</text>
+    <text x="600" y="360" text-anchor="middle" font-size="10" fill="#6b7280">(JWT 보관)</text>
+
+    <!-- volumes -->
+    <rect x="540" y="190" width="228" height="94" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="654" y="212" text-anchor="middle" font-size="12" font-weight="700">named volumes</text>
+    <text x="654" y="233" text-anchor="middle" font-size="10.5" fill="#6b7280">media_data — 업로드 파일</text>
+    <text x="654" y="251" text-anchor="middle" font-size="10.5" fill="#6b7280">db_data — SQLite(개발용)</text>
+    <text x="654" y="271" text-anchor="middle" font-size="10" fill="#9aa2b1">RDS CA 번들은 :ro 마운트</text>
+
+    <!-- ============ AWS 관리형 ============ -->
+    <text x="860" y="26" font-size="12" font-weight="700" fill="#6b7280" letter-spacing="1">AWS 관리형</text>
+
+    <rect x="860" y="190" width="256" height="94" rx="10" fill="#fdeef1" stroke="#be123c" stroke-width="1.6"/>
+    <text x="988" y="216" text-anchor="middle" font-size="13" font-weight="700" fill="#881337">RDS · MySQL</text>
+    <text x="988" y="236" text-anchor="middle" font-size="10.5" fill="#be123c">TLS 강제 · global-bundle.pem</text>
+    <text x="988" y="256" text-anchor="middle" font-size="10.5" fill="#6b7280">api / admin-web 만 접속</text>
+    <text x="988" y="273" text-anchor="middle" font-size="10" fill="#9aa2b1">web 컨테이너는 연결 수단 없음</text>
+
+    <rect x="860" y="304" width="256" height="68" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="988" y="330" text-anchor="middle" font-size="12" font-weight="700">S3</text>
+    <text x="988" y="350" text-anchor="middle" font-size="10.5" fill="#6b7280">hackmin-media-bucket</text>
+    <text x="988" y="366" text-anchor="middle" font-size="10" fill="#9aa2b1">USE_S3=1 일 때</text>
+
+    <!-- ============ 외부 ============ -->
+    <text x="860" y="418" font-size="12" font-weight="700" fill="#6b7280" letter-spacing="1">외부</text>
+    <rect x="860" y="432" width="256" height="60" rx="10" fill="#fff" stroke="#d7dbe3"/>
+    <text x="988" y="456" text-anchor="middle" font-size="12" font-weight="700">OpenRouter</text>
+    <text x="988" y="475" text-anchor="middle" font-size="10.5" fill="#6b7280">GPT-4o-mini · 챗봇</text>
+
+    <!-- ============ 배포 파이프라인 ============ -->
+    <rect x="250" y="540" width="866" height="86" rx="13" fill="#fbfcfd" stroke="#c7cdd8" stroke-dasharray="6 4"/>
+    <text x="268" y="564" font-size="12" font-weight="700" fill="#6b7280" letter-spacing="1">배포 파이프라인</text>
+    <rect x="272" y="574" width="150" height="40" rx="8" fill="#fff" stroke="#d7dbe3"/>
+    <text x="347" y="599" text-anchor="middle" font-size="11.5" font-weight="700">GitHub Actions</text>
+    <rect x="452" y="574" width="150" height="40" rx="8" fill="#fff" stroke="#d7dbe3"/>
+    <text x="527" y="593" text-anchor="middle" font-size="11.5" font-weight="700">GHCR</text>
+    <text x="527" y="608" text-anchor="middle" font-size="9.5" fill="#9aa2b1">이미지 2개 필요</text>
+    <rect x="632" y="574" width="180" height="40" rx="8" fill="#fff" stroke="#d7dbe3" stroke-dasharray="4 3"/>
+    <text x="722" y="593" text-anchor="middle" font-size="11.5" font-weight="700" fill="#9aa2b1">EC2 자동 배포</text>
+    <text x="722" y="608" text-anchor="middle" font-size="9.5" fill="#9aa2b1">DEPLOY_ENABLED 로 비활성</text>
+    <text x="838" y="590" font-size="11" fill="#6b7280">현재는 EC2 에서</text>
+    <text x="838" y="606" font-size="11" fill="#6b7280">docker compose 수동 배포</text>
+    <path d="M424,594 L448,594" stroke="#475569" stroke-width="2" marker-end="url(#a-ext)"/>
+    <path d="M604,594 L628,594" stroke="#475569" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#a-ext)"/>
+
+    <!-- ============ 연결선 ============ -->
+    <!-- 앱 → api -->
+    <path d="M200,73 L246,73 Q262,73 262,120 L262,220 Q262,236 288,236" fill="none"
+          stroke="#4f46e5" stroke-width="2.2" marker-end="url(#a-api)"/>
+    <text x="270" y="100" font-size="10" fill="#4f46e5" font-weight="600">:8000 JWT</text>
+
+    <!-- 점주 → web -->
+    <path d="M200,155 L232,155 Q248,155 248,330 L248,350 Q248,352 288,352" fill="none"
+          stroke="#0d9488" stroke-width="2.2" marker-end="url(#a-web)"/>
+    <text x="204" y="330" font-size="10" fill="#0d9488" font-weight="600">:8001</text>
+
+    <!-- 관리자 → nginx → admin-web -->
+    <path d="M200,232 L236,232 Q252,232 252,101 L268,101" fill="none"
+          stroke="#b45309" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#a-admin)"/>
+    <path d="M332,130 L332,168 Q332,180 300,180 L282,180 Q276,180 276,300 L276,450 L288,450" fill="none"
+          stroke="#b45309" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#a-admin)"/>
+
+    <!-- web → api (핵심) -->
+    <path d="M398,300 L398,288" fill="none" stroke="#0d9488" stroke-width="2.6" marker-end="url(#a-web)"/>
+    <text x="408" y="296" font-size="10" fill="#0d9488" font-weight="700">HTTP /api/v1 (JWT)</text>
+
+    <!-- web ↔ redis -->
+    <path d="M504,336 L536,336" fill="none" stroke="#0d9488" stroke-width="2" marker-end="url(#a-web)"/>
+
+    <!-- api → volumes -->
+    <path d="M504,232 L536,232" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#a-ext)"/>
+
+    <!-- api → RDS -->
+    <path d="M772,222 L856,222" fill="none" stroke="#be123c" stroke-width="2.4" marker-end="url(#a-data)"/>
+    <text x="782" y="214" font-size="10" fill="#be123c" font-weight="600">TLS</text>
+
+    <!-- admin-web → RDS -->
+    <path d="M504,450 L820,450 Q844,450 844,300 Q844,262 856,262" fill="none"
+          stroke="#be123c" stroke-width="2.2" marker-end="url(#a-data)"/>
+
+    <!-- api → S3 -->
+    <path d="M504,264 L520,264 Q532,264 532,392 L820,392 Q840,392 840,340 L856,340" fill="none"
+          stroke="#475569" stroke-width="1.8" marker-end="url(#a-ext)"/>
+
+    <!-- api → OpenRouter -->
+    <path d="M504,276 L512,276 Q524,276 524,462 L856,462" fill="none"
+          stroke="#475569" stroke-width="1.8" marker-end="url(#a-ext)"/>
+
+    <!-- 강조 배지 -->
+    <rect x="292" y="700" width="824" height="52" rx="10" fill="#e9f6f4" stroke="#0d9488"/>
+    <text x="312" y="722" font-size="12.5" font-weight="700" fill="#115e59">이 구조의 핵심</text>
+    <text x="312" y="741" font-size="11.5" fill="#115e59">점주 웹 컨테이너에서 RDS 로 향하는 선이 없습니다. 이미지에 apps/ · config/ · DB 드라이버가 아예 들어 있지 않아, 침해당해도 DB 로 넘어갈 수단 자체가 없습니다.</text>
+
+    <rect x="24" y="700" width="248" height="52" rx="10" fill="#fdf3e7" stroke="#b45309"/>
+    <text x="44" y="722" font-size="12.5" font-weight="700" fill="#7c2d12">남은 과제</text>
+    <text x="44" y="741" font-size="11" fill="#7c2d12">admin-web 은 아직 ORM 직결</text>
+  </svg>
+
+  <div class="legend">
+    <span><i class="sw" style="border-color:#4f46e5"></i> 고객 앱 → API (JWT)</span>
+    <span><i class="sw" style="border-color:#0d9488"></i> 점주 웹 경로 (세션 → JWT)</span>
+    <span><i class="sw" style="border-color:#b45309"></i> 관리자 경로 (IP 제한)</span>
+    <span><i class="sw" style="border-color:#be123c"></i> DB 연결</span>
+    <span><i class="sw" style="border-color:#475569"></i> 그 외 / 외부</span>
+    <span><i class="sw" style="border-color:#9aa2b1;border-top-style:dashed"></i> 점선 = 미적용·비활성</span>
+  </div>
+  </div>
+
+  <div class="card">
+    <h2>컨테이너 요약</h2>
+    <table>
+      <thead><tr><th>서비스</th><th>이미지</th><th>포트</th><th>DB 접근</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td><code>api</code></td><td>hackmin-app</td><td>0.0.0.0:8000</td><td>RDS 직결</td>
+            <td>/api/v1 · JWT 발급 · 마이그레이션</td></tr>
+        <tr><td><code>web</code></td><td>hackmin-web</td><td>0.0.0.0:8001</td><td><strong>없음</strong></td>
+            <td>점주 웹(web_bff) · api 호출만</td></tr>
+        <tr><td><code>admin-web</code></td><td>hackmin-app</td><td>127.0.0.1:8002</td><td>RDS 직결</td>
+            <td>관리자 웹 · nginx 경유만</td></tr>
+        <tr><td><code>redis</code></td><td>redis:7-alpine</td><td>내부 전용</td><td>—</td>
+            <td>점주 웹 세션(JWT) 저장</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      점선으로 표시한 nginx와 EC2 자동 배포는 아직 적용 전입니다. 지금은 8000·8001 포트가 직접 열려 있고
+      배포는 EC2에서 <code>docker compose up -d --build</code> 로 수동 진행합니다.
+      RDS·S3·OpenRouter 연결은 EC2의 <code>.env</code> 설정(<code>DB_ENGINE</code>, <code>USE_S3</code>)에 따라 달라지며,
+      로컬 개발에서는 SQLite(<code>db_data</code> 볼륨)와 컨테이너 로컬 <code>media/</code> 를 씁니다.
+    </p>
+  </div>
+</div>
+</body>
+</html>

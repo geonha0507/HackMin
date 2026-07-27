@@ -6,7 +6,7 @@
 <div class="metrics-head">
   <div class="muted">
     {% if baseline_at %}
-      갱신되었습니다 {{ baseline_at|date:'Y-m-d H:i' }}
+      갱신되었습니다 {{ baseline_at }}
     {% else %}
       비교 기준이 아직 없습니다. 아이콘을 눌러 갱신하세요.
     {% endif %}
@@ -48,11 +48,11 @@
     {% for o in recent_orders %}
       <tr>
         <td>{{ o.order_number }}</td>
-        <td>{{ o.restaurant.name|default:'-' }}</td>
-        <td>{{ o.user.username }}</td>
+        <td>{{ o.restaurant_name|default:'-' }}</td>
+        <td>{{ o.customer_name }}</td>
         <td>{{ o.total|floatformat:0|intcomma }}원</td>
-        <td>{% include 'web/_order_badge.html' with status=o.status label=o.get_status_display %}</td>
-        <td class="muted">{{ o.created_at|date:'m/d H:i' }}</td>
+        <td>{% include 'admin_web/_order_badge.html' with status=o.status label=o.status_display %}</td>
+        <td class="muted">{{ o.created_display }}</td>
       </tr>
     {% empty %}<tr><td colspan="6" class="muted">주문이 없습니다.</td></tr>
     {% endfor %}
@@ -67,10 +67,10 @@
     <tbody>
     {% for u in recent_users %}
       <tr>
-        <td><a href="{% url 'admin_web:admin_user_detail' u.pk %}">{{ u.username }}</a></td>
-        <td>{{ u.get_role_display }}</td>
-        <td>{% include 'web/_user_badge.html' with status=u.status label=u.get_status_display %}</td>
-        <td class="muted">{{ u.date_joined|date:'Y-m-d' }}</td>
+        <td><a href="{% url 'admin_web:admin_user_detail' u.id %}">{{ u.username }}</a></td>
+        <td>{{ u.role_display }}</td>
+        <td>{% include 'admin_web/_user_badge.html' with status=u.status label=u.status_display %}</td>
+        <td class="muted">{{ u.joined_display }}</td>
       </tr>
     {% endfor %}
     </tbody>

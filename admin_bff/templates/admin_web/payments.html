@@ -22,16 +22,16 @@
     {% for p in payments %}
       <tr>
         <td>{{ p.transaction_id }}</td>
-        <td>{{ p.order.order_number }}</td>
-        <td>{{ p.order.restaurant.name|default:'-' }}</td>
-        <td>{{ p.get_method_display }}</td>
+        <td>{{ p.order_number }}</td>
+        <td>{{ p.restaurant_name|default:'-' }}</td>
+        <td>{{ p.method_display }}</td>
         <td>{{ p.amount|floatformat:0|intcomma }}원</td>
         <td>
-          {% if p.status == 'paid' %}<span class="badge b-green">{{ p.get_status_display }}</span>
-          {% elif p.status == 'pending' %}<span class="badge b-amber">{{ p.get_status_display }}</span>
-          {% else %}<span class="badge b-red">{{ p.get_status_display }}</span>{% endif %}
+          {% if p.status == 'paid' %}<span class="badge b-green">{{ p.status_display }}</span>
+          {% elif p.status == 'pending' %}<span class="badge b-amber">{{ p.status_display }}</span>
+          {% else %}<span class="badge b-red">{{ p.status_display }}</span>{% endif %}
         </td>
-        <td class="muted">{{ p.created_at|date:'m/d H:i' }}</td>
+        <td class="muted">{{ p.created_display }}</td>
       </tr>
     {% empty %}<tr><td colspan="7" class="muted">결제 내역이 없습니다.</td></tr>
     {% endfor %}

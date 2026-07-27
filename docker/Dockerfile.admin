@@ -1,0 +1,23 @@
+# 관리자 웹(BFF) 전용 이미지.
+#
+# 점주 웹과 마찬가지로 apps/ 도 config/ 도 DB 드라이버도 들어가지 않는다.
+# 관리자 화면은 VPN 뒤에 두더라도 DB 직결을 없애는 편이 낫다. 관리자 계정이
+# 탈취되거나 화면에 취약점이 생겨도 DB 로 직접 넘어갈 수단이 없다.
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements-web.txt /tmp/requirements-web.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-web.txt \
+    && rm -f /tmp/requirements-web.txt
+
+COPY manage_admin.py ./
+COPY bff_core/ ./bff_core/
+COPY admin_bff/ ./admin_bff/
+
+EXPOSE 8000
+
+CMD ["python", "manage_admin.py", "runserver", "0.0.0.0:8000"]

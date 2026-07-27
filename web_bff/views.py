@@ -11,8 +11,8 @@ from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 
-from .api_client import ApiClient, ApiError, client_for
-from .auth import login_session, logout_session, owner_required
+from bff_core.api_client import ApiClient, ApiError, client_for
+from bff_core.auth import login_session, logout_session, owner_required
 
 logger = logging.getLogger(__name__)
 

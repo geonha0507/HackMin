@@ -1,15 +1,18 @@
-from django.urls import path
+"""admin_bff URL 설정.
+
+경로와 URL 이름을 기존 apps/admin_web 과 동일하게 유지한다. 템플릿의
+{% url 'admin_web:...' %} 태그를 그대로 쓰기 위해서다.
+"""
+
+from django.http import JsonResponse
+from django.urls import include, path
 
 from . import views
 
-app_name = 'admin_web'
-
-urlpatterns = [
-    # 인증 (admin 전용)
+admin_patterns = ([
     path('login', views.login_view, name='login'),
     path('logout', views.logout_view, name='logout'),
 
-    # 관리자 화면 (apps/web/urls.py 의 '# 관리자' 섹션 그대로 이동)
     path('', views.dashboard, name='admin_dashboard'),
     path('users', views.user_list, name='admin_users'),
     path('users/<int:pk>', views.user_detail, name='admin_user_detail'),
@@ -18,7 +21,8 @@ urlpatterns = [
     path('withdrawals', views.withdrawal_requests, name='admin_withdrawals'),
     path('withdrawals/<int:pk>/decide', views.withdrawal_decide, name='admin_withdrawal_decide'),
     path('restaurant-edits', views.restaurant_edit_requests, name='admin_restaurant_edits'),
-    path('restaurant-edits/<int:pk>/decide', views.restaurant_edit_decide, name='admin_restaurant_edit_decide'),
+    path('restaurant-edits/<int:pk>/decide', views.restaurant_edit_decide,
+         name='admin_restaurant_edit_decide'),
     path('orders', views.order_list, name='admin_orders'),
     path('payments', views.payment_list, name='admin_payments'),
     path('notices', views.notice_list, name='admin_notices'),
@@ -27,4 +31,14 @@ urlpatterns = [
     path('notices/<int:pk>/delete', views.notice_delete, name='admin_notice_delete'),
     path('store', views.store_list, name='admin_store'),
     path('store/<int:pk>/decide', views.store_decide, name='admin_store_decide'),
+], 'admin_web')
+
+
+def health(_request):
+    return JsonResponse({'status': 'ok', 'service': 'hackmin-admin-bff'})
+
+
+urlpatterns = [
+    path('admin-web/health', health),
+    path('admin-web/', include(admin_patterns)),
 ]

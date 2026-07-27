@@ -72,7 +72,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     # AuthenticationMiddleware 대신. request.web_user 를 세팅한다.
-    'web_bff.auth.ApiSessionMiddleware',
+    'bff_core.auth.ApiSessionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

@@ -71,7 +71,7 @@
       {% for store in stores %}
         <tr>
           <td class="muted">
-            {{ store.created_at|date:'Y-m-d H:i' }}
+            {{ store.created_display }}
           </td>
 
           <td>
@@ -94,7 +94,7 @@
             <div style="display:flex;gap:10px;align-items:flex-start">
               {% if store.image %}
                 <img
-                  src="{{ store.image.url }}"
+                  src="{{ store.image }}"
                   alt="{{ store.name }}"
                   style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0"
                 >
@@ -117,7 +117,7 @@
             {% if store.business_license %}
               <a
                 class="btn btn-sm"
-                href="{{ store.business_license.url }}"
+                href="{{ store.business_license }}"
                 target="_blank"
                 rel="noopener"
               >
@@ -128,7 +128,7 @@
                 class="muted"
                 style="font-size:11px;margin-top:6px"
               >
-                {{ store.business_license.name }}
+                {{ store.business_license_name }}
               </div>
             {% else %}
               <span class="muted">첨부 파일 없음</span>
@@ -136,9 +136,9 @@
           </td>
 
           <td>
-            {% if store.display_status == 'pending' %}
+            {% if store.review_status == 'pending' %}
               <span class="badge b-amber">승인 대기</span>
-            {% elif store.display_status == 'approved' %}
+            {% elif store.review_status == 'approved' %}
               <span class="badge b-green">승인 완료</span>
             {% else %}
               <span class="badge b-red">반려</span>
@@ -146,10 +146,10 @@
           </td>
 
           <td>
-           {% if store.display_status == 'pending' %}
+           {% if store.review_status == 'pending' %}
             <form
               method="post"
-              action="{% url 'admin_web:admin_store_decide' store.pk %}"
+              action="{% url 'admin_web:admin_store_decide' store.id %}"
               style="margin-bottom:8px"
             >
               {% csrf_token %}
@@ -167,7 +167,7 @@
 
             <form
               method="post"
-              action="{% url 'admin_web:admin_store_decide' store.pk %}"
+              action="{% url 'admin_web:admin_store_decide' store.id %}"
               onsubmit="return confirm('입점 신청을 반려하시겠습니까?')"
             >
               {% csrf_token %}
@@ -197,7 +197,7 @@
               </button>
             </form>
 
-          {% elif store.display_status == 'approved' %}
+          {% elif store.review_status == 'approved' %}
             <span class="badge b-green">
               승인 완료
             </span>
@@ -207,7 +207,7 @@
               반려됨
             </span>
 
-            {% with enrollment=store.enrollment_request %}
+            {% with enrollment=store %}
               {% if enrollment.rejection_reason %}
                 <div
                   class="muted"

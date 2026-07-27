@@ -17,11 +17,11 @@
       <textarea name="content" rows="4" placeholder="이모지도 그대로 사용할 수 있습니다." required>{{ notice.content|default:'' }}</textarea>
     </div>
     <div class="field">
-      <label>사진 {% if notice.image %}(현재: {{ notice.image.name }}){% endif %}</label>
+      <label>사진 {% if notice.image %}(현재: {{ notice.image }}){% endif %}</label>
       <input type="file" name="image" accept="image/*">
       {% if notice.image %}
         <div style="margin-top:8px">
-          <img src="{{ notice.image.url }}" alt="현재 사진"
+          <img src="{{ notice.image }}" alt="현재 사진"
                style="width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">
         </div>
         <div class="muted" style="font-size:12px;margin-top:5px">새 파일을 첨부하지 않으면 기존 사진이 유지됩니다.</div>

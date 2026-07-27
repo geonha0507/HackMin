@@ -108,14 +108,14 @@
         <a href="{% url 'admin_web:admin_notices' %}" class="{% if url_name == 'admin_notices' or url_name == 'admin_notice_create' or url_name == 'admin_notice_edit' %}active{% endif %}">공지사항 관리</a>
       </nav>
       <div class="foot">
-        <div>{{ request.user.nickname|default:request.user.username }}</div>
+        <div>{{ request.web_user.nickname|default:request.web_user.username }}</div>
         <a href="{% url 'admin_web:logout' %}" class="muted">로그아웃 →</a>
       </div>
     </aside>
     <div class="main">
       <div class="topbar">
         <h1>{% block heading %}{% endblock %}</h1>
-        <div class="user">{{ request.user.username }} · {{ request.user.get_role_display }}</div>
+        <div class="user">{{ request.web_user.username }} · {{ request.web_user.get_role_display }}</div>
       </div>
       <div class="content">
         {% if messages %}

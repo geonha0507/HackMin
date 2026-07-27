@@ -9,12 +9,12 @@
     <div class="panel" style="margin:0 0 14px;background:#fffbeb;border-color:#fde68a">
       <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
         <div>
-          <strong>{{ item.req.restaurant.name }}</strong>
+          <strong>{{ item.restaurant_name }}</strong>
           <span class="muted" style="font-size:12px">
-            (요청자: {{ item.req.requested_by.username }} · {{ item.req.requested_at|date:"Y-m-d H:i" }})
+            (요청자: {{ item.requested_by }} · {{ item.requested_display }})
           </span>
         </div>
-        <form method="post" action="{% url 'admin_web:admin_restaurant_edit_decide' item.req.pk %}" class="row" style="gap:6px">
+        <form method="post" action="{% url 'admin_web:admin_restaurant_edit_decide' item.id %}" class="row" style="gap:6px">
           {% csrf_token %}
           <button class="btn btn-sm btn-primary" name="action" value="approve" type="submit"
                   onclick="return confirm('이 수정 요청을 승인하시겠습니까?')">승인</button>
@@ -46,14 +46,14 @@
     <tbody>
     {% for r in processed %}
       <tr>
-        <td>{{ r.restaurant.name }}</td>
-        <td class="muted">{{ r.requested_by.username }}</td>
+        <td>{{ r.restaurant_name }}</td>
+        <td class="muted">{{ r.requested_by }}</td>
         <td>
           {% if r.status == 'approved' %}<span class="badge b-green">승인</span>
           {% else %}<span class="badge b-gray">거절</span>{% endif %}
         </td>
-        <td class="muted">{{ r.processed_by.username|default:'-' }}</td>
-        <td class="muted">{{ r.processed_at|date:"Y-m-d H:i" }}</td>
+        <td class="muted">{{ r.processed_by|default:'-' }}</td>
+        <td class="muted">{{ r.processed_display }}</td>
       </tr>
     {% empty %}
       <tr><td colspan="5" class="muted">처리 내역이 없습니다.</td></tr>

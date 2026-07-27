@@ -83,14 +83,14 @@ jobs:
         run: python manage.py check --deploy --fail-level ERROR
 
   # ---------------------------------------------------------------------------
-  # 2) 검증 — 점주 웹(web_bff) 이미지
+  # 2) 검증 — BFF 이미지 (점주 웹 / 관리자 웹)
   #
-  # web_bff 는 DB에 접속하지 않고 의존성도 다르다(Django/httpx/redis 뿐).
+  # 두 BFF 는 DB에 접속하지 않고 의존성도 다르다(Django/httpx/redis 뿐).
   # api 검증과 섞으면 requirements.txt 가 함께 설치돼 "DB 없이도 뜨는지"를
   # 확인하지 못하므로 별도 job 으로 둔다.
   # ---------------------------------------------------------------------------
   validate-web:
-    name: 점주 웹 검증
+    name: BFF 검증 (점주·관리자 웹)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,18 +108,26 @@ jobs:
 
       # DATABASES = {} 인 상태로 정상 부팅되는지 확인한다.
       # ORM 을 실수로 호출하는 코드가 들어가면 여기서 걸린다.
-      - name: manage_web.py check
+      - name: manage_web.py check (점주 웹)
         env:
           DJANGO_SECRET_KEY: ci-only-not-a-real-secret
           DJANGO_ALLOWED_HOSTS: example.com
           REDIS_URL: redis://localhost:6379/0
         run: python manage_web.py check
 
+      - name: manage_admin.py check (관리자 웹)
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+          DJANGO_ALLOWED_HOSTS: example.com
+          REDIS_URL: redis://localhost:6379/1
+        run: python manage_admin.py check
+
   # ---------------------------------------------------------------------------
-  # 3) 빌드 — 이미지 2개. main 에서만 GHCR 로 push
+  # 3) 빌드 — 이미지 3개. main 에서만 GHCR 로 push
   #
-  #   <repo>       : api / admin-web 용 (루트 Dockerfile)
-  #   <repo>-web   : 점주 웹 용 (docker/Dockerfile.web)
+  #   <repo>        : api 용 (루트 Dockerfile)
+  #   <repo>-web    : 점주 웹 용 (docker/Dockerfile.web)
+  #   <repo>-admin  : 관리자 웹 용 (docker/Dockerfile.admin)
   # ---------------------------------------------------------------------------
   build:
     name: 이미지 빌드
@@ -132,6 +140,7 @@ jobs:
     outputs:
       image: ${{ steps.meta.outputs.image }}
       web_image: ${{ steps.meta.outputs.web_image }}
+      admin_image: ${{ steps.meta.outputs.admin_image }}
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
@@ -144,6 +153,7 @@ jobs:
         run: |
           echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
           echo "web_image=${REGISTRY}/${GITHUB_REPOSITORY,,}-web" >> "$GITHUB_OUTPUT"
+          echo "admin_image=${REGISTRY}/${GITHUB_REPOSITORY,,}-admin" >> "$GITHUB_OUTPUT"
           echo "tag=${REQUESTED_TAG:-$GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
@@ -185,6 +195,20 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+      - name: 빌드 & 푸시 (관리자 웹)
+        if: ${{ !inputs.image_tag }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.admin
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.meta.outputs.admin_image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.admin_image }}:latest
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+
   # ---------------------------------------------------------------------------
   # 4) 배포 — EC2 에 SSH 접속해 새 이미지로 교체
   #
@@ -194,9 +218,13 @@ jobs:
   # 켜는 법: Settings > Secrets and variables > Actions 에서 아래를 먼저 등록한 뒤
   #          맨 마지막에 DEPLOY_ENABLED 를 추가한다.
   #   Variables: EC2_HOST, EC2_USER, DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_ORIGINS,
-  #              WEB_BFF_CSRF_ORIGINS, DB_ENGINE, DB_HOST, DB_SSL_CA ...
+  #              WEB_BFF_CSRF_ORIGINS, ADMIN_BFF_CSRF_ORIGINS,
+  #              DB_ENGINE, DB_HOST, DB_SSL_CA ...
   #   Secrets  : EC2_SSH_KEY, EC2_KNOWN_HOSTS, DJANGO_SECRET_KEY,
-  #              WEB_BFF_SECRET_KEY, DB_PASSWORD ...
+  #              WEB_BFF_SECRET_KEY, ADMIN_BFF_SECRET_KEY, DB_PASSWORD ...
+  #
+  # AWS 자격증명은 넣지 않는다. EC2 인스턴스에 붙은 IAM 역할로 접근한다.
+  # 빈 값으로 넘기면 botocore 가 그 값을 쓰려다 실패하고 역할로 넘어가지 않는다.
   # ---------------------------------------------------------------------------
   deploy:
     name: EC2 배포
@@ -214,6 +242,7 @@ jobs:
     env:
       IMAGE: ${{ needs.build.outputs.image }}
       WEB_IMAGE: ${{ needs.build.outputs.web_image }}
+      ADMIN_IMAGE: ${{ needs.build.outputs.admin_image }}
       TAG: ${{ needs.build.outputs.tag }}
       APP_DIR: ${{ vars.APP_DIR || '/opt/hackmin' }}
       STAGE_DIR: /tmp/hackmin-deploy
@@ -228,12 +257,14 @@ jobs:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           WEB_BFF_SECRET_KEY: ${{ secrets.WEB_BFF_SECRET_KEY }}
+          ADMIN_BFF_SECRET_KEY: ${{ secrets.ADMIN_BFF_SECRET_KEY }}
         run: |
           fail=0
           [ -n "$SSH_HOST" ]              || { echo "::error::리포지토리 변수 EC2_HOST 미설정"; fail=1; }
           [ -n "$SSH_KEY" ]               || { echo "::error::시크릿 EC2_SSH_KEY 미설정"; fail=1; }
           [ -n "$DJANGO_SECRET_KEY" ]     || { echo "::error::시크릿 DJANGO_SECRET_KEY 미설정"; fail=1; }
           [ -n "$WEB_BFF_SECRET_KEY" ]    || { echo "::error::시크릿 WEB_BFF_SECRET_KEY 미설정 (점주 웹 세션 서명용)"; fail=1; }
+          [ -n "$ADMIN_BFF_SECRET_KEY" ]  || { echo "::error::시크릿 ADMIN_BFF_SECRET_KEY 미설정 (관리자 웹 세션 서명용)"; fail=1; }
           exit $fail
 
       - name: SSH 준비
@@ -260,8 +291,6 @@ jobs:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           DJANGO_ENV: ${{ vars.DJANGO_ENV || 'dev' }}
           DJANGO_DEBUG: ${{ vars.DJANGO_DEBUG || '1' }}
           DJANGO_ALLOWED_HOSTS: ${{ vars.DJANGO_ALLOWED_HOSTS }}
@@ -287,6 +316,11 @@ jobs:
           WEB_BFF_CSRF_ORIGINS: ${{ vars.WEB_BFF_CSRF_ORIGINS }}
           WEB_BFF_ALLOWED_HOSTS: ${{ vars.WEB_BFF_ALLOWED_HOSTS || '*' }}
           # nginx 등 프록시가 X-Forwarded-Proto 를 붙여줄 때만 1.
+          # --- 관리자 웹(admin_bff) 전용 ---
+          ADMIN_BFF_SECRET_KEY: ${{ secrets.ADMIN_BFF_SECRET_KEY }}
+          ADMIN_BFF_CSRF_ORIGINS: ${{ vars.ADMIN_BFF_CSRF_ORIGINS }}
+          ADMIN_BFF_ALLOWED_HOSTS: ${{ vars.ADMIN_BFF_ALLOWED_HOSTS || '*' }}
+          # nginx 등 프록시가 X-Forwarded-Proto 를 붙여줄 때만 1.
           USE_X_FORWARDED_PROTO: ${{ vars.USE_X_FORWARDED_PROTO || '0' }}
         run: |
           umask 077
@@ -299,6 +333,7 @@ jobs:
                     AWS_S3_REGION_NAME
                     OPENAI_API_KEY SEED_DEMO
                     WEB_BFF_SECRET_KEY WEB_BFF_CSRF_ORIGINS WEB_BFF_ALLOWED_HOSTS
+                    ADMIN_BFF_SECRET_KEY ADMIN_BFF_CSRF_ORIGINS ADMIN_BFF_ALLOWED_HOSTS
                     USE_X_FORWARDED_PROTO"
 
           # docker compose 의 env_file 파서는 따옴표 없는 값에서 줄바꿈을 만나면
@@ -323,8 +358,8 @@ jobs:
           done > stage/app.env
 
           # .env — compose 파일의 ${...} 치환에만 쓴다. 시크릿을 넣지 않는다.
-          printf 'HACKMIN_IMAGE=%s\nHACKMIN_WEB_IMAGE=%s\nADMIN_BIND=%s\n' \
-            "$IMAGE:$TAG" "$WEB_IMAGE:$TAG" "$ADMIN_BIND" > stage/compose.env
+          printf 'HACKMIN_IMAGE=%s\nHACKMIN_WEB_IMAGE=%s\nHACKMIN_ADMIN_IMAGE=%s\nADMIN_BIND=%s\n' \
+            "$IMAGE:$TAG" "$WEB_IMAGE:$TAG" "$ADMIN_IMAGE:$TAG" "$ADMIN_BIND" > stage/compose.env
 
           expected=$(echo $APP_KEYS | wc -w)
           actual=$(wc -l < stage/app.env)
@@ -368,11 +403,17 @@ jobs:
               *) echo "  포트 $port → $code (비정상)"; exit 1 ;;
             esac
           done
-          # 점주 웹은 전용 헬스 경로로 따로 확인한다.
+          # 점주 웹·관리자 웹은 전용 헬스 경로로 따로 확인한다.
+          # /api/v1/health 는 두 컨테이너 모두 404 라, 그것만으로는 죽은 걸 못 잡는다.
           web=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
                   "http://127.0.0.1:8001/web/health" || echo 000)
           [ "$web" = "200" ] || { echo "  점주 웹 /web/health → $web (비정상)"; exit 1; }
           echo "  점주 웹 /web/health → 200 (정상)"
+
+          adm=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                  "http://127.0.0.1:8002/admin-web/health" || echo 000)
+          [ "$adm" = "200" ] || { echo "  관리자 웹 /admin-web/health → $adm (비정상)"; exit 1; }
+          echo "  관리자 웹 /admin-web/health → 200 (정상)"
           echo "전체 서비스 정상"
           EOF
 

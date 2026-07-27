@@ -125,50 +125,30 @@ services:
   # nginx가 /admin-web/ location에서 IP 제한을 건 뒤 localhost:8002로만 proxy_pass한다.
   # ---------------------------------------------------------------------------
   admin-web:
-    build: .
-    image: hackmin-app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+    image: hackmin-admin
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
-    # api 와 동일. 사라진 /app/.env 자리를 메운다.
-    env_file:
-      - .env
     depends_on:
       - api
-    volumes:
-      - db_data:/data
-      - media_data:/app/media
-      # api 와 동일한 CA 번들 (프로젝트 최상위의 global-bundle.pem)
-      - ${RDS_CA_PATH:-./global-bundle.pem}:/app/certs/rds-ca.pem:ro
+      - redis
     security_opt:
       - no-new-privileges:true
     ports:
-      # 기본값을 127.0.0.1 로 둔다. .env 설정을 깜빡해도 관리자 웹이 인터넷에
-      # 노출되지 않도록 안전한 쪽을 기본으로 잡은 것이다. 로컬 개발에서도
-      # 브라우저로 localhost:8002 접속은 그대로 된다.
-      # EC2 에서는 nginx 가 /admin-web/ 에 IP 제한을 건 뒤 여기로 프록시한다.
-      # 다른 기기에서 접속해야 하면 .env 에 ADMIN_BIND=0.0.0.0 을 넣는다.
+      # 기본값을 127.0.0.1 로 둔다. 설정을 깜빡해도 외부에 노출되지 않는다.
+      # VPN 구축 후에는 0.0.0.0 으로 열고 접근 통제를 보안그룹이 맡는다.
       - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
     environment:
-      DB_ENGINE: ${DB_ENGINE:-sqlite}
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DB_NAME: ${DB_NAME:-hackmin}
-      DB_USER: ${DB_USER:-hackmin}
-      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
-      DB_HOST: ${DB_HOST:-}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_SSL_CA: ${DB_SSL_CA:-}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
-      DJANGO_SSL_REDIRECT: "0"
-      USE_S3: ${USE_S3:-0}
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
-      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
-      # 이 컨테이너는 /admin-web/, /admin/ 만 응답한다 (나머지는 404).
-      DJANGO_ROOT_URLCONF: config.urls_admin
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+      ADMIN_BFF_DEBUG: ${DJANGO_DEBUG:-1}
+      # api / 점주 웹과 각각 다른 키를 쓴다.
+      ADMIN_BFF_SECRET_KEY: ${ADMIN_BFF_SECRET_KEY:-django-insecure-admin-bff-dev-key}
+      ADMIN_BFF_ALLOWED_HOSTS: ${ADMIN_BFF_ALLOWED_HOSTS:-*}
+      ADMIN_BFF_CSRF_ORIGINS: ${ADMIN_BFF_CSRF_ORIGINS:-http://localhost:8002,http://127.0.0.1:8002}
+      USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-0}
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      # 점주 웹과 다른 Redis DB 인덱스를 써서 세션이 섞이지 않게 한다.
+      REDIS_URL: redis://redis:6379/1
 
   # ---------------------------------------------------------------------------
   # web-bff 세션 저장소. 외부로 포트를 열지 않는다 (컨테이너 네트워크 전용).

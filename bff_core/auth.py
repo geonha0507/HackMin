@@ -14,6 +14,7 @@ JWT 는 세션(Redis)에만 존재하고 브라우저로 내려가지 않는다.
 from functools import wraps
 from urllib.parse import quote
 
+from django.conf import settings
 from django.shortcuts import redirect
 
 from .api_client import SESSION_KEY, ApiClient
@@ -97,7 +98,9 @@ def logout_session(request):
 
 
 def _redirect_login(request):
-    return redirect(f'/web/login?next={quote(request.get_full_path())}')
+    # 로그인 경로는 앱마다 다르다(/web/login, /admin-web/login). settings 에서 읽는다.
+    login_url = getattr(settings, 'LOGIN_URL', '/login')
+    return redirect(f'{login_url}?next={quote(request.get_full_path())}')
 
 
 def role_required(*roles):
@@ -121,3 +124,4 @@ def role_required(*roles):
 
 
 owner_required = role_required('owner')
+admin_required = role_required('admin')

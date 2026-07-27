@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements-web.txt \
     && rm -f /tmp/requirements-web.txt
 
 COPY manage_web.py ./
+# 인증·API 호출 레이어는 admin_bff 와 공유한다.
+COPY bff_core/ ./bff_core/
 COPY web_bff/ ./web_bff/
 
 EXPOSE 8000

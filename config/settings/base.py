@@ -61,7 +61,8 @@ INSTALLED_APPS = [
     'downloads',
     # 'web' (점주 SSR 콘솔)은 web_bff 컨테이너로 이관되어 제거되었다.
     # 점주 웹은 이제 DB에 붙지 않고 /api/v1 만 호출한다.
-    'admin_web',
+    # 'admin_web' (관리자 콘솔)은 admin_bff 컨테이너로 이관되어 제거되었다.
+    # 관리자 웹도 이제 DB에 붙지 않고 /api/v1 만 호출한다.
 ]
 
 # 세션 기반 관리자/점주 웹 로그인 경로
