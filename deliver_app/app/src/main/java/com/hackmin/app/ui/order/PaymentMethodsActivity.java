@@ -9,6 +9,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -19,6 +21,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.hackmin.app.R;
+import com.hackmin.app.network.SessionManager;
+import com.hackmin.app.ui.common.CardTileFactory;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.user.AccountRegisterRequest;
 import com.hackmin.app.data.model.user.BankAccountDto;
@@ -41,7 +46,8 @@ public class PaymentMethodsActivity extends AppCompatActivity {
             "국민", "신한", "우리", "하나", "농협", "기업", "카카오뱅크", "토스뱅크", "SC제일", "케이뱅크"
     };
 
-    private LinearLayout registeredContainer;
+    private LinearLayout accountsContainer;   // 계좌(로고 행)
+    private LinearLayout cardsRow;            // 카드/간편결제(좌우 스크롤 타일)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,9 +66,18 @@ public class PaymentMethodsActivity extends AppCompatActivity {
 
         // 현재 등록된 결제수단 목록.
         root.addView(sectionTitle("등록된 결제수단", 14));
-        registeredContainer = new LinearLayout(this);
-        registeredContainer.setOrientation(LinearLayout.VERTICAL);
-        root.addView(registeredContainer);
+        accountsContainer = new LinearLayout(this);
+        accountsContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(accountsContainer);
+
+        HorizontalScrollView cardScroll = new HorizontalScrollView(this);
+        cardScroll.setHorizontalScrollBarEnabled(false);
+        cardsRow = new LinearLayout(this);
+        cardsRow.setOrientation(LinearLayout.HORIZONTAL);
+        int cp = dp(4);
+        cardsRow.setPadding(0, cp, 0, cp);
+        cardScroll.addView(cardsRow);
+        root.addView(cardScroll);
 
         root.addView(divider());
 
@@ -82,66 +97,83 @@ public class PaymentMethodsActivity extends AppCompatActivity {
 
     // ── 등록 목록 ────────────────────────────────────────────
     private void refreshRegistered() {
-        registeredContainer.removeAllViews();
+        accountsContainer.removeAllViews();
+        cardsRow.removeAllViews();
 
+        // 카드/간편결제 → 좌우 스크롤 타일. 카카오/네이버는 브랜드 이미지 타일, 일반 카드는 그라데이션 타일.
         ApiClient.userApi(this).getPaymentCards(null).enqueue(new Callback<PagedResponse<PaymentCardDto>>() {
             @Override
             public void onResponse(@NonNull Call<PagedResponse<PaymentCardDto>> call,
                                    @NonNull Response<PagedResponse<PaymentCardDto>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().getResults() != null) {
                     for (PaymentCardDto c : response.body().getResults()) {
-                        registeredContainer.addView(registeredRow(
-                                providerLabel(c.getProvider()), c.getCardMasked(),
-                                () -> deleteCard(c.getId())));
+                        final String provider = c.getProvider();
+                        final String identity = provider + ":" + c.getId();
+                        boolean isDefault = identity.equals(getDefaultId());
+                        Runnable onTap = isDefault ? null
+                                : () -> confirmSetDefault(identity, providerLabel(provider));
+                        Runnable onDelete = () -> deleteCard(c.getId());
+                        int logo = payLogoRes(provider);
+                        View tile = (logo != 0)
+                                ? CardTileFactory.createImageTile(PaymentMethodsActivity.this, logo,
+                                        c.getCardMasked(), isDefault, onTap, onDelete)
+                                : CardTileFactory.create(PaymentMethodsActivity.this,
+                                        providerLabel(provider), c.getCardMasked(), isDefault, onTap, onDelete);
+                        cardsRow.addView(tile);
                     }
                 }
-                showEmptyHintIfNeeded();
             }
 
             @Override
-            public void onFailure(@NonNull Call<PagedResponse<PaymentCardDto>> call, @NonNull Throwable t) {
-                showEmptyHintIfNeeded();
-            }
+            public void onFailure(@NonNull Call<PagedResponse<PaymentCardDto>> call, @NonNull Throwable t) {}
         });
 
+        // 계좌 → 은행 로고 행.
         ApiClient.userApi(this).getBankAccounts().enqueue(new Callback<PagedResponse<BankAccountDto>>() {
             @Override
             public void onResponse(@NonNull Call<PagedResponse<BankAccountDto>> call,
                                    @NonNull Response<PagedResponse<BankAccountDto>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().getResults() != null) {
                     for (BankAccountDto a : response.body().getResults()) {
-                        registeredContainer.addView(registeredRow(
+                        accountsContainer.addView(registeredRow(
+                                "account:" + a.getId(), bankLogoRes(a.getBank()),
                                 "계좌 " + a.getBank(), a.getAccountMasked(),
                                 () -> deleteAccount(a.getId())));
                     }
                 }
-                showEmptyHintIfNeeded();
             }
 
             @Override
-            public void onFailure(@NonNull Call<PagedResponse<BankAccountDto>> call, @NonNull Throwable t) {
-                showEmptyHintIfNeeded();
-            }
+            public void onFailure(@NonNull Call<PagedResponse<BankAccountDto>> call, @NonNull Throwable t) {}
         });
     }
 
-    private void showEmptyHintIfNeeded() {
-        if (registeredContainer.getChildCount() == 0) {
-            TextView tv = new TextView(this);
-            tv.setText("등록된 결제수단이 없습니다.");
-            tv.setTextColor(Color.parseColor("#999999"));
-            tv.setTextSize(13);
-            tv.setPadding(0, dp(8), 0, dp(8));
-            registeredContainer.addView(tv);
-        }
+    /** 카카오/네이버 브랜드 이미지 리소스. 일반 카드는 0(그라데이션 타일 사용). */
+    private int payLogoRes(String provider) {
+        if ("kakao".equals(provider)) return R.drawable.logo_kakaopay;
+        if ("naver".equals(provider)) return R.drawable.logo_naverpay;
+        return 0;
     }
 
-    private View registeredRow(String label, String masked, Runnable onDelete) {
+    private View registeredRow(String identity, int logoRes, String label, String masked, Runnable onDelete) {
+        boolean isDefault = identity.equals(getDefaultId());
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         int p = dp(12);
         row.setPadding(0, p, 0, p);
+
+        // 은행/카드 로고
+        if (logoRes != 0) {
+            ImageView logo = new ImageView(this);
+            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(dp(44), dp(30));
+            llp.setMarginEnd(dp(12));
+            logo.setLayoutParams(llp);
+            logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            logo.setImageResource(logoRes);
+            row.addView(logo);
+        }
 
         TextView info = new TextView(this);
         info.setText(label + "   " + masked);
@@ -149,6 +181,28 @@ public class PaymentMethodsActivity extends AppCompatActivity {
         info.setTextSize(15);
         info.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(info);
+
+        if (isDefault) {
+            // 기본 결제수단 배지
+            TextView badge = new TextView(this);
+            badge.setText("기본");
+            badge.setTextColor(Color.WHITE);
+            badge.setTextSize(11);
+            badge.setPadding(dp(8), dp(3), dp(8), dp(3));
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(Color.parseColor("#FF6F61"));
+            bg.setCornerRadius(dp(10));
+            badge.setBackground(bg);
+            LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            blp.setMarginEnd(dp(8));
+            badge.setLayoutParams(blp);
+            row.addView(badge);
+        } else {
+            // 기본이 아니면 탭 시 기본으로 설정할지 묻는다.
+            row.setClickable(true);
+            row.setOnClickListener(v -> confirmSetDefault(identity, label));
+        }
 
         TextView del = new TextView(this);
         del.setText("✕");
@@ -158,6 +212,49 @@ public class PaymentMethodsActivity extends AppCompatActivity {
         del.setOnClickListener(v -> onDelete.run());
         row.addView(del);
         return row;
+    }
+
+    /** 다른 결제수단을 탭하면 기본으로 지정할지 확인한다. */
+    private void confirmSetDefault(String identity, String label) {
+        new AlertDialog.Builder(this)
+                .setMessage(label + "을(를) 기본 결제수단으로 하시겠습니까?")
+                .setPositiveButton("기본으로", (d, w) -> {
+                    setDefaultId(identity);
+                    Toast.makeText(this, "기본 결제수단으로 설정되었습니다.", Toast.LENGTH_SHORT).show();
+                    refreshRegistered();
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    // 기본 결제수단 식별자를 계정별 로컬에 저장한다(결제화면에서도 이 값을 우선 선택에 쓸 수 있다).
+    private String defaultPrefKey() {
+        return "default_" + SessionManager.getInstance(this).getUserId();
+    }
+
+    private String getDefaultId() {
+        return getSharedPreferences("payment_default", MODE_PRIVATE).getString(defaultPrefKey(), "");
+    }
+
+    private void setDefaultId(String identity) {
+        getSharedPreferences("payment_default", MODE_PRIVATE).edit()
+                .putString(defaultPrefKey(), identity).apply();
+    }
+
+    /** 은행명 → 로고 리소스. 이미지가 없는 은행은 0(로고 미표시). */
+    private int bankLogoRes(String bank) {
+        if (bank == null) return 0;
+        if (bank.contains("국민")) return R.drawable.bank_kookmin;
+        if (bank.contains("기업")) return R.drawable.bank_ibk;
+        if (bank.contains("농협")) return R.drawable.bank_nonghyup;
+        if (bank.contains("신한")) return R.drawable.bank_shinhan;
+        if (bank.contains("우리")) return R.drawable.bank_woori;
+        if (bank.contains("하나")) return R.drawable.bank_hana;
+        if (bank.contains("카카오")) return R.drawable.bank_kakaobank;
+        if (bank.contains("토스")) return R.drawable.bank_tossbank;
+        if (bank.contains("SC")) return R.drawable.bank_sc;
+        if (bank.contains("케이")) return R.drawable.bank_kbank;
+        return 0;
     }
 
     private void deleteCard(long id) {
