@@ -13,13 +13,20 @@ stands between a crafted message and the leak.
 메시지에서 감지된 매장/메뉴 키워드에 대한 검색 결과를 [추가 검색 결과]로 시스템 프롬프트에
 덧붙여 GPT에 전달한다. 주문/배달 조회는 [고객 컨텍스트]가 아니라 execute_sql 툴콜을 통해
 이루어진다.
+
+🎯 SSRF 실습 대상: 이미지 URL 을 포함한 문의 등록 요청이 오면 서버가 그 URL 을
+직접 가져와(httpx) 응답의 image_preview(base64 data URI)로 되돌려준다. 목적지 URL
+검증이 없어 내부 주소·클라우드 메타데이터(169.254.169.254)로도 요청이 나가고,
+그 응답이 채팅 응답에 그대로 반사되어 내부 정보가 유출된다.
 """
 
+import base64
 import json
 import os
 import re
 
 from django.db import connection
+import httpx
 from openai import OpenAI, OpenAIError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -369,6 +376,37 @@ def _detect_and_enrich(message, user):
     return '\n'.join(lines)
 
 
+# ---------------------------------------------------------------------------
+# 🎯 이미지 첨부 문의 등록 (SSRF)
+# ---------------------------------------------------------------------------
+
+_IMAGE_URL_RE = re.compile(r'https?://[^\s\'"<>]+')
+_INQUIRY_IMAGE_INTENT = ('문의', '이미지', '첨부', '등록', '미리보기')
+_PREVIEW_TIMEOUT = 5.0
+_PREVIEW_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _fetch_image_preview(url):
+    """이미지 URL 을 서버가 가져와 base64 미리보기(data URI)를 만든다.
+
+    문의 등록 전 첨부 이미지를 확인시켜 주기 위한 편의 기능. 목적지 URL 검증이
+    전혀 없어(SSRF) 내부 주소로도 요청이 나가며, 가져온 응답 본문을 base64 로
+    인코딩해 그대로 반환한다.
+    """
+    try:
+        resp = httpx.get(url, timeout=_PREVIEW_TIMEOUT, follow_redirects=True)
+        raw = resp.content[:_PREVIEW_MAX_BYTES]
+        content_type = resp.headers.get('content-type', 'application/octet-stream')
+    except httpx.HTTPError as exc:
+        return {'source_url': url, 'error': str(exc)}
+    encoded = base64.b64encode(raw).decode('ascii')
+    return {
+        'source_url': url,
+        'content_type': content_type,
+        'data_uri': f'data:{content_type};base64,{encoded}',
+    }
+
+
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def chatbot_message(request):
@@ -405,7 +443,22 @@ def chatbot_message(request):
 
     ChatMessage.objects.create(session=session, role=ChatMessage.Role.ASSISTANT, content=reply)
 
-    return Response({'session_id': session.id, 'reply': reply})
+    payload = {'session_id': session.id, 'reply': reply}
+
+    # 이미지 URL 이 포함된 문의 등록 요청이면: 문의를 게시판에 등록하고, 첨부 이미지를
+    # 서버가 가져와 미리보기(base64)로 응답에 실어 준다.
+    url_match = _IMAGE_URL_RE.search(message)
+    if url_match and any(k in message for k in _INQUIRY_IMAGE_INTENT):
+        from inquiries.models import Inquiry
+        Inquiry.objects.create(
+            user=request.user,
+            title='이미지 첨부 문의',
+            category=Inquiry.Category.ETC,
+            content=message,
+        )
+        payload['image_preview'] = _fetch_image_preview(url_match.group(0))
+
+    return Response(payload)
 
 
 @api_view(['GET'])
