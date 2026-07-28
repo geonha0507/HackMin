@@ -1,0 +1,58 @@
+{% extends 'web/base.html' %}
+{% block title %}공지사항{% endblock %}
+{% block heading %}공지사항{% endblock %}
+{% block content %}
+
+<p class="muted" style="margin:-6px 0 18px">HackMin 운영팀 공지 및 점주 필독 자료입니다.</p>
+
+<div class="panel" style="padding:0;overflow:hidden">
+  <table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr>
+        <th style="width:64px">번호</th>
+        <th>제목</th>
+        <th style="width:150px">첨부파일</th>
+        <th style="width:120px">작성일</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in notices %}
+      <tr>
+        <td>{% if n.is_pinned %}<span style="color:#d9480f">📌</span>{% else %}{{ n.id }}{% endif %}</td>
+        <td>
+          <details>
+            <summary style="cursor:pointer;font-weight:600;list-style:none">
+              {% if n.is_pinned %}<span style="display:inline-block;background:#ffe8e0;color:#d9480f;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;margin-right:6px">필독</span>{% endif %}{{ n.title }}
+            </summary>
+            <div style="margin-top:12px;color:#444;line-height:1.65">{{ n.content|linebreaksbr }}</div>
+            {% if n.image %}
+              <div style="margin-top:10px"><img src="{{ n.image }}" alt="" style="max-width:100%;border-radius:8px;border:1px solid var(--line)"></div>
+            {% endif %}
+            {% if n.attachment_name %}
+              <div style="margin-top:14px">
+                <a class="btn" style="background:var(--brand);color:#fff;border-color:var(--brand)"
+                   href="{% url 'web:owner_notice_attachment' n.id %}?file={{ n.attachment_name }}">
+                  📎 {{ n.attachment_name }} 다운로드
+                </a>
+              </div>
+            {% endif %}
+          </details>
+        </td>
+        <td>
+          {% if n.attachment_name %}
+            <a class="btn" style="padding:5px 11px;font-size:12px"
+               href="{% url 'web:owner_notice_attachment' n.id %}?file={{ n.attachment_name }}">다운로드</a>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="muted">{{ n.created_at|slice:':10' }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="muted" style="padding:40px;text-align:center">등록된 공지사항이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

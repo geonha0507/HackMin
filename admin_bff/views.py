@@ -378,10 +378,14 @@ def _notice_payload(request):
 
 
 def _notice_files(request):
-    upload = request.FILES.get('image')
-    if not upload:
-        return {}
-    return {'image': (upload.name, upload.file, upload.content_type)}
+    files = {}
+    image = request.FILES.get('image')
+    if image:
+        files['image'] = (image.name, image.file, image.content_type)
+    attachment = request.FILES.get('attachment')
+    if attachment:
+        files['attachment'] = (attachment.name, attachment.file, attachment.content_type)
+    return files
 
 
 def _notice_error(exc):

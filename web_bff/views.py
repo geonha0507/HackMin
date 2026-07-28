@@ -959,3 +959,44 @@ def signup_view(request):
         'form_data': form_data,
         'hide_chrome': True,
     })
+
+
+# ------------------------------------------------------------------ 공지사항 게시판
+@owner_required
+def notices(request):
+    """공지사항 게시판. 관리자(운영팀) 공지를 목록으로 보여준다."""
+    api = client_for(request)
+    items = []
+    try:
+        data = api.get('/notices')
+        items = data.get('results', [])
+    except ApiError as exc:
+        messages.error(request, exc.message)
+    return render(request, 'web/notices.html', {'notices': items})
+
+
+@owner_required
+def notice_attachment_download(request, pk):
+    """공지 첨부파일(가이드북) 다운로드 중계.
+
+    브라우저에는 JWT 가 없으므로 web_bff 가 대신 API 다운로드를 받아 넘긴다.
+    다운로드할 파일명은 file 파라미터로 그대로 전달한다.
+    """
+    file = request.GET.get('file', '')
+    try:
+        upstream = client_for(request).raw(
+            'GET', f'/downloads/notice/{pk}/attachment',
+            params={'file': file} if file else None,
+        )
+    except ApiError as exc:
+        messages.error(request, exc.message)
+        return redirect('web:owner_notices')
+
+    response = HttpResponse(
+        upstream.content,
+        content_type=upstream.headers.get('content-type', 'application/octet-stream'),
+    )
+    disposition = upstream.headers.get('content-disposition')
+    if disposition:
+        response['Content-Disposition'] = disposition
+    return response

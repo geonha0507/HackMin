@@ -30,6 +30,14 @@
       <div class="muted" style="font-size:12px;margin-top:3px">권장 크기 800×400px (2:1 비율) · 비율이 다르면 목록/상세 화면에서 사진의 상하좌우가 잘려 보일 수 있습니다.</div>
     </div>
     <div class="field">
+      <label>첨부파일 {% if notice.attachment_name %}(현재: {{ notice.attachment_name }}){% endif %}</label>
+      <input type="file" name="attachment" accept=".pdf,.doc,.docx,.hwp,.zip">
+      <div class="muted" style="font-size:12px;margin-top:5px">점주 필독 가이드북 등 자료 첨부 · PDF/DOC/HWP/ZIP</div>
+      {% if notice.attachment_name %}
+        <div class="muted" style="font-size:12px;margin-top:3px">새 파일을 첨부하지 않으면 기존 파일이 유지됩니다.</div>
+      {% endif %}
+    </div>
+    <div class="field">
       <label style="display:inline-flex;align-items:center;gap:6px">
         <input type="checkbox" name="is_pinned" style="width:auto" {% if notice.is_pinned %}checked{% endif %}>
         상단 고정

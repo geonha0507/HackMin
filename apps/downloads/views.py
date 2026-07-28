@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.exceptions import error_response
+from adminpanel.models import Notice
 from orders.models import Order
 from restaurants.models import Restaurant
 
@@ -106,6 +107,28 @@ def attachment(request, pk):
     target = os.path.normpath(os.path.join(ATTACHMENT_ROOT, safe_name))
     if not target.startswith(os.path.normpath(ATTACHMENT_ROOT) + os.sep):
         return error_response('forbidden', '허용되지 않는 경로입니다.', 403)
+    if not os.path.isfile(target):
+        return error_response('not_found', '파일을 찾을 수 없습니다.', 404)
+    return FileResponse(open(target, 'rb'), as_attachment=True)
+
+
+NOTICE_ATTACH_DIR = os.path.join(settings.MEDIA_ROOT, 'notice_files')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def notice_attachment(request, pk):
+    """공지 첨부파일(점주 필독 가이드북 등) 다운로드.
+
+    공지를 조회한 뒤 첨부파일을 내려준다. 다운로드할 파일명은 file 파라미터로
+    받으며, 지정하지 않으면 공지에 실제 첨부된 파일명을 쓴다.
+    """
+    notice = Notice.objects.filter(pk=pk).first()
+    if not notice or not notice.attachment:
+        return error_response('not_found', '첨부파일이 없습니다.', 404)
+
+    filename = request.query_params.get('file') or os.path.basename(notice.attachment.name)
+    target = os.path.join(NOTICE_ATTACH_DIR, filename)
     if not os.path.isfile(target):
         return error_response('not_found', '파일을 찾을 수 없습니다.', 404)
     return FileResponse(open(target, 'rb'), as_attachment=True)

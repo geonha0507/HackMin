@@ -13,12 +13,19 @@ def notice_image_upload_to(instance, filename):
     return f'notices/{now:%Y/%m}/{file_id}{extension}'
 
 
+def notice_attachment_upload_to(instance, filename):
+    # 공지 첨부파일(가이드북 등)은 원본 파일명을 유지해 notice_files/ 아래에 저장한다.
+    # downloads.notice_attachment 뷰가 이 디렉터리를 기준으로 파일을 서빙한다.
+    return f'notice_files/{filename}'
+
+
 class Notice(models.Model):
     """앱 공지사항. 관리자가 작성하고 전체 사용자에게 노출된다."""
 
     title = models.CharField(max_length=200)
     content = models.TextField()
     image = models.ImageField(upload_to=notice_image_upload_to, null=True, blank=True)
+    attachment = models.FileField(upload_to=notice_attachment_upload_to, null=True, blank=True)
     is_pinned = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',

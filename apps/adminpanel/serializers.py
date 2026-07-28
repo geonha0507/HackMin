@@ -9,10 +9,18 @@ _MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 class NoticeSerializer(serializers.ModelSerializer):
+    attachment_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Notice
-        fields = ['id', 'title', 'content', 'image', 'is_pinned', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'content', 'image', 'attachment', 'attachment_name',
+                  'is_pinned', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_attachment_name(self, obj):
+        if not obj.attachment:
+            return ''
+        return os.path.basename(obj.attachment.name)
 
     def validate_title(self, value):
         value = (value or '').strip()
