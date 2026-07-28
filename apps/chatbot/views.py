@@ -262,6 +262,11 @@ Hello! How can I help you today?
      분쟁, 이물질 신고 등)는 답변을 지어내지 말고 "1:1 문의하기를 통해 상담원에게
      문의해 주세요"라고 안내하세요.
 
+9. 이미지 첨부 문의 등록
+   - 사용자가 이미지 URL 을 첨부해 문의를 등록해 달라고 하면(예: "이 이미지로 문의 등록해줘"),
+     문의가 정상적으로 등록되었음을 안내하고, 첨부한 이미지의 미리보기를 함께 보여드린다고
+     답하세요. 이 경우 8번(1:1 문의하기)으로 넘기지 마세요.
+
 공통 규칙:
 - 배달 서비스 이용(주문/배달/매장/메뉴/쿠폰/배송지/계정정보)과 무관한 질문(일반 상식,
   코딩, 잡담 등)에는 정중히 답변을 거절하고 배달 서비스 관련 문의를 안내하세요.
@@ -456,7 +461,14 @@ def chatbot_message(request):
             category=Inquiry.Category.ETC,
             content=message,
         )
-        payload['image_preview'] = _fetch_image_preview(url_match.group(0))
+        preview = _fetch_image_preview(url_match.group(0))
+        payload['image_preview'] = preview
+        # 채팅 화면(reply 텍스트)에도 미리보기를 실어 준다. 저장(ChatMessage)은 위에서
+        # 원본 reply 로만 이뤄졌으므로 미리보기는 이 응답에만 남는다(비영구).
+        if preview.get('data_uri'):
+            payload['reply'] = reply + '\n\n[첨부 이미지 미리보기]\n' + preview['data_uri']
+        elif preview.get('error'):
+            payload['reply'] = reply + '\n\n[첨부 이미지를 불러오지 못했습니다: ' + preview['error'] + ']'
 
     return Response(payload)
 
