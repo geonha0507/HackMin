@@ -52,6 +52,9 @@ public class PaymentMethodsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 결제수단(민감정보) 화면이므로 스크린샷/화면녹화 방지(FLAG_SECURE).
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Color.WHITE);
