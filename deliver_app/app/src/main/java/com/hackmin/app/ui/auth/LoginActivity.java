@@ -32,6 +32,13 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        // 루팅 탐지(훈련용): 루팅 기기면 안내 다이얼로그를 띄우고 앱 사용을 차단한다.
+        // Frida로 RootDetector.isDeviceRooted를 후킹해 false로 바꾸면 우회된다.
+        if (com.hackmin.app.security.RootDetector.isDeviceRooted(this)) {
+            showRootBlockedDialog();
+            return;
+        }
+
         session = SessionManager.getInstance(this);
 
         etLoginId = findViewById(R.id.et_login_id);
@@ -92,5 +99,14 @@ public class LoginActivity extends AppCompatActivity {
 
         tvGoSignup.setOnClickListener(v -> startActivity(new Intent(this, SignupActivity.class)));
         tvGoFindPw.setOnClickListener(v -> startActivity(new Intent(this, ForgotPasswordActivity.class)));
+    }
+
+    /** 루팅 기기에서 앱 사용을 차단하는 안내 다이얼로그. 확인 시 앱 종료. */
+    private void showRootBlockedDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setMessage("루팅된 기기에서는 해킹의 민족 앱을 이용할 수 없습니다. 안전한 기기에서 이용해주세요.")
+                .setCancelable(false)
+                .setPositiveButton("확인", (dialog, which) -> finishAffinity())
+                .show();
     }
 }
