@@ -2,6 +2,7 @@
 <!-- 공용 하단 네비게이션 바 (장바구니 · 홈 · 마이페이지). BottomNav.setup()으로 연결. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bottom_nav_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
