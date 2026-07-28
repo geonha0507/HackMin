@@ -73,6 +73,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_restaurant_detail);
+        com.hackmin.app.ui.common.EdgeToEdgeUtil.apply(this);
 
         restaurantId = getIntent().getLongExtra(EXTRA_RESTAURANT_ID, -1L);
         if (restaurantId < 0) {
