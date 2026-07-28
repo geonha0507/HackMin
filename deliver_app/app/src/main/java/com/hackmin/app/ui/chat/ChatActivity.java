@@ -50,6 +50,7 @@ public class ChatActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+        com.hackmin.app.ui.common.EdgeToEdgeUtil.apply(this);
 
         ImageButton btnBack = findViewById(R.id.btn_chat_back);
         ImageButton btnReset = findViewById(R.id.btn_chat_reset);
