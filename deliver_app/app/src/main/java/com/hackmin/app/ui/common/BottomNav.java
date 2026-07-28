@@ -44,6 +44,11 @@ public final class BottomNav {
         View navMypage = activity.findViewById(R.id.nav_mypage);
         if (navCart == null || navHome == null || navOrders == null || navMypage == null) return;
 
+        // edge-to-edge(안드로이드 15, targetSdk 35) 대응: 레이아웃 루트에 상태바·내비바 인셋을
+        // 패딩으로 적용해 콘텐츠(상단바·하단 네비게이션)가 시스템 바에 가려지지 않게 한다.
+        // (안드로이드 공식 문서 권장 패턴: setOnApplyWindowInsetsListener + CONSUMED 반환)
+        EdgeToEdgeUtil.apply(activity);
+
         navCart.setOnClickListener(v -> {
             if (active != Tab.CART) navigate(activity, CartActivity.class);
         });

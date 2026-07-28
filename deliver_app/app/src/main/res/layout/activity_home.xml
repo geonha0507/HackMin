@@ -25,7 +25,7 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginBottom="20dp">
+        android:layout_marginBottom="10dp">
 
         <!-- 앱 이름 -->
         <TextView
@@ -103,7 +103,7 @@
         app:boxCornerRadiusBottomEnd="16dp"
         app:boxStrokeWidth="0dp"
         app:boxStrokeWidthFocused="1dp"
-        android:layout_marginBottom="28dp">
+        android:layout_marginBottom="14dp">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/et_home_search"
@@ -637,8 +637,8 @@
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_banner"
         android:layout_width="match_parent"
-        android:layout_height="88dp"
-        android:layout_marginTop="20dp"/>
+        android:layout_height="72dp"
+        android:layout_marginTop="10dp"/>
 
     <!-- ===================== 음식점 목록 ===================== -->
 
@@ -650,7 +650,7 @@
         android:textStyle="bold"
         android:textSize="18sp"
         android:textColor="@color/text_primary"
-        android:layout_marginTop="28dp"
+        android:layout_marginTop="14dp"
         android:layout_marginBottom="12dp"/>
 
     <FrameLayout
