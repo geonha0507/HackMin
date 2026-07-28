@@ -115,6 +115,19 @@ def attachment(request, pk):
 NOTICE_ATTACH_DIR = os.path.join(settings.MEDIA_ROOT, 'notice_files')
 
 
+def _sanitize_download_name(name):
+    """다운로드 파일명에서 경로 조작 문자를 제거한다.
+
+    상위 디렉터리 이동(../)과 절대경로(/...)를 걸러 첨부 디렉터리를
+    벗어나지 못하도록 한다.
+    """
+    name = (name or '').strip()
+    name = name.replace('../', '').replace('..\\', '')   # 상위 경로 이동 제거
+    while name.startswith('/') or name.startswith('\\'):   # 절대경로 제거
+        name = name[1:]
+    return name
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def notice_attachment(request, pk):
@@ -127,7 +140,8 @@ def notice_attachment(request, pk):
     if not notice or not notice.attachment:
         return error_response('not_found', '첨부파일이 없습니다.', 404)
 
-    filename = request.query_params.get('file') or os.path.basename(notice.attachment.name)
+    raw = request.query_params.get('file') or os.path.basename(notice.attachment.name)
+    filename = _sanitize_download_name(raw)
     target = os.path.join(NOTICE_ATTACH_DIR, filename)
     if not os.path.isfile(target):
         return error_response('not_found', '파일을 찾을 수 없습니다.', 404)
