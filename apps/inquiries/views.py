@@ -8,7 +8,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from common.exceptions import error_response
-from common.permissions import IsCustomer
+from common.permissions import IsAdminRole, IsCustomer
 from .models import Inquiry, InquiryImage
 from .serializers import InquiryCreateSerializer, InquirySerializer
 
@@ -78,3 +78,29 @@ def upload_inquiry_image(request, pk):
 
     image = InquiryImage.objects.create(inquiry=inquiry, image=upload)
     return Response({'id': image.id, 'image': image.image.url}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# 🎯 Stored XSS 실습 대상: 관리자 문의 조회 (읽기 전용)
+# ---------------------------------------------------------------------------
+# 고객이 저장한 content 를 가공 없이(raw) 그대로 돌려준다. 위험 태그를 여기서
+# 지우지 않는 이유: 저장형 XSS 의 '발동'은 admin_bff 가 이 content 를 화면에
+# 출력할 때 일어나고, 필터/이스케이프는 그 출력 지점(admin_bff)의 책임이기
+# 때문이다. 이 API 는 '관리자만(IsAdminRole) 전체 문의를 본다'는 스코프만 연다.
+
+@api_view(['GET'])
+@permission_classes([IsAdminRole])
+def admin_inquiry_list(request):
+    """관리자용 1:1 문의 전체 목록(최신순)."""
+    qs = Inquiry.objects.select_related('user').all().order_by('-created_at')
+    return Response({'results': InquirySerializer(qs, many=True).data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminRole])
+def admin_inquiry_detail(request, pk):
+    """관리자용 1:1 문의 단건 조회."""
+    inquiry = Inquiry.objects.select_related('user').filter(pk=pk).first()
+    if not inquiry:
+        return error_response('not_found', '문의를 찾을 수 없습니다.', 404)
+    return Response(InquirySerializer(inquiry).data)
