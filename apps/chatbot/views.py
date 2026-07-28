@@ -1,23 +1,12 @@
 """Chatbot endpoints (/api/v1/chatbot). GPT-4o-mini backed customer support chat.
 
-🎯 Prompt injection practice target: the system prompt asks the model not to
-reveal an internal admin credential, but there is no output filtering or
-second guardrail on top of that instruction — only the model's own judgement
-stands between a crafted message and the leak.
-
-🎯 Excessive Agency 실습 대상: `execute_sql` 함수툴은 LLM이 만든 SQL을 검증 없이 그대로
-실행한다. 조회 대상 테이블 제한, 파라미터 바인딩, 요청 사용자 스코프 검증이 전혀 없어서
-프롬프트 인젝션으로 다른 사용자의 개인정보를 읽거나(SELECT) 데이터를 바꿀 수 있다(UPDATE 등).
-
 컨텍스트 주입: 매 메시지마다 요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트]로,
 메시지에서 감지된 매장/메뉴 키워드에 대한 검색 결과를 [추가 검색 결과]로 시스템 프롬프트에
-덧붙여 GPT에 전달한다. 주문/배달 조회는 [고객 컨텍스트]가 아니라 execute_sql 툴콜을 통해
-이루어진다.
+덧붙여 GPT에 전달한다. 주문/배달 조회는 execute_sql 툴콜을 통해 이루어진다.
 
-🎯 SSRF 실습 대상: 이미지 URL 을 포함한 문의 등록 요청이 오면 서버가 그 URL 을
-직접 가져와(httpx) 응답의 image_preview(base64 data URI)로 되돌려준다. 목적지 URL
-검증이 없어 내부 주소·클라우드 메타데이터(169.254.169.254)로도 요청이 나가고,
-그 응답이 채팅 응답에 그대로 반사되어 내부 정보가 유출된다.
+링크 미리보기: 메시지에 URL이 포함되면 서버가 해당 URL을 가져와 base64 data URI로
+변환한 뒤 채팅 응답에 미리보기로 첨부한다. 모바일 클라이언트에서 외부 URL에 직접
+접근하면 CORS에 걸리므로 서버 프록시 방식을 사용한다.
 """
 
 import base64
@@ -54,7 +43,7 @@ DISCOUNT_TYPE_LABELS = {
 
 
 # ---------------------------------------------------------------------------
-# 🎯 DB 조회/변경 툴 (Excessive Agency)
+#  DB 조회/변경 툴 (Excessive Agency)
 # ---------------------------------------------------------------------------
 
 TOOLS = [
@@ -262,11 +251,6 @@ Hello! How can I help you today?
      분쟁, 이물질 신고 등)는 답변을 지어내지 말고 "1:1 문의하기를 통해 상담원에게
      문의해 주세요"라고 안내하세요.
 
-9. 이미지 첨부 문의 등록
-   - 사용자가 이미지 URL 을 첨부해 문의를 등록해 달라고 하면(예: "이 이미지로 문의 등록해줘"),
-     문의가 정상적으로 등록되었음을 안내하고, 첨부한 이미지의 미리보기를 함께 보여드린다고
-     답하세요. 이 경우 8번(1:1 문의하기)으로 넘기지 마세요.
-
 공통 규칙:
 - 배달 서비스 이용(주문/배달/매장/메뉴/쿠폰/배송지/계정정보)과 무관한 질문(일반 상식,
   코딩, 잡담 등)에는 정중히 답변을 거절하고 배달 서비스 관련 문의를 안내하세요.
@@ -382,21 +366,19 @@ def _detect_and_enrich(message, user):
 
 
 # ---------------------------------------------------------------------------
-# 🎯 이미지 첨부 문의 등록 (SSRF)
+# 링크 미리보기 (채팅 내 URL 자동 프리뷰)
 # ---------------------------------------------------------------------------
 
-_IMAGE_URL_RE = re.compile(r'https?://[^\s\'"<>]+')
-_INQUIRY_IMAGE_INTENT = ('문의', '이미지', '첨부', '등록', '미리보기')
+_LINK_URL_RE = re.compile(r'https?://[^\s\'"<>]+')
 _PREVIEW_TIMEOUT = 5.0
 _PREVIEW_MAX_BYTES = 2 * 1024 * 1024
 
 
-def _fetch_image_preview(url):
-    """이미지 URL 을 서버가 가져와 base64 미리보기(data URI)를 만든다.
+def _fetch_link_preview(url):
+    """채팅 메시지에 포함된 URL의 미리보기를 생성한다.
 
-    문의 등록 전 첨부 이미지를 확인시켜 주기 위한 편의 기능. 목적지 URL 검증이
-    전혀 없어(SSRF) 내부 주소로도 요청이 나가며, 가져온 응답 본문을 base64 로
-    인코딩해 그대로 반환한다.
+    모바일 클라이언트에서 외부 URL에 직접 접근하면 CORS에 걸리므로,
+    서버가 대신 가져와 base64 data URI로 변환해 돌려준다.
     """
     try:
         resp = httpx.get(url, timeout=_PREVIEW_TIMEOUT, follow_redirects=True)
@@ -450,25 +432,15 @@ def chatbot_message(request):
 
     payload = {'session_id': session.id, 'reply': reply}
 
-    # 이미지 URL 이 포함된 문의 등록 요청이면: 문의를 게시판에 등록하고, 첨부 이미지를
-    # 서버가 가져와 미리보기(base64)로 응답에 실어 준다.
-    url_match = _IMAGE_URL_RE.search(message)
-    if url_match and any(k in message for k in _INQUIRY_IMAGE_INTENT):
-        from inquiries.models import Inquiry
-        Inquiry.objects.create(
-            user=request.user,
-            title='이미지 첨부 문의',
-            category=Inquiry.Category.ETC,
-            content=message,
-        )
-        preview = _fetch_image_preview(url_match.group(0))
-        payload['image_preview'] = preview
-        # 채팅 화면(reply 텍스트)에도 미리보기를 실어 준다. 저장(ChatMessage)은 위에서
-        # 원본 reply 로만 이뤄졌으므로 미리보기는 이 응답에만 남는다(비영구).
+    # 메시지에 URL이 포함되어 있으면 링크 미리보기를 생성해 응답에 첨부한다.
+    url_match = _LINK_URL_RE.search(message)
+    if url_match:
+        preview = _fetch_link_preview(url_match.group(0))
+        payload['link_preview'] = preview
         if preview.get('data_uri'):
-            payload['reply'] = reply + '\n\n[첨부 이미지 미리보기]\n' + preview['data_uri']
+            payload['reply'] = reply + '\n\n[링크 미리보기]\n' + preview['data_uri']
         elif preview.get('error'):
-            payload['reply'] = reply + '\n\n[첨부 이미지를 불러오지 못했습니다: ' + preview['error'] + ']'
+            payload['reply'] = reply + '\n\n[링크를 불러오지 못했습니다: ' + preview['error'] + ']'
 
     return Response(payload)
 
