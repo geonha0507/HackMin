@@ -157,6 +157,19 @@ if os.environ.get('USE_S3', '0') == '1':
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+# --- 리뷰 이미지 전용 스토리지 (민감정보 분리) ------------------------------
+# 리뷰 이미지는 민감정보가 아니므로, USE_S3=1 로 나머지 파일을 S3 에 올리더라도
+# 이 파일들만은 항상 도커 볼륨(media_data → /app/media)에 저장한다.
+# 사업자등록증 등 민감 파일만 S3 에 남긴다.
+#
+# REVIEW_IMAGE_URL 은 브라우저가 이미지를 직접 열 공개 URL 의 접두사다.
+# 점주 웹(:8001)과 API(:8000)가 다른 오리진이면 절대 URL 이어야 브라우저가
+# 불러올 수 있으므로, docker-compose 에서 http://localhost:8000/media/ 처럼
+# API 공개 주소로 넣어준다(운영은 실제 도메인). 같은 오리진(nginx 뒤)이면
+# 기본값 '/media/' 로 충분하다.
+REVIEW_IMAGE_ROOT = os.environ.get('REVIEW_IMAGE_ROOT', str(MEDIA_ROOT))
+REVIEW_IMAGE_URL = os.environ.get('REVIEW_IMAGE_URL', MEDIA_URL)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
