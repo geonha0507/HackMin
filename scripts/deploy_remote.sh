@@ -124,6 +124,7 @@ docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 log "점주 웹 헬스 대기"
 for i in $(seq 1 15); do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 \
+           -H "Host: hackmin.com" \
            http://127.0.0.1:8001/web/health || echo 000)
   if [ "$code" = "200" ]; then
     echo "  점주 웹 정상 (${i}회차)"
