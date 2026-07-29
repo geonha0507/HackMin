@@ -40,5 +40,20 @@ urlpatterns = [
     path('api/v1/', include((api_v1, 'api_v1'))),
 ]
 
+
+# 리뷰 이미지 공개 서빙. 리뷰 이미지는 비민감이라 공개로 열어도 되며,
+# 업로드 단계(reviews.views.upload_review_image)에서 이미지 확장자만 허용하므로
+# 스크립트 파일이 올라올 수 없다. DEBUG 여부와 무관하게 항상 서빙하되,
+# reviews/ 하위만 노출한다 → notice_files/attachments 등 인증 다운로드 전용
+# 파일은 이 경로로 절대 새지 않는다.
+urlpatterns += [
+    re_path(
+        r'^media/reviews/(?P<path>.*)$',
+        static_serve,
+        {'document_root': os.path.join(settings.MEDIA_ROOT, 'reviews')},
+    ),
+]
+
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
