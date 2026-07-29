@@ -355,6 +355,7 @@ jobs:
           set -e
           for port in 8000 8001 8002; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                     -H "Host: hackmin.com" \
                      "http://127.0.0.1:$port/api/v1/health" || echo 000)
             # web/admin-web 은 URLConf 가 달라 health 가 404 인 게 정상이다.
             # 컨테이너가 죽어 있으면 000(연결 실패)이 나온다.
