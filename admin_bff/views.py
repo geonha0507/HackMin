@@ -493,9 +493,26 @@ def inquiry_detail(request, pk):
     🎯 저장형 XSS 발동점: 고객이 저장한 content 를 _weak_sanitize(허술한 필터)만
     거쳐 content_html 로 넘기고, 템플릿에서 |safe 로 출력한다. 그래서 고객이 심은
     <img onerror=...> 가 이 페이지를 여는 관리자 브라우저에서 실행된다.
+
+    답변(POST)은 정상 기능이다. 답변 텍스트는 템플릿에서 자동 이스케이프로
+    안전하게 출력하므로, 취약점은 고객 content 하나로 한정된다.
     """
+    api = client_for(request)
+
+    if request.method == 'POST':
+        answer = (request.POST.get('answer') or '').strip()
+        if not answer:
+            messages.error(request, '답변 내용을 입력해주세요.')
+        else:
+            try:
+                api.post(f'/admin/inquiries/{pk}/reply', json={'answer': answer})
+                messages.success(request, '답변을 등록했습니다.')
+            except ApiError as exc:
+                messages.error(request, exc.message)
+        return redirect('admin_web:admin_inquiry_detail', pk=pk)
+
     try:
-        obj = client_for(request).get(f'/admin/inquiries/{pk}')
+        obj = api.get(f'/admin/inquiries/{pk}')
     except ApiError as exc:
         if exc.status_code == 404:
             raise Http404('문의를 찾을 수 없습니다.')
@@ -503,5 +520,6 @@ def inquiry_detail(request, pk):
         return redirect('admin_web:admin_inquiries')
 
     obj['created_display'] = _fmt_dt(obj.get('created_at'), '%Y-%m-%d %H:%M')
+    obj['answered_display'] = _fmt_dt(obj.get('answered_at'), '%Y-%m-%d %H:%M')
     obj['content_html'] = _weak_sanitize(obj.get('content', ''))
     return render(request, 'admin_web/inquiry_detail.html', {'obj': obj})

@@ -33,5 +33,33 @@
     {% endfor %}
   </div>
   {% endif %}
+
+  <h2 style="margin-top:18px">관리자 답변</h2>
+  {% comment %}
+    답변은 취약점이 아니다. {{ obj.answer }} 로 자동 이스케이프해서 안전하게 출력한다.
+    (취약점은 위 '문의 내용'의 |safe 한 곳으로 한정)
+  {% endcomment %}
+  {% if obj.is_answered %}
+  <div class="panel" style="background:#f8fafc;margin:0 0 14px">
+    <div style="white-space:pre-wrap;line-height:1.6">{{ obj.answer }}</div>
+    <div class="muted" style="margin-top:8px;font-size:12px">
+      {{ obj.answered_by_name|default:'관리자' }} · {{ obj.answered_display }}
+    </div>
+  </div>
+  {% else %}
+  <p class="muted">아직 답변이 등록되지 않았습니다.</p>
+  {% endif %}
+
+  <form method="post" style="margin-top:12px">
+    {% csrf_token %}
+    <div class="field">
+      <label for="answer">{% if obj.is_answered %}답변 수정{% else %}답변 작성{% endif %}</label>
+      <textarea id="answer" name="answer" rows="5"
+                placeholder="고객에게 보낼 답변을 입력하세요.">{{ obj.answer }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      {% if obj.is_answered %}답변 수정{% else %}답변 등록{% endif %}
+    </button>
+  </form>
 </div>
 {% endblock %}
