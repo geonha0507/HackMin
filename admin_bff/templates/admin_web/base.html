@@ -106,6 +106,8 @@
         <a href="{% url 'admin_web:admin_payments' %}" class="{% if url_name == 'admin_payments' %}active{% endif %}">결제 조회</a>
         <div class="sec">공지</div>
         <a href="{% url 'admin_web:admin_notices' %}" class="{% if url_name == 'admin_notices' or url_name == 'admin_notice_create' or url_name == 'admin_notice_edit' %}active{% endif %}">공지사항 관리</a>
+        <div class="sec">고객지원</div>
+        <a href="{% url 'admin_web:admin_inquiries' %}" class="{% if url_name == 'admin_inquiries' or url_name == 'admin_inquiry_detail' %}active{% endif %}">1:1 문의</a>
       </nav>
       <div class="foot">
         <div>{{ request.web_user.nickname|default:request.web_user.username }}</div>

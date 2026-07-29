@@ -31,6 +31,10 @@ admin_patterns = ([
     path('notices/<int:pk>/delete', views.notice_delete, name='admin_notice_delete'),
     path('store', views.store_list, name='admin_store'),
     path('store/<int:pk>/decide', views.store_decide, name='admin_store_decide'),
+
+    # 1:1 문의 (고객지원) — 상세 화면이 저장형 XSS 발동점
+    path('inquiries', views.inquiry_list, name='admin_inquiries'),
+    path('inquiries/<int:pk>', views.inquiry_detail, name='admin_inquiry_detail'),
 ], 'admin_web')
 
 

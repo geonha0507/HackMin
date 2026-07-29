@@ -8,6 +8,7 @@ API 응답을 템플릿이 기대하는 모양으로 다듬는 얇은 층이 뷰
 """
 
 import logging
+import re
 from datetime import datetime
 
 from django.contrib import messages
@@ -40,6 +41,25 @@ def _safe_next(raw, fallback='/admin-web/'):
     if raw and raw.startswith('/') and not raw.startswith('//'):
         return raw
     return fallback
+
+
+# 🎯 저장형 XSS(발동점)용 허술한 정화기. 아래 inquiry_detail 에서 |safe 직전에 쓴다.
+_SCRIPT_RE = re.compile(r'(?i)<\s*/?\s*script[^>]*>')
+
+
+def _weak_sanitize(html):
+    """의도적으로 허술한 블랙리스트 필터.
+
+    허용목록(allowlist) 정화가 아니라, 눈에 띄는 <script> 태그와 작은따옴표(')만
+    걷어낸다. 이벤트 핸들러(onerror/onload)나 <img>/<svg> 태그는 그대로 통과하므로
+    <img src=x onerror=alert(document.cookie)> 로 우회된다.
+    (공백까지 막아 난이도를 中上으로 올리려면 아래 주석 한 줄을 해제 →
+     그때 우회 페이로드는 <img/src=x/onerror=...> 처럼 / 로 속성을 구분한다.)
+    """
+    text = _SCRIPT_RE.sub('', html or '')
+    text = text.replace("'", '')            # 작은따옴표 차단
+    # text = text.replace(' ', '')          # 공백 차단(난이도 中上) — 필요 시 해제
+    return text
 
 
 # ------------------------------------------------------------------ 인증
@@ -450,3 +470,38 @@ def notice_delete(request, pk):
         except ApiError as exc:
             messages.error(request, exc.message)
     return redirect('admin_web:admin_notices')
+
+
+# ------------------------------------------------------- 1:1 문의 (고객지원)
+@admin_required
+def inquiry_list(request):
+    """관리자 1:1 문의 목록. 목록 값은 템플릿 자동 이스케이프로 안전하게 출력한다."""
+    inquiries = []
+    try:
+        inquiries = client_for(request).get('/admin/inquiries').get('results', [])
+    except ApiError as exc:
+        messages.error(request, exc.message)
+    for q in inquiries:
+        q['created_display'] = _fmt_dt(q.get('created_at'), '%Y-%m-%d %H:%M')
+    return render(request, 'admin_web/inquiries.html', {'inquiries': inquiries})
+
+
+@admin_required
+def inquiry_detail(request, pk):
+    """관리자 1:1 문의 상세.
+
+    🎯 저장형 XSS 발동점: 고객이 저장한 content 를 _weak_sanitize(허술한 필터)만
+    거쳐 content_html 로 넘기고, 템플릿에서 |safe 로 출력한다. 그래서 고객이 심은
+    <img onerror=...> 가 이 페이지를 여는 관리자 브라우저에서 실행된다.
+    """
+    try:
+        obj = client_for(request).get(f'/admin/inquiries/{pk}')
+    except ApiError as exc:
+        if exc.status_code == 404:
+            raise Http404('문의를 찾을 수 없습니다.')
+        messages.error(request, exc.message)
+        return redirect('admin_web:admin_inquiries')
+
+    obj['created_display'] = _fmt_dt(obj.get('created_at'), '%Y-%m-%d %H:%M')
+    obj['content_html'] = _weak_sanitize(obj.get('content', ''))
+    return render(request, 'admin_web/inquiry_detail.html', {'obj': obj})

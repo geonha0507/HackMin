@@ -1,0 +1,37 @@
+{% extends 'admin_web/base.html' %}
+{% block title %}문의 상세{% endblock %}
+{% block heading %}문의 상세 · {{ obj.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'admin_web:admin_inquiries' %}" class="muted">← 1:1 문의 목록</a>
+
+<div class="panel" style="margin-top:14px;max-width:760px">
+  <table>
+    {# 메타 정보는 자동 이스케이프(안전). #}
+    <tr><th style="width:110px">제목</th><td>{{ obj.title }}</td></tr>
+    <tr><th>분류</th><td>{{ obj.category_display }}</td></tr>
+    <tr><th>작성자</th><td>{{ obj.author|default:'-' }}</td></tr>
+    <tr><th>작성일</th><td class="muted">{{ obj.created_display }}</td></tr>
+  </table>
+
+  <h2 style="margin-top:18px">문의 내용</h2>
+  {% comment %}
+    🎯 취약점: 고객이 저장한 content 를 이스케이프 없이 그대로 출력한다.
+    content_html 은 script 태그와 작은따옴표만 걷어낸 허술한 값이라,
+    은닉된 img/onerror 페이로드가 이 페이지에서 그대로 실행된다.
+  {% endcomment %}
+  <div class="inquiry-content"
+       style="padding:12px;border:1px solid var(--line);border-radius:8px;line-height:1.6">
+    {{ obj.content_html|safe }}
+  </div>
+
+  {% if obj.images %}
+  <h2 style="margin-top:18px">첨부 이미지</h2>
+  <div class="row">
+    {% for img in obj.images %}
+      <img src="{{ img.image }}" alt="첨부"
+           style="max-width:180px;border:1px solid var(--line);border-radius:8px">
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
