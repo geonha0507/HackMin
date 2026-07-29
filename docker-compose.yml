@@ -67,7 +67,7 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_CSRF_ORIGINS: "DJANGO_CSRF_ORIGINS=https://hackmin.com,http://hackmin.com"
       DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
