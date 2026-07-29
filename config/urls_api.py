@@ -6,11 +6,13 @@ api 컨테이너에서만 사용한다 (DJANGO_ROOT_URLCONF=config.urls_api).
 
 기존 config/urls.py 와 내용은 100% 동일하되, 'web/' 경로 include만 뺐다.
 """
+import os
 
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as static_serve
 
 
 def health(_request):
