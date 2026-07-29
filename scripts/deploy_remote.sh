@@ -17,6 +17,11 @@ STAGE_DIR="${STAGE_DIR:-/tmp/hackmin-deploy}"
 COMPOSE_FILE="docker-compose.prod.yml"
 RDS_CA_URL="https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
 
+# GHCR 로그인 시 기존 Docker credential helper(ecr-login 등)와 충돌하지 않도록
+# 임시 DOCKER_CONFIG 디렉터리를 사용한다. 전역으로 export 해서 docker compose 도
+# 같은 인증 정보를 참조하게 한다.
+DOCKER_CONFIG_TMP=""
+
 log() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
 
 # 전송된 파일이 모두 도착했는지 먼저 확인한다.
@@ -25,7 +30,10 @@ for f in "$COMPOSE_FILE" app.env compose.env; do
 done
 
 # 스테이징 파일은 성공/실패와 무관하게 반드시 지운다 (토큰·시크릿 포함).
-cleanup() { rm -rf "$STAGE_DIR"; }
+cleanup() {
+  rm -rf "$STAGE_DIR"
+  [ -n "$DOCKER_CONFIG_TMP" ] && rm -rf "$DOCKER_CONFIG_TMP"
+}
 trap cleanup EXIT
 
 log "배포 디렉터리 준비: $APP_DIR"
@@ -65,9 +73,27 @@ echo "  점주 웹      : ${WEB_IMAGE_REF:-<미지정>}"
 
 # GHCR 이 비공개 패키지인 경우에만 로그인한다. 토큰은 stdin 으로만 흘려보내
 # 원격 프로세스 목록(ps)에 남지 않게 한다.
+#
+# Amazon Linux 에 amazon-ecr-credential-helper 가 설치돼 있으면
+# ~/.docker/config.json 의 credsStore=ecr-login 때문에 ghcr.io 로그인이
+# 실패한다. 임시 DOCKER_CONFIG 로 우회한다.
 if [ -f "$STAGE_DIR/ghcr.token" ]; then
+  token_size=$(wc -c < "$STAGE_DIR/ghcr.token")
+  if [ "$token_size" -lt 10 ]; then
+    echo "WARN: ghcr.token 이 너무 작습니다 (${token_size} bytes). 토큰이 비어 있을 수 있습니다." >&2
+  fi
+
   log "GHCR 로그인"
-  docker login ghcr.io -u "${GHCR_USER:-x-access-token}" --password-stdin < "$STAGE_DIR/ghcr.token"
+  DOCKER_CONFIG_TMP="$(mktemp -d)"
+  export DOCKER_CONFIG="$DOCKER_CONFIG_TMP"
+
+  if ! docker login ghcr.io -u "${GHCR_USER:-x-access-token}" --password-stdin < "$STAGE_DIR/ghcr.token" 2>&1; then
+    echo "ERROR: docker login ghcr.io 실패" >&2
+    echo "  토큰 크기: ${token_size} bytes" >&2
+    echo "  GHCR_USER: ${GHCR_USER:-x-access-token}" >&2
+    echo "  DOCKER_CONFIG: $DOCKER_CONFIG" >&2
+    exit 1
+  fi
 fi
 
 log "이미지 pull"
@@ -111,7 +137,7 @@ for i in $(seq 1 15); do
   sleep 3
 done
 
-if [ -f "$STAGE_DIR/ghcr.token" ]; then
+if [ -n "${DOCKER_CONFIG_TMP:-}" ]; then
   docker logout ghcr.io >/dev/null 2>&1 || true
 fi
 
