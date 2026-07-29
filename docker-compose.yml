@@ -73,6 +73,10 @@ services:
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
+      # 리뷰 이미지 공개 URL. 점주 웹(:8001)과 API(:8000)가 다른 오리진이라
+      # 브라우저가 이미지를 직접 열려면 절대 URL 이어야 한다. 운영에서는
+      # 실제 API 공개 도메인으로 바꾼다(예: https://api.hackmin.com/media/).
+      REVIEW_IMAGE_URL: ${REVIEW_IMAGE_URL:-http://localhost:8000/media/}
       # 챗봇 (OpenRouter → GPT-4o-mini)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin-web/, /admin/ 은 404).
