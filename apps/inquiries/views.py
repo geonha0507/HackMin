@@ -2,6 +2,7 @@
 
 import os
 
+from django.utils import timezone
 from rest_framework import generics
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -10,7 +11,9 @@ from rest_framework.response import Response
 from common.exceptions import error_response
 from common.permissions import IsAdminRole, IsCustomer
 from .models import Inquiry, InquiryImage
-from .serializers import InquiryCreateSerializer, InquirySerializer
+from .serializers import (
+    InquiryAnswerSerializer, InquiryCreateSerializer, InquirySerializer,
+)
 
 _ALLOWED_IMAGE_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -103,4 +106,21 @@ def admin_inquiry_detail(request, pk):
     inquiry = Inquiry.objects.select_related('user').filter(pk=pk).first()
     if not inquiry:
         return error_response('not_found', '문의를 찾을 수 없습니다.', 404)
+    return Response(InquirySerializer(inquiry).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminRole])
+def admin_inquiry_reply(request, pk):
+    """관리자용 1:1 문의 답변 등록/수정. 답변은 정상 기능(취약점 아님)."""
+    inquiry = Inquiry.objects.select_related('user').filter(pk=pk).first()
+    if not inquiry:
+        return error_response('not_found', '문의를 찾을 수 없습니다.', 404)
+
+    serializer = InquiryAnswerSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    inquiry.answer = serializer.validated_data['answer']
+    inquiry.answered_at = timezone.now()
+    inquiry.answered_by = request.user
+    inquiry.save(update_fields=['answer', 'answered_at', 'answered_by', 'updated_at'])
     return Response(InquirySerializer(inquiry).data)

@@ -46,3 +46,9 @@ _to_delete/
 *.bak
 *.swp
 *~
+
+# Claude 로컬 설정
+.claude/settings.local.json
+
+# 로컬 인증서/키 파일
+global-bundle.pem

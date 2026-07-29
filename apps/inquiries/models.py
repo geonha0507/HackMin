@@ -26,11 +26,23 @@ class Inquiry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # 관리자 답변 (1문의 : 1답변). 미답변이면 answer 는 빈 문자열로 둔다.
+    answer = models.TextField(blank=True, default='')
+    answered_at = models.DateTimeField(null=True, blank=True)
+    answered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='answered_inquiries',
+    )
+
     class Meta:
         ordering = ['created_at']
 
     def __str__(self):
         return f'Inquiry({self.user_id}, {self.title})'
+
+    @property
+    def is_answered(self):
+        return bool(self.answer)
 
 
 class InquiryImage(models.Model):

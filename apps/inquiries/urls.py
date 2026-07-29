@@ -12,4 +12,5 @@ urlpatterns = [
     # 🎯 관리자 조회 (admin_bff 가 호출) — /api/v1/admin/inquiries
     path('admin/inquiries', views.admin_inquiry_list, name='admin_list'),
     path('admin/inquiries/<int:pk>', views.admin_inquiry_detail, name='admin_detail'),
+    path('admin/inquiries/<int:pk>/reply', views.admin_inquiry_reply, name='admin_reply'),
 ]
