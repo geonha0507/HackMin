@@ -4,7 +4,7 @@
 {% block content %}
 <div class="panel">
   <table>
-    <thead><tr><th>제목</th><th>분류</th><th>작성자</th><th>작성일</th><th></th></tr></thead>
+    <thead><tr><th>제목</th><th>분류</th><th>작성자</th><th>상태</th><th>작성일</th><th></th></tr></thead>
     <tbody>
     {% for q in inquiries %}
       <tr>
@@ -12,13 +12,20 @@
         <td><strong>{{ q.title }}</strong></td>
         <td><span class="badge b-gray">{{ q.category_display }}</span></td>
         <td>{{ q.author|default:'-' }}</td>
+        <td>
+          {% if q.is_answered %}
+            <span class="badge b-green">답변완료</span>
+          {% else %}
+            <span class="badge b-amber">답변대기</span>
+          {% endif %}
+        </td>
         <td class="muted">{{ q.created_display }}</td>
         <td class="right">
           <a class="btn btn-sm" href="{% url 'admin_web:admin_inquiry_detail' q.id %}">열람</a>
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="5" class="muted">문의가 없습니다.</td></tr>
+      <tr><td colspan="6" class="muted">문의가 없습니다.</td></tr>
     {% endfor %}
     </tbody>
   </table>
