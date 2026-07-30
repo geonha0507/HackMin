@@ -52,7 +52,7 @@ urlpatterns += [
     re_path(
         r'^media/reviews/(?P<path>.*)$',
         static_serve,
-        {'document_root': os.path.join(settings.MEDIA_ROOT, 'reviews')},
+        {'document_root': settings.MEDIA_ROOT},
     ),
 ]
 
