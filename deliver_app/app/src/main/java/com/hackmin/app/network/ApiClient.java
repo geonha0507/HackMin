@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ApiClient {
 
-    private static final String BASE_URL = "http://54.116.95.188/api/v1/";
+    private static final String BASE_URL = "https://hackmin.com/api/v1/";
 
     // GET 응답을 짧게(초 단위) 캐시해, 마이페이지에서 미리 받아두면 하위 화면 진입 시 즉시 표시된다.
     // 변경 요청(POST/PUT/DELETE·로그인/로그아웃 등)이 성공하면 캐시를 전부 비워 최신 데이터를 보장한다.

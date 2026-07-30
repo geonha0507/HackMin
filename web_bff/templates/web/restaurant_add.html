@@ -1,0 +1,132 @@
+{# apps/web/templates/web/restaurant_add.html 기반. 폼 구조는 그대로 두고        #}
+{# 제출만 web_bff → /api/v1/owner/restaurants (multipart) 로 중계된다.          #}
+{% extends 'web/base.html' %}
+{% block title %}매장 추가{% endblock %}
+{% block heading %}매장 추가{% endblock %}
+{% block content %}
+<a href="{% url 'web:my_restaurant' %}" class="muted">← 내 매장 관리</a>
+
+<div class="panel" style="margin-top:14px">
+  <h2>새 매장 등록</h2>
+  <p class="muted" style="margin:0 0 14px">추가하는 매장은 관리자 승인 후 노출됩니다. 매장 관리 화면 상단의 목록에서 전환할 수 있습니다.</p>
+  <form method="post" action="{% url 'web:restaurant_add' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="field">
+      <label>매장명</label>
+      <input name="name" value="{{ form.name }}" required>
+    </div>
+    <div class="field">
+      <label>매장 사진 (선택)</label>
+      <input type="file" name="image" accept="image/*">
+      <div style="color:#9ca3af;font-size:12px;margin-top:5px">JPG, PNG, GIF, WEBP · 최대 5MB</div>
+    </div>
+    <div class="field">
+      <label>사업자등록증</label>
+      <input type="file" name="business_license" accept=".pdf,.jpg,.jpeg,.png" required>
+      <div style="color:#9ca3af;font-size:12px;margin-top:5px">PDF, JPG, JPEG, PNG · 최대 10MB</div>
+    </div>
+    <div class="field">
+      <label>종류 (복수 선택 가능)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;margin-bottom:12px">
+        {% for c in cuisine_presets %}
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--ink);margin:0">
+            <input type="checkbox" name="cuisine_type" value="{{ c }}" style="width:auto"
+                   {% if c in selected_presets %}checked{% endif %}>
+            {{ c }}
+          </label>
+        {% endfor %}
+      </div>
+      <div id="custom-cuisine-list">
+        {% for c in custom_cuisines %}
+          <div class="row" style="gap:6px;margin-bottom:8px;align-items:center">
+            <input type="text" name="custom_cuisine" value="{{ c }}" style="flex:1">
+            <button type="button" class="btn btn-sm" onclick="this.parentElement.remove()">삭제</button>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-sm" onclick="addCuisineInput()">+ 종류 추가</button>
+    </div>
+    <div class="field">
+      <label>소개</label>
+      <textarea name="description" rows="3">{{ form.description }}</textarea>
+    </div>
+    <div class="field">
+      <label>연락처</label>
+      <input name="phone" value="{{ form.phone }}">
+    </div>
+
+    <div class="field">
+      <label>주소</label>
+      <div style="display:flex;gap:8px">
+        <input id="postcode" name="postcode" placeholder="우편번호" readonly
+               style="flex:0 0 120px;background:#f8fafc">
+        <button type="button" class="btn" onclick="searchAddress()" style="white-space:nowrap">주소 검색</button>
+      </div>
+      <input id="road_address" name="road_address" placeholder="도로명 주소" readonly
+             style="margin-top:8px;background:#f8fafc">
+      <input id="detail_address" name="detail_address" value="{{ form.address }}"
+             placeholder="상세 주소 (건물명, 층, 호수 등)" style="margin-top:8px">
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>최소주문금액</label>
+        <input type="number" name="min_order_amount" value="{{ form.min_order_amount|default:0 }}" min="0" max="1000000">
+      </div>
+      <div class="field" style="flex:1">
+        <label>배달비</label>
+        <input type="number" name="delivery_fee" value="{{ form.delivery_fee|default:0 }}" min="0" max="100000">
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:14px">
+      승인 전에는 영업 상태가 자동으로 꺼진 채 등록됩니다.
+    </div>
+    <button class="btn btn-primary" type="submit">매장 등록 신청</button>
+  </form>
+</div>
+
+<div id="postcode-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999">
+  <div style="width:460px;max-width:90%;margin:60px auto 0;position:relative">
+    <button type="button" onclick="closePostcode()"
+            style="position:absolute;top:-32px;right:0;color:#fff;background:none;border:none;font-size:14px;cursor:pointer">
+      닫기 ✕
+    </button>
+    <div id="postcode-layer"
+         style="box-sizing:content-box;width:100%;height:500px;background:#fff;border-radius:8px;overflow:hidden"></div>
+  </div>
+</div>
+
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<script>
+function searchAddress() {
+  document.getElementById('postcode-overlay').style.display = 'block';
+  new daum.Postcode({
+    oncomplete: function (data) {
+      document.getElementById('postcode').value = data.zonecode;
+      document.getElementById('road_address').value = data.roadAddress;
+      closePostcode();
+      document.getElementById('detail_address').focus();
+    },
+    width: '100%',
+    height: '100%',
+  }).embed(document.getElementById('postcode-layer'));
+}
+
+function closePostcode() {
+  document.getElementById('postcode-overlay').style.display = 'none';
+  document.getElementById('postcode-layer').innerHTML = '';
+}
+
+function addCuisineInput() {
+  const list = document.getElementById('custom-cuisine-list');
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.style.gap = '6px';
+  row.style.marginBottom = '8px';
+  row.style.alignItems = 'center';
+  row.innerHTML =
+    '<input type="text" name="custom_cuisine" placeholder="직접 입력 (예: 멕시칸)" style="flex:1">' +
+    '<button type="button" class="btn btn-sm" onclick="this.parentElement.remove()">삭제</button>';
+  list.appendChild(row);
+}
+</script>
+{% endblock %}

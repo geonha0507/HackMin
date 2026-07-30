@@ -25,7 +25,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class MyPageActivity extends AppCompatActivity {
+public class MyPageActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextView tvNickname, tvUsername, tvPhone;
     private SessionManager session;

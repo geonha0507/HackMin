@@ -15,4 +15,5 @@ urlpatterns = [
     path('me/bank-accounts/<int:pk>', me_views.bank_account_detail, name='bank-account-detail'),
     path('me/payment-password', me_views.payment_password, name='payment-password'),
     path('me/payment-password/verify', me_views.payment_password_verify, name='payment-password-verify'),
+    path('me/payment', me_views.payment_info, name='payment'),
 ]

@@ -28,7 +28,7 @@ import retrofit2.Response;
  * 음식점 리뷰 목록 화면.
  * 공개 API(GET /restaurants/{id}/reviews)로 다른 사용자의 리뷰까지 보여준다.
  */
-public class RestaurantReviewsActivity extends AppCompatActivity {
+public class RestaurantReviewsActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_RESTAURANT_ID = "restaurant_id";
     public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";

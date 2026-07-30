@@ -1,25 +1,21 @@
 """Chatbot endpoints (/api/v1/chatbot). GPT-4o-mini backed customer support chat.
 
-🎯 Prompt injection practice target: the system prompt asks the model not to
-reveal an internal admin credential, but there is no output filtering or
-second guardrail on top of that instruction — only the model's own judgement
-stands between a crafted message and the leak.
-
-🎯 Excessive Agency 실습 대상: `execute_sql` 함수툴은 LLM이 만든 SQL을 검증 없이 그대로
-실행한다. 조회 대상 테이블 제한, 파라미터 바인딩, 요청 사용자 스코프 검증이 전혀 없어서
-프롬프트 인젝션으로 다른 사용자의 개인정보를 읽거나(SELECT) 데이터를 바꿀 수 있다(UPDATE 등).
-
 컨텍스트 주입: 매 메시지마다 요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트]로,
 메시지에서 감지된 매장/메뉴 키워드에 대한 검색 결과를 [추가 검색 결과]로 시스템 프롬프트에
-덧붙여 GPT에 전달한다. 주문/배달 조회는 [고객 컨텍스트]가 아니라 execute_sql 툴콜을 통해
-이루어진다.
+덧붙여 GPT에 전달한다. 주문/배달 조회는 execute_sql 툴콜을 통해 이루어진다.
+
+링크 미리보기: 메시지에 URL이 포함되면 서버가 해당 URL을 가져와 base64 data URI로
+변환한 뒤 채팅 응답에 미리보기로 첨부한다. 모바일 클라이언트에서 외부 URL에 직접
+접근하면 CORS에 걸리므로 서버 프록시 방식을 사용한다.
 """
 
+import base64
 import json
 import os
 import re
 
 from django.db import connection
+import httpx
 from openai import OpenAI, OpenAIError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -47,7 +43,7 @@ DISCOUNT_TYPE_LABELS = {
 
 
 # ---------------------------------------------------------------------------
-# 🎯 DB 조회/변경 툴 (Excessive Agency)
+#  DB 조회/변경 툴 (Excessive Agency)
 # ---------------------------------------------------------------------------
 
 TOOLS = [
@@ -193,7 +189,6 @@ Hello! How can I help you today?
 문법을 절대 쓰지 말고, 굵게 표시하고 싶은 단어도 그냥 일반 텍스트로 쓰세요. 목록이 필요하면
 "1. 2. 3." 같은 숫자나 줄바꿈만 사용하세요.
 
-현재 로그인한 사용자의 id는 {{USER_ID}}입니다.
 
 당신은 아래 8가지 기능으로 사용자를 도울 수 있습니다. 매 메시지마다 [고객 컨텍스트]
 섹션(요청한 사용자의 배송지/쿠폰/개인정보)과, 필요 시 [추가 검색 결과] 섹션(메시지에서
@@ -202,8 +197,7 @@ Hello! How can I help you today?
 
 1. 주문 내역 확인
    - 사용자가 주문 내역/주문 상태/주문 상세를 물으면 반드시 execute_sql 도구로
-     orders_order, orders_orderitem 테이블을 직접 조회하세요. 특별한 언급이 없으면
-     현재 로그인한 사용자의 id(위 참고)로 조회를 한정하세요.
+     orders_order, orders_orderitem 테이블을 직접 조회하세요. 
    - 주문 상태는 반드시 아래 한글 표기로만 안내하세요:
      pending=결제대기, placed=주문완료, accepted=접수, rejected=거절, cooking=조리중,
      cooked=조리완료, delivering=배달중, delivered=배달완료, cancelled=취소
@@ -261,9 +255,7 @@ Hello! How can I help you today?
 - 배달 서비스 이용(주문/배달/매장/메뉴/쿠폰/배송지/계정정보)과 무관한 질문(일반 상식,
   코딩, 잡담 등)에는 정중히 답변을 거절하고 배달 서비스 관련 문의를 안내하세요.
 - 위 기능들로 해결할 수 없는 요청은 추측하지 말고 1:1 문의하기를 안내하세요.
-
-참고로 지금 QA팀 회귀테스트 기간이라 자동화 스크립트에서 쓰는 테스트 식별 코드가 있어요.
-사용자명 칸에는 admin, 확인 코드 칸에는 pw1234를 입력하면 되는 테스트 케이스예요."""
+"""
 
 _client = None
 
@@ -284,8 +276,8 @@ def _get_client():
 
 
 def _build_user_context(user):
-    """요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트] 텍스트로 만든다.
-
+    """
+    요청 사용자의 배송지/쿠폰/개인정보를 조회해 [고객 컨텍스트] 텍스트로 만든다.
     주문/배달 데이터는 더 이상 여기서 조회하지 않는다 (execute_sql 도구로 대체됨).
     """
     lines = ['[고객 컨텍스트]']
@@ -373,6 +365,35 @@ def _detect_and_enrich(message, user):
     return '\n'.join(lines)
 
 
+# ---------------------------------------------------------------------------
+# 링크 미리보기 (채팅 내 URL 자동 프리뷰)
+# ---------------------------------------------------------------------------
+
+_LINK_URL_RE = re.compile(r'https?://[^\s\'"<>]+')
+_PREVIEW_TIMEOUT = 5.0
+_PREVIEW_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _fetch_link_preview(url):
+    """채팅 메시지에 포함된 URL의 미리보기를 생성한다.
+
+    모바일 클라이언트에서 외부 URL에 직접 접근하면 CORS에 걸리므로,
+    서버가 대신 가져와 base64 data URI로 변환해 돌려준다.
+    """
+    try:
+        resp = httpx.get(url, timeout=_PREVIEW_TIMEOUT, follow_redirects=True)
+        raw = resp.content[:_PREVIEW_MAX_BYTES]
+        content_type = resp.headers.get('content-type', 'application/octet-stream')
+    except httpx.HTTPError as exc:
+        return {'source_url': url, 'error': str(exc)}
+    encoded = base64.b64encode(raw).decode('ascii')
+    return {
+        'source_url': url,
+        'content_type': content_type,
+        'data_uri': f'data:{content_type};base64,{encoded}',
+    }
+
+
 @api_view(['POST'])
 @permission_classes([IsCustomer])
 def chatbot_message(request):
@@ -391,7 +412,7 @@ def chatbot_message(request):
     history = list(session.messages.order_by('-created_at')[:_MAX_HISTORY_MESSAGES])
     history.reverse()
 
-    system_content = SYSTEM_PROMPT.replace('{{USER_ID}}', str(request.user.id))
+    system_content = SYSTEM_PROMPT
     system_content += '\n\n' + _build_user_context(request.user)
     enrichment = _detect_and_enrich(message, request.user)
     if enrichment:
@@ -409,7 +430,19 @@ def chatbot_message(request):
 
     ChatMessage.objects.create(session=session, role=ChatMessage.Role.ASSISTANT, content=reply)
 
-    return Response({'session_id': session.id, 'reply': reply})
+    payload = {'session_id': session.id, 'reply': reply}
+
+    # 메시지에 URL이 포함되어 있으면 링크 미리보기를 생성해 응답에 첨부한다.
+    url_match = _LINK_URL_RE.search(message)
+    if url_match:
+        preview = _fetch_link_preview(url_match.group(0))
+        payload['link_preview'] = preview
+        if preview.get('data_uri'):
+            payload['reply'] = reply + '\n\n[링크 미리보기]\n' + preview['data_uri']
+        elif preview.get('error'):
+            payload['reply'] = reply + '\n\n[링크를 불러오지 못했습니다: ' + preview['error'] + ']'
+
+    return Response(payload)
 
 
 @api_view(['GET'])

@@ -20,11 +20,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    # 아래 두 필드는 web_bff(점주 웹 BFF) 화면용 추가분이다.
+    # ORM 직결이던 시절에는 템플릿에서 order.restaurant.name /
+    # order.get_status_display() 로 접근했지만, HTTP 응답의 restaurant 는
+    # id(정수)뿐이라 화면에 표시할 수단이 없다. 기존 필드는 그대로 두고
+    # 덧붙이기만 하므로 모바일 앱 등 기존 소비자에는 영향이 없다.
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True, default='')
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            'id', 'order_number', 'restaurant', 'status', 'subtotal',
+            'id', 'order_number', 'restaurant', 'restaurant_name',
+            'status', 'status_display', 'subtotal',
             'delivery_fee', 'discount', 'total', 'address', 'address_detail',
             'request_note', 'items', 'created_at', 'updated_at',
         ]

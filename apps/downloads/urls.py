@@ -10,4 +10,5 @@ urlpatterns = [
     path('downloads/business-license/<int:pk>', views.business_license, name='business-license'),
     path('downloads/order-history/<int:pk>', views.order_history, name='order-history'),
     path('downloads/attachment/<int:pk>', views.attachment, name='attachment'),
+    path('downloads/notice/<int:pk>/attachment', views.notice_attachment, name='notice-attachment'),
 ]

@@ -27,7 +27,7 @@ import retrofit2.Response;
  * - GET    /me/reviews
  * - DELETE /reviews/{id}
  */
-public class MyReviewsActivity extends AppCompatActivity {
+public class MyReviewsActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvReviews;
     private TextView tvEmpty;

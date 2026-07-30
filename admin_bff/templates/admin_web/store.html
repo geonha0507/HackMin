@@ -1,0 +1,235 @@
+{% extends 'admin_web/base.html' %}
+
+{% block title %}입점 관리{% endblock %}
+{% block heading %}입점 관리{% endblock %}
+
+{% block content %}
+
+<form class="toolbar" method="get">
+  <div style="min-width:220px">
+    <label>검색</label>
+    <input
+      name="q"
+      value="{{ q }}"
+      placeholder="아이디, 점주명, 매장명, 주소"
+    >
+  </div>
+
+  <div style="min-width:150px">
+    <label>신청 상태</label>
+    <select name="status">
+      <option
+        value="pending"
+        {% if status == 'pending' %}selected{% endif %}
+      >
+        승인 대기
+      </option>
+
+      <option
+        value="approved"
+        {% if status == 'approved' %}selected{% endif %}
+      >
+        승인 완료
+      </option>
+
+      <option
+        value="rejected"
+        {% if status == 'rejected' %}selected{% endif %}
+      >
+        반려·정지
+      </option>
+
+      <option
+        value="all"
+        {% if status == 'all' %}selected{% endif %}
+      >
+        전체
+      </option>
+    </select>
+  </div>
+
+  <button class="btn btn-primary" type="submit">
+    조회
+  </button>
+</form>
+
+
+<div class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th>신청일</th>
+        <th>점주</th>
+        <th>매장 정보</th>
+        <th>사업자등록증</th>
+        <th>상태</th>
+        <th>처리</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for store in stores %}
+        <tr>
+          <td class="muted">
+            {{ store.created_display }}
+          </td>
+
+          <td>
+            <strong>{{ store.owner.username }}</strong>
+
+            <div class="muted" style="font-size:12px">
+              {{ store.owner.nickname|default:'-' }}
+            </div>
+
+            <div class="muted" style="font-size:12px">
+              {{ store.owner.email|default:'-' }}
+            </div>
+
+            <div class="muted" style="font-size:12px">
+              {{ store.owner.phone|default:'-' }}
+            </div>
+          </td>
+
+          <td>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              {% if store.image %}
+                <img
+                  src="{{ store.image }}"
+                  alt="{{ store.name }}"
+                  style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0"
+                >
+              {% endif %}
+              <div>
+                <strong>{{ store.name }}</strong>
+
+                <div class="muted" style="font-size:12px">
+                  {{ store.phone|default:'전화번호 없음' }}
+                </div>
+
+                <div class="muted" style="font-size:12px">
+                  {{ store.address|default:'주소 없음' }}
+                </div>
+              </div>
+            </div>
+          </td>
+
+          <td>
+            {% if store.business_license %}
+              <a
+                class="btn btn-sm"
+                href="{{ store.business_license }}"
+                target="_blank"
+                rel="noopener"
+              >
+                서류 보기
+              </a>
+
+              <div
+                class="muted"
+                style="font-size:11px;margin-top:6px"
+              >
+                {{ store.business_license_name }}
+              </div>
+            {% else %}
+              <span class="muted">첨부 파일 없음</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {% if store.review_status == 'pending' %}
+              <span class="badge b-amber">승인 대기</span>
+            {% elif store.review_status == 'approved' %}
+              <span class="badge b-green">승인 완료</span>
+            {% else %}
+              <span class="badge b-red">반려</span>
+            {% endif %}
+          </td>
+
+          <td>
+           {% if store.review_status == 'pending' %}
+            <form
+              method="post"
+              action="{% url 'admin_web:admin_store_decide' store.id %}"
+              style="margin-bottom:8px"
+            >
+              {% csrf_token %}
+
+              <button
+                class="btn btn-sm btn-primary"
+                type="submit"
+                name="action"
+                value="approve"
+                onclick="return confirm('입점 신청을 승인하시겠습니까?')"
+              >
+                승인
+              </button>
+            </form>
+
+            <form
+              method="post"
+              action="{% url 'admin_web:admin_store_decide' store.id %}"
+              onsubmit="return confirm('입점 신청을 반려하시겠습니까?')"
+            >
+              {% csrf_token %}
+
+              <textarea
+                name="rejection_reason"
+                maxlength="500"
+                placeholder="반려 사유를 입력하세요."
+                required
+                style="
+                  width:210px;
+                  min-height:64px;
+                  padding:8px;
+                  margin-bottom:6px;
+                  resize:vertical;
+                  font-size:12px;
+                "
+              ></textarea>
+
+              <button
+                class="btn btn-sm"
+                type="submit"
+                name="action"
+                value="reject"
+              >
+                반려
+              </button>
+            </form>
+
+          {% elif store.review_status == 'approved' %}
+            <span class="badge b-green">
+              승인 완료
+            </span>
+
+          {% else %}
+            <span class="muted">
+              반려됨
+            </span>
+
+            {% with enrollment=store %}
+              {% if enrollment.rejection_reason %}
+                <div
+                  class="muted"
+                  style="font-size:11px;margin-top:6px;max-width:220px"
+                >
+                  반려 사유: {{ enrollment.rejection_reason }}
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+          </td>
+        </tr>
+
+      {% empty %}
+        <tr>
+          <td colspan="6" class="muted">
+            조건에 해당하는 입점 신청이 없습니다.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

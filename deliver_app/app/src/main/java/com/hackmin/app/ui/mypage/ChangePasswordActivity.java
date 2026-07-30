@@ -20,7 +20,7 @@ import retrofit2.Response;
 /**
  * 비밀번호 변경 화면. PUT /me/password.
  */
-public class ChangePasswordActivity extends AppCompatActivity {
+public class ChangePasswordActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private EditText etCurrentPw, etNewPw, etNewPwConfirm;
     private Button btnSubmit;

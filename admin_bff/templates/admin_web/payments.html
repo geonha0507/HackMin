@@ -1,0 +1,41 @@
+{% extends 'admin_web/base.html' %}
+{% load humanize %}
+{% block title %}결제 조회{% endblock %}
+{% block heading %}결제 조회{% endblock %}
+{% block content %}
+<form class="toolbar" method="get">
+  <div>
+    <label>상태</label>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for val, lbl in status_choices %}
+        <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>거래ID</th><th>주문번호</th><th>매장</th><th>수단</th><th>금액</th><th>상태</th><th>시각</th></tr></thead>
+    <tbody>
+    {% for p in payments %}
+      <tr>
+        <td>{{ p.transaction_id }}</td>
+        <td>{{ p.order_number }}</td>
+        <td>{{ p.restaurant_name|default:'-' }}</td>
+        <td>{{ p.method_display }}</td>
+        <td>{{ p.amount|floatformat:0|intcomma }}원</td>
+        <td>
+          {% if p.status == 'paid' %}<span class="badge b-green">{{ p.status_display }}</span>
+          {% elif p.status == 'pending' %}<span class="badge b-amber">{{ p.status_display }}</span>
+          {% else %}<span class="badge b-red">{{ p.status_display }}</span>{% endif %}
+        </td>
+        <td class="muted">{{ p.created_display }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="7" class="muted">결제 내역이 없습니다.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

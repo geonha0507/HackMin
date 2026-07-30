@@ -29,7 +29,7 @@ import retrofit2.Response;
  * - GET  /me/coupons
  * - POST /coupons/register
  */
-public class CouponsActivity extends AppCompatActivity {
+public class CouponsActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvCoupons;
     private TextView tvEmpty;
@@ -84,6 +84,7 @@ public class CouponsActivity extends AppCompatActivity {
     }
 
     private void registerCoupon() {
+        if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 쿠폰 등록 연타 방지
         String code = etCouponCode.getText().toString().trim();
         if (code.isEmpty()) {
             Toast.makeText(this, "쿠폰 코드를 입력해주세요.", Toast.LENGTH_SHORT).show();

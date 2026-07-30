@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from common.exceptions import error_response
+from adminpanel.models import Notice
 from orders.models import Order
 from restaurants.models import Restaurant
 
@@ -106,6 +107,42 @@ def attachment(request, pk):
     target = os.path.normpath(os.path.join(ATTACHMENT_ROOT, safe_name))
     if not target.startswith(os.path.normpath(ATTACHMENT_ROOT) + os.sep):
         return error_response('forbidden', '허용되지 않는 경로입니다.', 403)
+    if not os.path.isfile(target):
+        return error_response('not_found', '파일을 찾을 수 없습니다.', 404)
+    return FileResponse(open(target, 'rb'), as_attachment=True)
+
+
+NOTICE_ATTACH_DIR = os.path.join(settings.MEDIA_ROOT, 'notice_files')
+
+
+def _sanitize_download_name(name):
+    """다운로드 파일명에서 경로 조작 문자를 제거한다.
+
+    상위 디렉터리 이동(../)과 절대경로(/...)를 걸러 첨부 디렉터리를
+    벗어나지 못하도록 한다.
+    """
+    name = (name or '').strip()
+    name = name.replace('../', '').replace('..\\', '')   # 상위 경로 이동 제거
+    while name.startswith('/') or name.startswith('\\'):   # 절대경로 제거
+        name = name[1:]
+    return name
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def notice_attachment(request, pk):
+    """공지 첨부파일(점주 필독 가이드북 등) 다운로드.
+
+    공지를 조회한 뒤 첨부파일을 내려준다. 다운로드할 파일명은 file 파라미터로
+    받으며, 지정하지 않으면 공지에 실제 첨부된 파일명을 쓴다.
+    """
+    notice = Notice.objects.filter(pk=pk).first()
+    if not notice or not notice.attachment:
+        return error_response('not_found', '첨부파일이 없습니다.', 404)
+
+    raw = request.query_params.get('file') or os.path.basename(notice.attachment.name)
+    filename = _sanitize_download_name(raw)
+    target = os.path.join(NOTICE_ATTACH_DIR, filename)
     if not os.path.isfile(target):
         return error_response('not_found', '파일을 찾을 수 없습니다.', 404)
     return FileResponse(open(target, 'rb'), as_attachment=True)

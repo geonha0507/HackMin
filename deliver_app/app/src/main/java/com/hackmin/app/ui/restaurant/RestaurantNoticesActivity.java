@@ -27,7 +27,7 @@ import retrofit2.Response;
  * 매장 공지사항 목록 화면.
  * 공개 API(GET /restaurants/{id}/notices)로 점주가 등록한 공지를 보여준다.
  */
-public class RestaurantNoticesActivity extends AppCompatActivity {
+public class RestaurantNoticesActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_RESTAURANT_ID = "restaurant_id";
     public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";

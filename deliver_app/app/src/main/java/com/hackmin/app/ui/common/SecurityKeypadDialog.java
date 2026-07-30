@@ -29,6 +29,7 @@ public final class SecurityKeypadDialog {
     private SecurityKeypadDialog() {}
 
     public static void show(android.content.Context ctx, String provider, OnComplete onComplete) {
+        if (!ClickGuard.allow()) return; // 연타로 키패드 다이얼로그 중복 오픈 방지
         final int bg;
         final int fg;
         if ("naver".equals(provider)) {
@@ -51,6 +52,15 @@ public final class SecurityKeypadDialog {
         box.setBackgroundColor(bg);
         int padH = (int) (16 * d);
         box.setPadding(padH, (int) (24 * d), padH, (int) (24 * d));
+
+        // 안내 문구
+        TextView title = new TextView(ctx);
+        title.setText("간편 비밀번호를 입력하세요");
+        title.setTextColor(fg);
+        title.setTextSize(16);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, (int) (16 * d));
+        box.addView(title);
 
         // 진행 점 6개
         LinearLayout dotsRow = new LinearLayout(ctx);

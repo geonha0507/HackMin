@@ -1,3 +1,23 @@
+# ===========================================================================
+# 로컬 개발 + (CI/CD 도입 전) EC2 수동 배포용 compose.
+#
+# 소스 바인드 마운트(`.:/app`)를 제거했다. 이 마운트는 이미지의 /app 을 호스트
+# 폴더로 통째로 덮어쓰기 때문에, Dockerfile 과 .dockerignore 를 아무리 잘
+# 정리해도 호스트의 Dockerfile / docker-compose.yml / docker/ / .env / *.pem /
+# db.sqlite3 가 그대로 컨테이너 /app 에 나타난다. (파일 읽기·RCE 취약점 하나로
+# 인프라 구성과 시크릿이 함께 털린다) 다시 추가하지 말 것.
+#
+# 대신 코드는 이미지에 구운 것만 쓴다. 따라서 소스를 고쳤으면 반드시 재빌드한다:
+#
+#   docker compose up -d --build          # 전체
+#   docker compose up -d --build api      # 특정 서비스만
+#
+# 마이그레이션은 api 컨테이너만 수행한다(RUN_MIGRATIONS=1). api 가 먼저 뜨도록
+# depends_on 이 걸려 있다.
+#
+# CI/CD 를 붙인 뒤에는 운영은 docker-compose.prod.yml + scripts/deploy_remote.sh
+# 로 옮긴다 (GHCR 이미지 pull, app.env 로 시크릿 분리).
+# ===========================================================================
 services:
   # ---------------------------------------------------------------------------
   # API 서버 (/api/v1). 스키마 마이그레이션과 데모 시드를 담당한다.
@@ -7,9 +27,31 @@ services:
     image: hackmin-app
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
+    # 바인드 마운트를 없애면서 컨테이너 안의 /app/.env 도 함께 사라졌다.
+    # config/settings/base.py 는 load_dotenv(BASE_DIR/'.env') 로 설정을 읽으므로,
+    # 아래 environment: 에 나열되지 않은 값(DJANGO_ENV, DJANGO_ALLOWED_HOSTS,
+    # AWS 키 등)이 전부 누락된다. env_file 로 통째로 주입해 이를 메운다.
+    # (파일은 컨테이너 안에 생기지 않고 값만 환경변수로 들어간다)
+    env_file:
+      - .env
+    # 소스 바인드마운트(.:/app) 금지. 파일 이름을 지정한 볼륨만 붙인다.
     volumes:
-      - .:/app
       - db_data:/data          # SQLite 공유 볼륨 (web 과 동일 DB 파일)
+      - media_data:/app/media  # 사용자 업로드 파일 (USE_S3=1 이면 미사용)
+      # RDS 강제 SSL 용 CA 번들. 프로젝트 최상위(= 이 파일과 같은 폴더)의
+      # global-bundle.pem 을 읽기 전용으로 붙인다.
+      #
+      # 예전에는 `.:/app` 바인드마운트 덕에 그냥 보였지만, 마운트를 없앤 지금은
+      # 명시적으로 붙여야 한다. 이미지에는 굽지 않는다(.dockerignore 가 *.pem 제외).
+      # .env 에 DB_SSL_CA=/app/certs/rds-ca.pem 을 함께 설정할 것.
+      #
+      # 주의: 이 파일이 없으면 도커가 같은 이름의 빈 디렉터리를 만들어 버린다.
+      # 파일이 없는 환경(로컬 sqlite 개발 등)에서는 .env 에 RDS_CA_PATH 로
+      # 존재하는 다른 파일 경로를 지정하거나, AWS 공개 번들을 내려받아 두면 된다.
+      #   curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+      - ${RDS_CA_PATH:-./global-bundle.pem}:/app/certs/rds-ca.pem:ro
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "8000:8000"
     environment:
@@ -25,12 +67,16 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
       # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
+      DJANGO_CSRF_ORIGINS: "DJANGO_CSRF_ORIGINS=https://hackmin.com,http://hackmin.com"
       DJANGO_SSL_REDIRECT: "0"
       # S3 파일 스토리지
       USE_S3: ${USE_S3:-0}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
       AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
+      # 리뷰 이미지 공개 URL. 점주 웹(:8001)과 API(:8000)가 다른 오리진이라
+      # 브라우저가 이미지를 직접 열려면 절대 URL 이어야 한다. 운영에서는
+      # 실제 API 공개 도메인으로 바꾼다(예: https://api.hackmin.com/media/).
+      REVIEW_IMAGE_URL: ${REVIEW_IMAGE_URL:-http://localhost:8000/media/}
       # 챗봇 (OpenRouter → GPT-4o-mini)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # 이 컨테이너는 /api/v1/ 만 응답한다 (/web/, /admin-web/, /admin/ 은 404).
@@ -40,44 +86,41 @@ services:
       SEED_DEMO: ${SEED_DEMO:-1}
 
   # ---------------------------------------------------------------------------
-  # 점주(owner) 웹 (/web). 같은 이미지·같은 DB 를 공유하며, DB 스키마가
-  # 준비될 때까지 대기했다가 기동한다. 관리자 화면은 admin-web 서비스로 분리됨.
+  # 점주 웹 (/web). DB에 접속하지 않는다.
+  #
+  # 예전에는 api 와 같은 이미지를 공유하며 ORM 으로 DB를 직접 읽었다. 지금은
+  # 전용 이미지(docker/Dockerfile.web)로 뜨며 모든 데이터를 api 컨테이너의
+  # /api/v1 HTTP 호출로 가져온다. 이미지에 apps/ 도 config/ 도 DB 드라이버도
+  # 없으므로, 이 컨테이너가 침해당해도 DB 로 넘어갈 수단이 없다.
+  #
+  # 세션(JWT 보관)은 redis 에 둔다. Django 기본 세션은 django_session 테이블이라
+  # 그대로 두면 DB 의존이 되살아난다.
   # ---------------------------------------------------------------------------
   web:
-    build: .
-    image: hackmin-app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: hackmin-web
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
     depends_on:
       - api
-    volumes:
-      - .:/app
-      - db_data:/data
+      - redis
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "8001:8000"
     environment:
-      DB_ENGINE: ${DB_ENGINE:-sqlite}
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DB_NAME: ${DB_NAME:-hackmin}
-      DB_USER: ${DB_USER:-hackmin}
-      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
-      DB_HOST: ${DB_HOST:-}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_SSL_CA: ${DB_SSL_CA:-}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
-      DJANGO_SSL_REDIRECT: "0"
-      # S3 파일 스토리지
-      USE_S3: ${USE_S3:-0}
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
-      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
-      # 이 컨테이너는 /web/ 만 응답한다 (/api/v1/, /admin-web/, /admin/ 은 404).
-      DJANGO_ROOT_URLCONF: config.urls_web
-      # web 은 마이그레이션/시드를 하지 않고 api 가 만든 스키마를 기다린다.
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+      # 변수 이름을 운영(app.env)과 동일하게 WEB_BFF_ 접두사로 통일한다.
+      # settings.py 가 WEB_BFF_* 를 먼저 읽고 없으면 DJANGO_* 로 떨어진다.
+      WEB_BFF_DEBUG: ${DJANGO_DEBUG:-1}
+      # api 컨테이너와 다른 키를 쓴다. 세션 쿠키·CSRF 토큰 서명 전용.
+      WEB_BFF_SECRET_KEY: ${WEB_BFF_SECRET_KEY:-django-insecure-web-bff-dev-key}
+      WEB_BFF_ALLOWED_HOSTS: ${WEB_BFF_ALLOWED_HOSTS:-*}
+      # 스킴까지 정확히 맞아야 한다. HTTPS 를 쓰면 https:// 를 반드시 포함할 것.
+      WEB_BFF_CSRF_ORIGINS: ${WEB_BFF_CSRF_ORIGINS:-http://localhost:8001,http://127.0.0.1:8001}
+      USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-0}
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      REDIS_URL: redis://redis:6379/0
 
   # ---------------------------------------------------------------------------
   # 관리자 웹 (/admin-web/, Django 기본 /admin/). 로컬 개발 시에는 localhost로
@@ -86,38 +129,42 @@ services:
   # nginx가 /admin-web/ location에서 IP 제한을 건 뒤 localhost:8002로만 proxy_pass한다.
   # ---------------------------------------------------------------------------
   admin-web:
-    build: .
-    image: hackmin-app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+    image: hackmin-admin
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
     depends_on:
       - api
-    volumes:
-      - .:/app
-      - db_data:/data
+      - redis
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "8002:8000"   # ← EC2 배포 시 "127.0.0.1:8002:8000" 로 변경할 것
+      # 기본값을 127.0.0.1 로 둔다. 설정을 깜빡해도 외부에 노출되지 않는다.
+      # VPN 구축 후에는 0.0.0.0 으로 열고 접근 통제를 보안그룹이 맡는다.
+      - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
     environment:
-      DB_ENGINE: ${DB_ENGINE:-sqlite}
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DB_NAME: ${DB_NAME:-hackmin}
-      DB_USER: ${DB_USER:-hackmin}
-      DB_PASSWORD: ${DB_PASSWORD:-hackmin}
-      DB_HOST: ${DB_HOST:-}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_SSL_CA: ${DB_SSL_CA:-}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-key}
-      # CSRF/SSL
-      DJANGO_CSRF_ORIGINS: "https://54.116.95.188,http://54.116.95.188"
-      DJANGO_SSL_REDIRECT: "0"
-      USE_S3: ${USE_S3:-0}
-      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-hackmin-media-bucket}
-      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
-      # 이 컨테이너는 /admin-web/, /admin/ 만 응답한다 (나머지는 404).
-      DJANGO_ROOT_URLCONF: config.urls_admin
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+      ADMIN_BFF_DEBUG: ${DJANGO_DEBUG:-1}
+      # api / 점주 웹과 각각 다른 키를 쓴다.
+      ADMIN_BFF_SECRET_KEY: ${ADMIN_BFF_SECRET_KEY:-django-insecure-admin-bff-dev-key}
+      ADMIN_BFF_ALLOWED_HOSTS: ${ADMIN_BFF_ALLOWED_HOSTS:-*}
+      ADMIN_BFF_CSRF_ORIGINS: ${ADMIN_BFF_CSRF_ORIGINS:-http://localhost:8002,http://127.0.0.1:8002}
+      USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-0}
+      HACKMIN_API_BASE: http://api:8000/api/v1
+      # 점주 웹과 다른 Redis DB 인덱스를 써서 세션이 섞이지 않게 한다.
+      REDIS_URL: redis://redis:6379/1
+
+  # ---------------------------------------------------------------------------
+  # web-bff 세션 저장소. 외부로 포트를 열지 않는다 (컨테이너 네트워크 전용).
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # 세션만 담으므로 디스크 영속화가 필요 없다.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   db_data:
+  media_data:

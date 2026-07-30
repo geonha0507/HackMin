@@ -2,6 +2,7 @@
 
 import os
 
+from django.db import transaction
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -31,6 +32,19 @@ def _assert_owns_restaurant(request, restaurant_id):
     return Restaurant.objects.filter(id=restaurant_id, owner=request.user).exists()
 
 
+def _assert_reviewable(restaurant):
+    """심사 대기·반려 매장에는 상품/카테고리를 등록할 수 없다.
+
+    예전에는 apps/web 화면에서만 검사해서 API 를 직접 호출하면 우회가 가능했다.
+    """
+    from restaurants.selectors import is_reviewable_restaurant
+    if is_reviewable_restaurant(restaurant):
+        return None
+    return error_response(
+        'restaurant_not_approved', '심사 대기 또는 반려 중인 매장은 등록할 수 없습니다.', 403,
+    )
+
+
 # --- Products --------------------------------------------------------------
 @api_view(['GET', 'POST'])
 @permission_classes([IsOwner])
@@ -50,6 +64,9 @@ def product_list_create(request):
         restaurant = first
     elif not _assert_owns_restaurant(request, restaurant.id):
         return error_response('forbidden', '본인 매장에만 상품을 등록할 수 있습니다.', 403)
+    err = _assert_reviewable(restaurant)
+    if err:
+        return err
     product = serializer.save(restaurant=restaurant)
     return Response(ProductSerializer(product).data, status=201)
 
@@ -121,6 +138,9 @@ def category_list_create(request):
     restaurant = serializer.validated_data['restaurant']
     if not _assert_owns_restaurant(request, restaurant.id):
         return error_response('forbidden', '본인 매장에만 카테고리를 만들 수 있습니다.', 403)
+    err = _assert_reviewable(restaurant)
+    if err:
+        return err
     category = serializer.save()
     return Response(CategorySerializer(category).data, status=201)
 
@@ -138,6 +158,45 @@ def category_detail(request, pk):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsOwner])
+def category_move(request, pk):
+    """카테고리 표시 순서를 한 칸 위/아래로 옮긴다. body: {"direction": "up"|"down"}
+
+    웹에서 display_order 를 두 번 PUT 하는 방식은 중간에 실패하면 순서가
+    깨진다. 이웃과의 값 교환을 한 트랜잭션으로 묶어 서버에서 처리한다.
+    """
+    direction = request.data.get('direction')
+    if direction not in ('up', 'down'):
+        return error_response('bad_request', "direction 은 'up' 또는 'down' 이어야 합니다.", 400)
+
+    category = MenuCategory.objects.filter(pk=pk, restaurant__owner=request.user).first()
+    if not category:
+        return error_response('not_found', '카테고리를 찾을 수 없습니다.', 404)
+
+    with transaction.atomic():
+        siblings = list(
+            MenuCategory.objects.select_for_update()
+            .filter(restaurant=category.restaurant)
+            .order_by('display_order', 'pk')
+        )
+        ids = [c.pk for c in siblings]
+        idx = ids.index(category.pk)
+        swap_idx = idx - 1 if direction == 'up' else idx + 1
+        if not (0 <= swap_idx < len(siblings)):
+            return error_response('out_of_range', '더 이동할 수 없습니다.', 409)
+
+        neighbor = siblings[swap_idx]
+        current = siblings[idx]
+        current.display_order, neighbor.display_order = (
+            neighbor.display_order, current.display_order,
+        )
+        current.save(update_fields=['display_order'])
+        neighbor.save(update_fields=['display_order'])
+
+    return Response(CategorySerializer(current).data)
 
 
 # --- Menu options ----------------------------------------------------------

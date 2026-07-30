@@ -1,6 +1,7 @@
 """Notice endpoints. Public read (any authenticated user) + admin CRUD (/api/v1/admin/notices)."""
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -30,6 +31,7 @@ def notice_detail(request, pk):
 # --- Admin CRUD --------------------------------------------------------------
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdminRole])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def admin_notice_list_create(request):
     if request.method == 'POST':
         serializer = NoticeSerializer(data=request.data)
@@ -42,6 +44,7 @@ def admin_notice_list_create(request):
 
 @api_view(['PUT', 'DELETE'])
 @permission_classes([IsAdminRole])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def admin_notice_detail(request, pk):
     notice = Notice.objects.filter(pk=pk).first()
     if not notice:

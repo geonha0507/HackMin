@@ -35,7 +35,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class CartActivity extends AppCompatActivity {
+public class CartActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvCartItems;
     private TextView tvDeliveryFee, tvTotalPrice, tvDiscount, tvAppliedCoupon;
@@ -104,7 +104,10 @@ public class CartActivity extends AppCompatActivity {
         tvAppliedCoupon = findViewById(R.id.tvAppliedCoupon);
         btnOrder = findViewById(R.id.btnOrder);
         btnApplyCoupon = findViewById(R.id.btnApplyCoupon);
-        btnApplyCoupon.setOnClickListener(v -> showCouponPicker());
+        btnApplyCoupon.setOnClickListener(v -> {
+            if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 쿠폰 적용 연타 방지
+            showCouponPicker();
+        });
     }
 
     private void setupRecyclerView() {

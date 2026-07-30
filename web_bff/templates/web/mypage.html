@@ -1,0 +1,94 @@
+{# apps/web/templates/web/mypage.html 기반. 바뀐 부분:                          #}
+{#   u.get_role_display     → u.role_display   (API 응답 필드)                  #}
+{#   u.date_joined|date     → u.joined_display (뷰에서 파싱)                     #}
+{#   pending_withdrawal.requested_at|date → .requested_display                  #}
+{#   '내 매장 관리' 링크는 아직 이관 전이라 잠시 뺐다.                            #}
+{% extends 'web/base.html' %}
+{% block title %}마이페이지{% endblock %}
+{% block heading %}마이페이지{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;align-items:start">
+
+  <div class="panel">
+    <h2>내 정보</h2>
+    <div class="cards" style="margin-bottom:18px">
+      <div class="card">
+        <div class="label">아이디</div>
+        <div class="value" style="font-size:18px">{{ u.username }}</div>
+      </div>
+      <div class="card">
+        <div class="label">역할</div>
+        <div class="value" style="font-size:18px">{{ u.role_display }}</div>
+      </div>
+      <div class="card">
+        <div class="label">가입일</div>
+        <div class="value" style="font-size:18px">{{ u.joined_display }}</div>
+      </div>
+    </div>
+    <form method="post" action="{% url 'web:mypage' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label>닉네임</label>
+        <input name="nickname" value="{{ u.nickname }}" placeholder="화면에 표시될 이름">
+        <div class="muted" style="font-size:12px;margin-top:5px">
+          매장 상호는 내 매장 관리에서 별도로 변경할 수 있습니다.
+        </div>
+      </div>
+      <div class="field">
+        <label>이메일</label>
+        <input type="email" name="email" value="{{ u.email|default_if_none:'' }}" required>
+      </div>
+      <div class="field">
+        <label>연락처</label>
+        <input name="phone" value="{{ u.phone }}" placeholder="010-0000-0000">
+      </div>
+      <button class="btn btn-primary" type="submit">저장</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>비밀번호 변경</h2>
+    <form method="post" action="{% url 'web:password_change' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label>현재 비밀번호</label>
+        <input type="password" name="old_password" required>
+      </div>
+      <div class="field">
+        <label>새 비밀번호</label>
+        <input type="password" name="new_password" required minlength="8" placeholder="8자 이상">
+      </div>
+      <div class="field">
+        <label>새 비밀번호 확인</label>
+        <input type="password" name="new_password2" required minlength="8" placeholder="8자 이상">
+      </div>
+      <button class="btn btn-primary" type="submit">비밀번호 변경</button>
+    </form>
+  </div>
+
+  <div class="panel" style="border-color:#fecaca">
+    <h2 style="color:var(--bad)">회원 탈퇴</h2>
+    {% if pending_withdrawal %}
+      <p class="muted" style="margin:0 0 10px">
+        탈퇴 요청이 접수되어 관리자 승인을 기다리고 있습니다.
+        (요청일시: {{ pending_withdrawal.requested_display }})
+      </p>
+      <span class="badge b-amber">승인 대기중</span>
+    {% else %}
+      <p class="muted" style="margin:0 0 14px">
+        탈퇴를 요청하면 관리자 승인 후 계정이 비활성화됩니다.
+      </p>
+      <form method="post" action="{% url 'web:withdraw' %}"
+            onsubmit="return confirm('탈퇴를 요청하시겠습니까? 관리자 승인 후 처리됩니다.')">
+        {% csrf_token %}
+        <div class="field">
+          <label>비밀번호 확인</label>
+          <input type="password" name="password" required>
+        </div>
+        <button class="btn btn-danger" type="submit">탈퇴 요청</button>
+      </form>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

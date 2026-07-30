@@ -37,7 +37,7 @@ import retrofit2.Response;
  * - DELETE /me/addresses/{id} : 삭제
  * 참고: 이 화면이 관리하는 배송지 데이터를 B의 주문서(OrderActivity) 주소선택이 소비한다.
  */
-public class AddressActivity extends AppCompatActivity {
+public class AddressActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvAddresses;
     private TextView tvEmpty;
@@ -104,6 +104,7 @@ public class AddressActivity extends AppCompatActivity {
 
     /** 배송지 추가 다이얼로그 (라벨/주소/상세) */
     private void showAddDialog() {
+        if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 배송지 추가 연타 방지
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         int pad = (int) (16 * getResources().getDisplayMetrics().density);

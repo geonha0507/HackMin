@@ -49,7 +49,7 @@ import retrofit2.Response;
  *   필수 extra: EXTRA_RESTAURANT_ID
  *   선택 extra: EXTRA_ORDER_ID (없으면 -1), EXTRA_RESTAURANT_NAME
  */
-public class WriteReviewActivity extends AppCompatActivity {
+public class WriteReviewActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_RESTAURANT_ID = "restaurant_id";
     public static final String EXTRA_ORDER_ID = "order_id";
@@ -124,7 +124,10 @@ public class WriteReviewActivity extends AppCompatActivity {
                 });
 
         btnBack.setOnClickListener(v -> finish());
-        btnAddImage.setOnClickListener(v -> imagePicker.launch("image/*"));
+        btnAddImage.setOnClickListener(v -> {
+            if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 이미지 선택 연타 방지
+            imagePicker.launch("image/*");
+        });
         btnSubmit.setOnClickListener(v -> submit());
     }
 

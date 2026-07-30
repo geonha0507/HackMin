@@ -1,21 +1,40 @@
-.git
-.gitignore
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-.venv/
-venv/
-env/
-db.sqlite3
-db.sqlite3-journal
-media/
-staticfiles/
-*.log
-.env
-.env.*
-.DS_Store
-.idea/
-.vscode/
-docker-compose*.yml
-README.MD
+# ---------------------------------------------------------------------------
+# 허용 목록(allowlist) 방식이다. 기본적으로 전부 제외하고, 이미지에 꼭 필요한
+# 것만 `!` 로 다시 허용한다. "제외 목록에 깜빡하고 안 적어서 새는" 사고를 막는다.
+#
+# 실제 이미지에 들어가는 파일은 Dockerfile 의 COPY 가 최종 결정한다.
+# 이 파일은 빌드 컨텍스트 자체를 좁혀 (1) 전송량을 줄이고
+# (2) COPY 실수로도 시크릿이 딸려 들어가지 못하게 하는 2차 방어선이다.
+# ---------------------------------------------------------------------------
+*
+
+# API 이미지(루트 Dockerfile)에 필요한 것
+!requirements.txt
+!manage.py
+!apps/
+!config/
+!docker/entrypoint.sh
+
+# 점주 웹 BFF 이미지(docker/Dockerfile.web)에 필요한 것
+!requirements-web.txt
+!manage_web.py
+!web_bff/
+!bff_core/
+
+# 관리자 웹 BFF 이미지(docker/Dockerfile.admin)에 필요한 것
+!manage_admin.py
+!admin_bff/
+
+# 허용한 디렉터리 안에서도 아래는 다시 제외한다.
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+**/*.log
+**/*.bak
+**/*.pem
+**/*.key
+**/*.crt
+**/db.sqlite3
+**/db.sqlite3-journal
+**/.DS_Store
