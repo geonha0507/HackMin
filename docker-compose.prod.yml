@@ -95,18 +95,26 @@ services:
   # 점주(owner) 웹 (/web). api 가 스키마를 만든 뒤 기동한다.
   # ---------------------------------------------------------------------------
   web:
-    <<: *app
+    image: ${HACKMIN_WEB_IMAGE:?HACKMIN_WEB_IMAGE 가 .env 에 설정되어야 합니다}
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "8001:8000"
+    env_file:
+      - app.env
+    volumes:
+      - /srv/hackmin/media:/app/media
     environment:
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DJANGO_ROOT_URLCONF: config.urls_web
       REDIS_HOST: redis
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ---------------------------------------------------------------------------
   # 관리자 웹 (/admin-web/, Django 기본 /admin/).
@@ -114,19 +122,26 @@ services:
   # 로컬 검증이 필요하면 .env 에서 ADMIN_BIND=0.0.0.0 으로 임시 변경.
   # ---------------------------------------------------------------------------
   admin-web:
-    <<: *app
+    image: ${HACKMIN_ADMIN_IMAGE:?HACKMIN_ADMIN_IMAGE 가 .env 에 설정되어야 합니다}
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
+    env_file:
+      - app.env
+    volumes:
+      - /srv/hackmin/media:/app/media
     environment:
-      DB_SQLITE_PATH: /data/db.sqlite3
-      DJANGO_ROOT_URLCONF: config.urls_admin
       REDIS_HOST: redis
-      RUN_MIGRATIONS: "0"
-      SEED_DEMO: "0"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   db_data:
-  media_data:
