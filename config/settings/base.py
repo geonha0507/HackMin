@@ -28,6 +28,8 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    'daphne',  # must be before django.contrib.staticfiles
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'storages',
+    'channels',
 
     # Local apps
     'common',
@@ -59,10 +62,8 @@ INSTALLED_APPS = [
     'rider',
     'enrollment',
     'downloads',
-    # 'web' (점주 SSR 콘솔)은 web_bff 컨테이너로 이관되어 제거되었다.
-    # 점주 웹은 이제 DB에 붙지 않고 /api/v1 만 호출한다.
-    # 'admin_web' (관리자 콘솔)은 admin_bff 컨테이너로 이관되어 제거되었다.
-    # 관리자 웹도 이제 DB에 붙지 않고 /api/v1 만 호출한다.
+    'web',
+    'admin_web',
 ]
 
 # 세션 기반 관리자/점주 웹 로그인 경로
@@ -98,6 +99,18 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+# --- Django Channels (WebSocket) -------------------------------------------
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(os.environ.get('REDIS_HOST', '127.0.0.1'),
+                       int(os.environ.get('REDIS_PORT', 6379)))],
+        },
+    },
+}
 
 
 # DB_ENGINE=mysql 이면 MySQL(RDS) 사용, 그 외(기본값)는 로컬 SQLite 사용.
