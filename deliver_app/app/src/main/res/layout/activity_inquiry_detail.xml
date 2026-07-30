@@ -104,13 +104,53 @@
                     android:orientation="horizontal" />
             </HorizontalScrollView>
 
+            <!-- 관리자 답변 (답변 등록 시 표시) -->
+            <LinearLayout
+                android:id="@+id/containerAnswer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="20dp"
+                android:padding="16dp"
+                android:background="#F1F3F5"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="관리자 답변"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="@color/coral_primary" />
+
+                <TextView
+                    android:id="@+id/tvAnswerContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textSize="15sp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    android:id="@+id/tvAnswerMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <!-- 미답변 안내 -->
             <TextView
+                android:id="@+id/tvNoAnswer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="답변은 가입하신 이메일로 안내드립니다."
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
+                android:text="아직 답변이 등록되지 않았습니다."
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"
+                android:visibility="gone" />
 
         </LinearLayout>
     </ScrollView>
