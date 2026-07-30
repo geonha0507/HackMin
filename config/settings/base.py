@@ -168,7 +168,7 @@ if os.environ.get('USE_S3', '0') == '1':
 # API 공개 주소로 넣어준다(운영은 실제 도메인). 같은 오리진(nginx 뒤)이면
 # 기본값 '/media/' 로 충분하다.
 REVIEW_IMAGE_ROOT = os.environ.get('REVIEW_IMAGE_ROOT', str(MEDIA_ROOT))
-REVIEW_IMAGE_URL = os.environ.get('REVIEW_IMAGE_URL', MEDIA_URL)
+REVIEW_IMAGE_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
