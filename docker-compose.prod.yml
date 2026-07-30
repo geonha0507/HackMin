@@ -21,11 +21,9 @@ name: hackmin
 x-app: &app
   image: ${HACKMIN_IMAGE:?HACKMIN_IMAGE 가 .env 에 설정되어야 합니다}
   restart: unless-stopped
-  command: python manage.py runserver 0.0.0.0:8000
+  command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
   env_file:
     - app.env
-  # 소스 바인드마운트(.:/app)를 절대 추가하지 말 것. 추가하는 순간 호스트의
-  # Dockerfile / compose / .env / *.pem 이 컨테이너 /app 에 그대로 드러난다.
   volumes:
     - db_data:/data          # SQLite 공유 볼륨 (DB_ENGINE=mysql 이면 미사용)
     - /srv/hackmin/media:/app/media  # 사용자 업로드 파일 (USE_S3=1 이면 미사용)
@@ -46,16 +44,39 @@ x-app: &app
 
 services:
   # ---------------------------------------------------------------------------
+  # Redis — Channels channel layer + 세션 저장소
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ---------------------------------------------------------------------------
   # API 서버 (/api/v1). 스키마 마이그레이션과 데모 시드를 담당한다.
   # ---------------------------------------------------------------------------
   api:
     <<: *app
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
     # env_file 로 들어온 값 위에 서비스별 고정값을 덮어쓴다.
     environment:
       DB_SQLITE_PATH: /data/db.sqlite3
       DJANGO_ROOT_URLCONF: config.urls_api
+      REDIS_HOST: redis
       # 이 컨테이너만 migrate/seed 를 실행한다.
       RUN_MIGRATIONS: "1"
     healthcheck:
@@ -73,75 +94,38 @@ services:
   # ---------------------------------------------------------------------------
   # 점주(owner) 웹 (/web). api 가 스키마를 만든 뒤 기동한다.
   # ---------------------------------------------------------------------------
-  # 점주 웹은 더 이상 api 와 같은 이미지를 쓰지 않는다. DB에 붙지 않고
-  # /api/v1 만 호출하는 전용 이미지(docker/Dockerfile.web)로 뜬다.
-  # 세션(JWT 보관)은 redis 에 둔다.
-  #
-  # NOTE: CI 워크플로가 아직 이미지를 하나만 빌드한다. 배포를 다시 켜기 전에
-  #       docker/Dockerfile.web 빌드/푸시 단계를 추가하고 HACKMIN_WEB_IMAGE 를
-  #       .env 에 넣어야 한다.
   web:
-    image: ${HACKMIN_WEB_IMAGE:?HACKMIN_WEB_IMAGE 가 .env 에 설정되어야 합니다}
-    restart: unless-stopped
+    <<: *app
     depends_on:
       api:
         condition: service_healthy
-      redis:
-        condition: service_started
     ports:
       - "8001:8000"
-    env_file:
-      - app.env
     environment:
-      HACKMIN_API_BASE: http://api:8000/api/v1
-      REDIS_URL: redis://redis:6379/0
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_ROOT_URLCONF: config.urls_web
+      REDIS_HOST: redis
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
 
   # ---------------------------------------------------------------------------
   # 관리자 웹 (/admin-web/, Django 기본 /admin/).
   # 외부에 직접 노출하지 않고 nginx 가 IP 제한을 건 뒤 프록시한다.
   # 로컬 검증이 필요하면 .env 에서 ADMIN_BIND=0.0.0.0 으로 임시 변경.
   # ---------------------------------------------------------------------------
-  # 관리자 웹도 전용 이미지(docker/Dockerfile.admin)로 뜬다. DB에 붙지 않는다.
-  #
-  # NOTE: CI 워크플로가 이미지를 세 개 빌드해야 한다.
-  #       hackmin / hackmin-web / hackmin-admin
   admin-web:
-    image: ${HACKMIN_ADMIN_IMAGE:?HACKMIN_ADMIN_IMAGE 가 .env 에 설정되어야 합니다}
-    restart: unless-stopped
+    <<: *app
     depends_on:
       api:
         condition: service_healthy
-      redis:
-        condition: service_started
     ports:
       - "${ADMIN_BIND:-127.0.0.1}:8002:8000"
-    env_file:
-      - app.env
     environment:
-      HACKMIN_API_BASE: http://api:8000/api/v1
-      REDIS_URL: redis://redis:6379/1
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # 점주 웹 세션 저장소. 외부로 포트를 열지 않는다.
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    security_opt:
-      - no-new-privileges:true
+      DB_SQLITE_PATH: /data/db.sqlite3
+      DJANGO_ROOT_URLCONF: config.urls_admin
+      REDIS_HOST: redis
+      RUN_MIGRATIONS: "0"
+      SEED_DEMO: "0"
 
 volumes:
   db_data:
