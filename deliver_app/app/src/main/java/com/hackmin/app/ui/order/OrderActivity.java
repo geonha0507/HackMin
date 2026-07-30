@@ -42,7 +42,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class OrderActivity extends AppCompatActivity {
+public class OrderActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     /** OrderTrackingActivity 로 넘길 주문 id 인텐트 키. */
     public static final String EXTRA_ORDER_ID = "order_id";

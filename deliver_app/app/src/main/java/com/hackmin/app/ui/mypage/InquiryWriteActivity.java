@@ -44,7 +44,7 @@ import retrofit2.Response;
  * - PUT  /inquiries/{id}          (수정)
  * - POST /inquiries/{id}/images   (사진 첨부, 선택)
  */
-public class InquiryWriteActivity extends AppCompatActivity {
+public class InquiryWriteActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private static final String EXTRA_INQUIRY_ID = "inquiry_id";
     private static final String EXTRA_TITLE = "title";
@@ -120,7 +120,10 @@ public class InquiryWriteActivity extends AppCompatActivity {
                 });
 
         btnBack.setOnClickListener(v -> finish());
-        btnAddImage.setOnClickListener(v -> imagePicker.launch("image/*"));
+        btnAddImage.setOnClickListener(v -> {
+            if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 이미지 선택 연타 방지
+            imagePicker.launch("image/*");
+        });
         btnSubmit.setOnClickListener(v -> submit());
 
         if (editMode) {

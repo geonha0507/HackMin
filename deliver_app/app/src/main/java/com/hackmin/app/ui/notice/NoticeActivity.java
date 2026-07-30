@@ -30,7 +30,7 @@ import retrofit2.Response;
  * - GET /notices : 목록
  * - 항목 클릭 → GET /notices/{id} 상세를 조회해 다이얼로그로 표시
  */
-public class NoticeActivity extends AppCompatActivity {
+public class NoticeActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvNotices;
     private ProgressBar pbLoading;
@@ -87,6 +87,7 @@ public class NoticeActivity extends AppCompatActivity {
 
     /** 항목 클릭 → 읽음 기록 후 상세 조회해 다이얼로그로 표시. */
     private void showDetail(NoticeDto fromList) {
+        if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 공지 연타 → 상세 다이얼로그 중복 방지
         // 클릭 시 읽음 처리 → 목록의 "읽음" 라벨 갱신.
         com.hackmin.app.util.NoticeReadStore.markRead(this, fromList.getId());
         adapter.notifyDataSetChanged();

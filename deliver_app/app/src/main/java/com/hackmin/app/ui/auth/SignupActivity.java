@@ -22,7 +22,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class SignupActivity extends AppCompatActivity {
+public class SignupActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextInputEditText etSignupNickname;
     private TextInputEditText etSignupId;
@@ -259,6 +259,14 @@ public class SignupActivity extends AppCompatActivity {
             }
             if (!isDuplicateChecked) {
                 Toast.makeText(this, "아이디 중복확인을 먼저 진행해 주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 필수 약관 동의 검증 (선택 항목은 동의 안 해도 가입 가능)
+            CheckBox cbTerms = findViewById(R.id.cb_agree_terms);
+            CheckBox cbPrivacy = findViewById(R.id.cb_agree_privacy);
+            CheckBox cbAge = findViewById(R.id.cb_agree_age);
+            if (!cbTerms.isChecked() || !cbPrivacy.isChecked() || !cbAge.isChecked()) {
+                Toast.makeText(this, "필수 약관에 동의해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
 

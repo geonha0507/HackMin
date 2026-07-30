@@ -14,7 +14,7 @@ import retrofit2.Response;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ForgotPasswordActivity extends AppCompatActivity {
+public class ForgotPasswordActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextInputEditText etForgotEmail;
     private Button btnSendResetLink;
