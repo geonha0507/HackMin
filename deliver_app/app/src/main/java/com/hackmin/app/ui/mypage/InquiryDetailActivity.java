@@ -42,6 +42,8 @@ public class InquiryDetailActivity extends com.hackmin.app.ui.common.BaseActivit
     private HorizontalScrollView hsvImages;
     private LinearLayout containerImages;
     private Button btnEdit;
+    private LinearLayout containerAnswer;
+    private TextView tvAnswerContent, tvAnswerMeta, tvNoAnswer;
 
     private InquiryDto current;
 
@@ -64,6 +66,10 @@ public class InquiryDetailActivity extends com.hackmin.app.ui.common.BaseActivit
         tvContent = findViewById(R.id.tvDetailContent);
         hsvImages = findViewById(R.id.hsvDetailImages);
         containerImages = findViewById(R.id.containerDetailImages);
+        containerAnswer = findViewById(R.id.containerAnswer);
+        tvAnswerContent = findViewById(R.id.tvAnswerContent);
+        tvAnswerMeta = findViewById(R.id.tvAnswerMeta);
+        tvNoAnswer = findViewById(R.id.tvNoAnswer);
         Button btnList = findViewById(R.id.btnDetailList);
         btnEdit = findViewById(R.id.btnDetailEdit);
         Button btnDelete = findViewById(R.id.btnDetailDelete);
@@ -117,6 +123,28 @@ public class InquiryDetailActivity extends com.hackmin.app.ui.common.BaseActivit
         tvTitle.setText(item.getTitle());
         tvMeta.setText(item.getAuthor() + " · " + formatDate(item.getCreatedAt()));
         tvContent.setText(item.getContent());
+
+        // 관리자 답변 표시 (답변 있으면 답변 영역, 없으면 미답변 안내)
+        boolean answered = item.isAnswered()
+                && item.getAnswer() != null && !item.getAnswer().trim().isEmpty();
+        if (answered) {
+            containerAnswer.setVisibility(View.VISIBLE);
+            tvNoAnswer.setVisibility(View.GONE);
+            tvAnswerContent.setText(item.getAnswer());
+            StringBuilder meta = new StringBuilder();
+            String by = item.getAnsweredByName();
+            String at = formatDate(item.getAnsweredAt());
+            if (by != null && !by.isEmpty()) meta.append(by);
+            if (at != null && !at.isEmpty()) {
+                if (meta.length() > 0) meta.append(" · ");
+                meta.append(at);
+            }
+            tvAnswerMeta.setText(meta.toString());
+            tvAnswerMeta.setVisibility(meta.length() > 0 ? View.VISIBLE : View.GONE);
+        } else {
+            containerAnswer.setVisibility(View.GONE);
+            tvNoAnswer.setVisibility(View.VISIBLE);
+        }
 
         List<InquiryImageDto> images = item.getImages();
         containerImages.removeAllViews();
