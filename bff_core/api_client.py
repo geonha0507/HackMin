@@ -42,14 +42,22 @@ def _parse_error(response):
     except ValueError:
         return ApiError(response.status_code, 'invalid_response', response.text[:200])
 
-    # common.exceptions.hackmin_exception_handler 형식: {"error": {"code", "message"}}
-    err = body.get('error') if isinstance(body, dict) else None
-    if isinstance(err, dict):
-        return ApiError(response.status_code, err.get('code', ''), err.get('message', ''), body)
+    if isinstance(body, dict):
+        # common.exceptions 형식: {"code": "...", "message": "..."}
+        # (hackmin_exception_handler 와 error_response 가 모두 이 평평한 형태로 낸다)
+        if 'message' in body:
+            return ApiError(
+                response.status_code, str(body.get('code') or ''), str(body['message']), body,
+            )
 
-    # DRF 기본 형식: {"detail": "..."} 또는 필드별 에러
-    if isinstance(body, dict) and 'detail' in body:
-        return ApiError(response.status_code, '', str(body['detail']), body)
+        # 예외 핸들러를 타지 않은 응답용 대비책: {"error": {"code", "message"}}
+        err = body.get('error')
+        if isinstance(err, dict):
+            return ApiError(response.status_code, err.get('code', ''), err.get('message', ''), body)
+
+        # DRF 기본 형식: {"detail": "..."} 또는 필드별 에러
+        if 'detail' in body:
+            return ApiError(response.status_code, '', str(body['detail']), body)
 
     return ApiError(response.status_code, '', '요청을 처리하지 못했습니다.', body)
 
