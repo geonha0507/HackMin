@@ -223,8 +223,8 @@ def order_detail(request, pk):
             if action in _ORDER_ACTION_PATHS:
                 api.post(f'/owner/orders/{pk}/{_ORDER_ACTION_PATHS[action]}')
             elif action == 'status':
-                api.post(f'/owner/orders/{pk}/status',
-                         json={'status': request.POST.get('status')})
+                api.put(f'/owner/orders/{pk}/status',
+                        json={'status': request.POST.get('status')})
             else:
                 messages.error(request, '알 수 없는 요청입니다.')
                 return redirect('web:owner_order_detail', pk=pk)
