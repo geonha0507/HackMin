@@ -29,7 +29,7 @@ import retrofit2.Response;
  * 1:1 문의 목록 화면.
  * - GET /inquiries (본인 문의, 작성일 오름차순)
  */
-public class InquiryListActivity extends AppCompatActivity {
+public class InquiryListActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private RecyclerView rvInquiries;
     private ProgressBar pbLoading;

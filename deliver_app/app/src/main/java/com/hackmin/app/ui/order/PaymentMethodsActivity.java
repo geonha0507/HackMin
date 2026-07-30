@@ -40,7 +40,7 @@ import retrofit2.Response;
  * - 카카오/네이버 등록 클릭 시 이미 등록돼 있으면 "기존 사용 / 새로 등록"을 묻고, 없으면 바로 등록.
  * - 여기서의 등록/삭제는 서버(암호화 저장)에 반영되므로 결제화면에도 그대로 나타난다.
  */
-public class PaymentMethodsActivity extends AppCompatActivity {
+public class PaymentMethodsActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private static final String[] BANKS = {
             "국민", "신한", "우리", "하나", "농협", "기업", "카카오뱅크", "토스뱅크", "SC제일", "케이뱅크"

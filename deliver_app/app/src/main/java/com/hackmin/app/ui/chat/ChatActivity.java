@@ -31,7 +31,7 @@ import retrofit2.Response;
  * - GET  /chatbot/messages (이전 대화 이력)
  * - POST /chatbot/message  (메시지 전송)
  */
-public class ChatActivity extends AppCompatActivity {
+public class ChatActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     /** 대화 이력이 비어 있을 때(신규 진입/초기화 직후) 보여줄 인사말. 서버로 전송되거나 저장되지 않는 화면 전용 문구다. */
     private static final String GREETING_TEXT =
@@ -78,6 +78,20 @@ public class ChatActivity extends AppCompatActivity {
         rvMessages.setAdapter(adapter);
 
         btnSend.setOnClickListener(v -> sendMessage());
+
+        // 엔터(전송) 키로도 메시지 전송.
+        etInput.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEND);
+        etInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        etInput.setOnEditorActionListener((tv, actionId, event) -> {
+            boolean enterDown = event != null
+                    && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER
+                    && event.getAction() == android.view.KeyEvent.ACTION_DOWN;
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND || enterDown) {
+                sendMessage();
+                return true;
+            }
+            return false;
+        });
 
         loadHistory();
     }

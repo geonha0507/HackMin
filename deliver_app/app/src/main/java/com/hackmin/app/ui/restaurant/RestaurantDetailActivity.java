@@ -46,7 +46,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class RestaurantDetailActivity extends AppCompatActivity {
+public class RestaurantDetailActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_RESTAURANT_ID = "restaurant_id";
     public static final String EXTRA_RESTAURANT_NAME = "restaurant_name";
@@ -273,6 +273,7 @@ public class RestaurantDetailActivity extends AppCompatActivity {
     // ── 메뉴 선택 → 옵션 상세 조회 ─────────────────────────
 
     private void onMenuClicked(MenuDto menuFromList) {
+        if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 메뉴 연타 → 옵션창 중복 오픈 방지
         if (!isOpen) {
             Toast.makeText(this, "영업 종료된 매장입니다. 영업 시간에 다시 주문해주세요.", Toast.LENGTH_SHORT).show();
             return;

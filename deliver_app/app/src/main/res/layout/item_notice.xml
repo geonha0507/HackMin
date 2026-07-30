@@ -67,7 +67,7 @@
                 android:layout_height="wrap_content"
                 android:text="읽음"
                 android:textSize="11sp"
-                android:textColor="#ADB5BD"
+                android:textColor="#6C757D"
                 android:layout_marginStart="8dp"
                 android:visibility="gone"/>
 

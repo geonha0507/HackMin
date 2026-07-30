@@ -37,7 +37,7 @@ import retrofit2.Response;
  * 최초 등록: 본인확인 → 카드정보 → 6자리 결제 비밀번호 설정 → 서버에 카드(AES-256 암호화) + 비밀번호(해시) 저장.
  * 이미 등록돼 있으면 마스킹값과 삭제 버튼을 보여준다.
  */
-public class EasyPayActivity extends AppCompatActivity {
+public class EasyPayActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_PROVIDER = "provider";      // "kakao" | "naver" | "card"
     public static final String EXTRA_FORCE_NEW = "force_new";    // true면 등록 폼을 강제로 보여준다

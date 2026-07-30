@@ -30,7 +30,7 @@ import retrofit2.Response;
  * - POST /membership/subscribe
  * - POST /membership/cancel
  */
-public class MembershipActivity extends AppCompatActivity {
+public class MembershipActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextView tvStatus, tvPrice;
     private LinearLayout containerBenefits;

@@ -21,7 +21,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class OrderTrackingActivity extends AppCompatActivity {
+public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     // 상태 인덱스: 0=점주확인대기, 1=주문접수, 2=조리중, 3=배달중, 4=배달완료, -1=주문취소
     private int currentStatusIndex = 0;

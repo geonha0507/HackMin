@@ -32,7 +32,7 @@ import retrofit2.Response;
  * - GET    /inquiries/{id}
  * - DELETE /inquiries/{id}
  */
-public class InquiryDetailActivity extends AppCompatActivity {
+public class InquiryDetailActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     public static final String EXTRA_INQUIRY_ID = "inquiry_id";
 

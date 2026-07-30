@@ -58,9 +58,13 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.VH> {
         String date = n.getCreatedAt();
         h.date.setText(date != null && date.length() >= 10 ? date.substring(0, 10) : "");
 
-        // 읽은 공지면 우측 상단에 "읽음" 표시.
+        // 읽은 공지면 우측 상단에 "읽음" 표시 + 카드 배경을 살짝 회색으로.
         boolean read = NoticeReadStore.isRead(h.itemView.getContext(), n.getId());
         h.read.setVisibility(read ? View.VISIBLE : View.GONE);
+        if (h.itemView instanceof com.google.android.material.card.MaterialCardView) {
+            ((com.google.android.material.card.MaterialCardView) h.itemView)
+                    .setCardBackgroundColor(read ? 0xFFF1F3F5 : 0xFFFFFFFF);
+        }
 
         String image = n.getImage();
         if (image == null || image.trim().isEmpty()) {

@@ -43,6 +43,7 @@ public final class PostcodeSearch {
 
     /** 우편번호 검색 다이얼로그를 띄운다. */
     public static void show(Activity activity, OnAddressSelected callback) {
+        if (!com.hackmin.app.ui.common.ClickGuard.allow()) return; // 주소검색 연타 → 다이얼로그 중복 방지
         WebView webView = new WebView(activity);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);

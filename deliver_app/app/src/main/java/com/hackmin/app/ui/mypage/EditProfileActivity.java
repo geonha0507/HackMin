@@ -19,7 +19,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 /** 내 정보 수정 화면. GET /me 로 현재 값을 불러오고 PUT /me 로 저장한다. */
-public class EditProfileActivity extends AppCompatActivity {
+public class EditProfileActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextView tvUsername;
     private EditText etNickname, etName, etPhone, etEmail;

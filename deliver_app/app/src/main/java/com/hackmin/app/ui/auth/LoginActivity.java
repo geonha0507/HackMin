@@ -19,7 +19,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class LoginActivity extends AppCompatActivity {
+public class LoginActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextInputEditText etLoginId, etLoginPw;
     private Button btnLogin;
@@ -95,6 +95,19 @@ public class LoginActivity extends AppCompatActivity {
                     Toast.makeText(LoginActivity.this, "네트워크 연결 실패 (백엔드 서버 확인 필요)", Toast.LENGTH_LONG).show();
                 }
             });
+        });
+
+        // 비밀번호 칸에서 엔터(완료) 키를 누르면 로그인 실행.
+        etLoginPw.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+        etLoginPw.setOnEditorActionListener((tv, actionId, event) -> {
+            boolean enterDown = event != null
+                    && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER
+                    && event.getAction() == android.view.KeyEvent.ACTION_DOWN;
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE || enterDown) {
+                btnLogin.performClick();
+                return true;
+            }
+            return false;
         });
 
         tvGoSignup.setOnClickListener(v -> startActivity(new Intent(this, SignupActivity.class)));

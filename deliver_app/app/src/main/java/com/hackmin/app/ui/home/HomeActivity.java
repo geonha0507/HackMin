@@ -38,7 +38,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends com.hackmin.app.ui.common.BaseActivity {
 
     private TextInputEditText etHomeSearch;
     private TextInputLayout tilHomeSearch;
