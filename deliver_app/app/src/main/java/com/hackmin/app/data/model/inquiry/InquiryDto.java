@@ -15,6 +15,10 @@ public class InquiryDto {
     @SerializedName("images") private List<InquiryImageDto> images;
     @SerializedName("created_at") private String createdAt;
     @SerializedName("updated_at") private String updatedAt;
+    @SerializedName("answer") private String answer;
+    @SerializedName("answered_at") private String answeredAt;
+    @SerializedName("answered_by_name") private String answeredByName;
+    @SerializedName("is_answered") private boolean answered;
 
     public long getId() { return id; }
     public String getTitle() { return title; }
@@ -25,4 +29,8 @@ public class InquiryDto {
     public List<InquiryImageDto> getImages() { return images; }
     public String getCreatedAt() { return createdAt; }
     public String getUpdatedAt() { return updatedAt; }
+    public String getAnswer() { return answer; }
+    public String getAnsweredAt() { return answeredAt; }
+    public String getAnsweredByName() { return answeredByName; }
+    public boolean isAnswered() { return answered; }
 }
