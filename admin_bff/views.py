@@ -139,6 +139,7 @@ def user_list(request):
     api = client_for(request)
     q = (request.GET.get('q') or '').strip()
     role = request.GET.get('role') or ''
+    sort = request.GET.get('sort') or ''
 
     payload = {}
     try:
@@ -147,6 +148,8 @@ def user_list(request):
             params['q'] = q
         if role:
             params['role'] = role
+        if sort:
+            params['sort'] = sort
         payload = api.get('/admin/users', params=params or None)
     except ApiError as exc:
         messages.error(request, exc.message)
