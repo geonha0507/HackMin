@@ -3,6 +3,8 @@ package com.hackmin.app.network;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.hackmin.app.security.SecureStore;
+
 /**
  * 앱 전역 세션 저장소.
  *
@@ -55,22 +57,28 @@ public final class SessionManager
 
     // ── 토큰 ──────────────────────────────────────────────
 
-    /** 로그인/회원가입 성공 시 발급받은 토큰을 저장한다. */
+    /**
+     * 로그인/회원가입 성공 시 발급받은 토큰을 저장한다.
+     *
+     * <p>access/refresh 토큰(JWT)은 Android Keystore(AES-256/GCM)로 암호화해 저장한다.
+     * 따라서 루팅 단말에서 {@code shared_prefs/HackminPrefs.xml}를 덤프해도 평문 토큰이
+     * 아니라 암호문만 노출된다. 키는 키스토어 밖으로 나오지 않는다.</p>
+     */
     public void saveTokens(String accessToken, String refreshToken) {
         prefs.edit()
-                .putString(KEY_ACCESS_TOKEN, accessToken == null ? "" : accessToken)
-                .putString(KEY_REFRESH_TOKEN, refreshToken == null ? "" : refreshToken)
+                .putString(KEY_ACCESS_TOKEN, SecureStore.encrypt(accessToken))
+                .putString(KEY_REFRESH_TOKEN, SecureStore.encrypt(refreshToken))
                 .apply();
     }
 
     /** {@link AuthInterceptor.TokenProvider} 구현. 헤더에 실릴 액세스 토큰. */
     @Override
     public String getAccessToken() {
-        return prefs.getString(KEY_ACCESS_TOKEN, "");
+        return SecureStore.decrypt(prefs.getString(KEY_ACCESS_TOKEN, ""));
     }
 
     public String getRefreshToken() {
-        return prefs.getString(KEY_REFRESH_TOKEN, "");
+        return SecureStore.decrypt(prefs.getString(KEY_REFRESH_TOKEN, ""));
     }
 
     /** 액세스 토큰이 있으면 로그인 상태로 간주. */
