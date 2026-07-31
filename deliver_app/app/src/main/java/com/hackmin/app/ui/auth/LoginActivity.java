@@ -39,6 +39,13 @@ public class LoginActivity extends com.hackmin.app.ui.common.BaseActivity {
             return;
         }
 
+        // 동적 계측(Frida) 탐지(훈련용): 계측 흔적이 있으면 앱 사용을 차단한다.
+        // 이 역시 FridaDetector.isFridaDetected를 후킹해 false로 바꾸면 우회된다(의도된 약점).
+        if (com.hackmin.app.security.FridaDetector.isFridaDetected()) {
+            showTamperBlockedDialog();
+            return;
+        }
+
         session = SessionManager.getInstance(this);
 
         etLoginId = findViewById(R.id.et_login_id);
@@ -118,6 +125,14 @@ public class LoginActivity extends com.hackmin.app.ui.common.BaseActivity {
     private void showRootBlockedDialog() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setMessage("루팅된 기기에서는 해킹의 민족 앱을 이용할 수 없습니다. 안전한 기기에서 이용해주세요.")
+                .setCancelable(false)
+                .setPositiveButton("확인", (dialog, which) -> finishAffinity())
+                .show();
+    }
+
+    private void showTamperBlockedDialog() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setMessage("비정상적인 접근(동적 분석 도구)이 감지되어 해킹의 민족 앱을 이용할 수 없습니다. 안전한 환경에서 이용해주세요.")
                 .setCancelable(false)
                 .setPositiveButton("확인", (dialog, which) -> finishAffinity())
                 .show();

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 해제된 상태: 테두리만 있는 빈 사각형. 채움 없이 stroke만 그린다.
+     stroke는 경로 중앙에 그려지므로 5~19 경로에 두께 2를 주면
+     체크 상태(4~20 채움)와 바깥 크기가 맞는다. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- 채워진 배경 -->
     <path
-        android:fillColor="@color/coral_primary"
-        android:pathData="M4,4 L20,4 L20,20 L4,20 Z"/>
-    <!-- 흰색 체크 표시 (머티리얼 표준 check 아이콘) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z"/>
+        android:fillColor="#00000000"
+        android:strokeColor="@color/text_secondary"
+        android:strokeWidth="2"
+        android:pathData="M5,5 L19,5 L19,19 L5,19 Z"/>
 </vector>

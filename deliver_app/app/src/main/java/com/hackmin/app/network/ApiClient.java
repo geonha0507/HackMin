@@ -11,6 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 import java.io.File;
 
+import com.hackmin.app.BuildConfig;
 import com.hackmin.app.data.api.AdminApi;
 import com.hackmin.app.data.api.AuthApi;
 import com.hackmin.app.data.api.CartApi;
@@ -68,8 +69,12 @@ public final class ApiClient {
             AuthInterceptor.TokenProvider tokenProvider, File cacheDir
     ) {
         if (retrofit == null) {
+            // 요청/응답 본문에는 비밀번호·JWT가 그대로 들어간다. 릴리즈 빌드에서는
+            // logcat으로 새지 않도록 로깅을 완전히 끈다(디버그 빌드만 BODY).
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-            logging.setLevel(HttpLoggingInterceptor.Level.BODY);
+            logging.setLevel(BuildConfig.DEBUG
+                    ? HttpLoggingInterceptor.Level.BODY
+                    : HttpLoggingInterceptor.Level.NONE);
 
             OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     // 변경 요청(비-GET)이 성공하면 캐시 전체 무효화 → 삭제/등록/로그인 후 항상 최신.
