@@ -42,8 +42,10 @@ def user_list(request):
         users = users.filter(role=role)
     if q:
         # 관리자 검색창이 보내는 검색어로 아이디/이메일/닉네임을 부분 일치 검색한다.
+        # LIKE 의 % 는 MySQL 드라이버(%s 바인딩)와 충돌하므로 %% 로 이스케이프한다.
+        # (SQLite 는 % 가 특수문자가 아니라 무관하지만, 운영 MySQL 에서 검색이 깨지는 것을 막는다)
         users = users.extra(where=[
-            f"username LIKE '%{q}%' OR email LIKE '%{q}%' OR nickname LIKE '%{q}%'"
+            f"username LIKE '%%{q}%%' OR email LIKE '%%{q}%%' OR nickname LIKE '%%{q}%%'"
         ])
     # 관리자 목록 화면의 정렬 UI가 보내는 컬럼으로 정렬한다.
     users = users.order_by(RawSQL(f"{sort}", []))[:300]
