@@ -94,9 +94,9 @@ public class ReviewAdapter extends RecyclerView.Adapter<ReviewAdapter.VH> {
             lp.setMarginEnd(marginPx);
             iv.setLayoutParams(lp);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            Glide.with(container.getContext())
-                    .load(img.getImage())
-                    .into(iv);
+            // 다른 이미지들과 동일하게 ImageLoader로 로드 → 상대경로(/media/...)에 서버 호스트를 붙여준다.
+            // (기존엔 raw Glide로 상대경로를 그대로 로드해 리뷰 사진이 안 보였음)
+            com.hackmin.app.util.ImageLoader.load(iv, img.getImage());
             container.addView(iv);
         }
     }
