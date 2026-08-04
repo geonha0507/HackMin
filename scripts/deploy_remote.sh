@@ -96,6 +96,22 @@ done
 log "web / admin-web 기동"
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 
+# Splunk UF 가 서비스별로 컨테이너 로그를 구분하도록 심볼릭 링크를 건다.
+# 컨테이너 ID 는 재배포마다 바뀌므로 매 배포 시 갱신한다.
+# 관제 파이프라인 문제로 배포가 실패하면 안 되므로 오류는 무시한다(|| true).
+log "Splunk 로그 심볼릭 링크 갱신"
+sudo mkdir -p /var/log/docker-symlink || true
+for svc in api web admin-web; do
+  cid="$(docker inspect --format '{{.Id}}' "hackmin-${svc}-1" 2>/dev/null || true)"
+  if [ -n "$cid" ]; then
+    sudo ln -sf "/var/lib/docker/containers/$cid/$cid-json.log" \
+      "/var/log/docker-symlink/$svc.log" || true
+    echo "  linked: $svc -> ${cid:0:12}"
+  else
+    echo "  skip: hackmin-${svc}-1 컨테이너를 찾지 못함"
+  fi
+done
+
 if [ -f "$STAGE_DIR/ghcr.token" ]; then
   docker logout ghcr.io >/dev/null 2>&1 || true
 fi
