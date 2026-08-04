@@ -40,7 +40,8 @@ def _parse_error(response):
     try:
         body = response.json()
     except ValueError:
-        return ApiError(response.status_code, 'invalid_response', response.text[:200])
+        # 상류 응답이 JSON 이 아니면(예: API 의 500 HTML 페이지) 원문을 사용자에게
+        # 그대로 노출하지 않는다. 일반 메시지로 대체한다.
         return ApiError(response.status_code, 'invalid_response', '요청을 처리하지 못했습니다.')
 
     if isinstance(body, dict):
