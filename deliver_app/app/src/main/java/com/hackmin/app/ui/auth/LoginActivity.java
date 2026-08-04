@@ -32,19 +32,9 @@ public class LoginActivity extends com.hackmin.app.ui.common.BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // 루팅 탐지(훈련용): 루팅 기기면 안내 다이얼로그를 띄우고 앱 사용을 차단한다.
-        // Frida로 RootDetector.isDeviceRooted를 후킹해 false로 바꾸면 우회된다.
-        if (com.hackmin.app.security.RootDetector.isDeviceRooted(this)) {
-            showRootBlockedDialog();
-            return;
-        }
-
-        // 동적 계측(Frida) 탐지(훈련용): 계측 흔적이 있으면 앱 사용을 차단한다.
-        // 이 역시 FridaDetector.isFridaDetected를 후킹해 false로 바꾸면 우회된다(의도된 약점).
-        if (com.hackmin.app.security.FridaDetector.isFridaDetected()) {
-            showTamperBlockedDialog();
-            return;
-        }
+        // 네이티브 보안 가드 발동(훈련용): 루팅·Frida 흔적이 있으면 네이티브가 프로세스를
+        // 직접 종료한다. Java에는 판정 분기가 없어 Java 후킹만으로는 우회되지 않는다.
+        com.hackmin.app.security.SecurityGuard.init(this);
 
         session = SessionManager.getInstance(this);
 
@@ -119,22 +109,5 @@ public class LoginActivity extends com.hackmin.app.ui.common.BaseActivity {
 
         tvGoSignup.setOnClickListener(v -> startActivity(new Intent(this, SignupActivity.class)));
         tvGoFindPw.setOnClickListener(v -> startActivity(new Intent(this, ForgotPasswordActivity.class)));
-    }
-
-    /** 루팅 기기에서 앱 사용을 차단하는 안내 다이얼로그. 확인 시 앱 종료. */
-    private void showRootBlockedDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setMessage("루팅된 기기에서는 해킹의 민족 앱을 이용할 수 없습니다. 안전한 기기에서 이용해주세요.")
-                .setCancelable(false)
-                .setPositiveButton("확인", (dialog, which) -> finishAffinity())
-                .show();
-    }
-
-    private void showTamperBlockedDialog() {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setMessage("비정상적인 접근(동적 분석 도구)이 감지되어 해킹의 민족 앱을 이용할 수 없습니다. 안전한 환경에서 이용해주세요.")
-                .setCancelable(false)
-                .setPositiveButton("확인", (dialog, which) -> finishAffinity())
-                .show();
     }
 }
