@@ -86,9 +86,8 @@ public class RestaurantReviewAdapter extends RecyclerView.Adapter<RestaurantRevi
             lp.setMarginEnd(marginPx);
             iv.setLayoutParams(lp);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            Glide.with(container.getContext())
-                    .load(url)
-                    .into(iv);
+            // 상대경로(/media/...)에 서버 호스트를 붙여 로드(ImageLoader). 기존 raw Glide는 상대경로라 안 보였음.
+            com.hackmin.app.util.ImageLoader.load(iv, url);
             container.addView(iv);
         }
     }

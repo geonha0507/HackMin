@@ -75,11 +75,23 @@ public final class ImageLoader {
         if (url == null || url.trim().isEmpty()) {
             return null;
         }
+        String resolved;
         if (url.startsWith("http://") || url.startsWith("https://")) {
-            return url;
+            resolved = url;
+        } else {
+            String base = ApiClient.mediaBaseUrl();
+            resolved = url.startsWith("/") ? base + url : base + "/" + url;
         }
-        String base = ApiClient.mediaBaseUrl();
-        return url.startsWith("/") ? base + url : base + "/" + url;
+        // 서버(Django가 HTTPS 프록시 뒤인 걸 모를 때)가 우리 도메인 이미지를 http://로 주는 경우가 있다.
+        // Android는 cleartext(http) 트래픽을 막아 이미지가 안 뜨므로, 우리 미디어 도메인에 한해 https로 승격한다.
+        String secureBase = ApiClient.mediaBaseUrl();            // 예) https://hackmin.com
+        if (secureBase.startsWith("https://")) {
+            String httpBase = "http://" + secureBase.substring("https://".length()); // 예) http://hackmin.com
+            if (resolved.startsWith(httpBase)) {
+                resolved = secureBase + resolved.substring(httpBase.length());
+            }
+        }
+        return resolved;
     }
 
     /**
