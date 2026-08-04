@@ -101,7 +101,7 @@ docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 # 관제 파이프라인 문제로 배포가 실패하면 안 되므로 오류는 무시한다(|| true).
 log "Splunk 로그 심볼릭 링크 갱신"
 sudo mkdir -p /var/log/docker-symlink || true
-for svc in api web admin-web; do
+for svc in api web admin-web redis; do
   cid="$(docker inspect --format '{{.Id}}' "hackmin-${svc}-1" 2>/dev/null || true)"
   if [ -n "$cid" ]; then
     sudo ln -sf "/var/lib/docker/containers/$cid/$cid-json.log" \
