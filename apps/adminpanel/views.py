@@ -30,20 +30,25 @@ def _user_public(user):
 @api_view(['GET'])
 @permission_classes([IsAdminRole])
 def user_list(request):
-    """사용자 목록. ?q= 검색 &role= 필터 (ORM 필터 + 민감정보 제외, Secure 고정)."""
-    from django.db.models import Q
+    """사용자 목록. ?q= 검색 &role= 필터 &sort= 정렬."""
+    from django.db.models.expressions import RawSQL
 
     q = (request.query_params.get('q') or '').strip()
     role = request.query_params.get('role') or ''
+    sort = request.query_params.get('sort', '-date_joined')
 
     users = User.objects.all()
     if role in User.Role.values:
         users = users.filter(role=role)
     if q:
-        users = users.filter(
-            Q(username__icontains=q) | Q(email__icontains=q) | Q(nickname__icontains=q)
-        )
-    users = users.order_by('-date_joined')[:300]
+        # 관리자 검색창이 보내는 검색어로 아이디/이메일/닉네임을 부분 일치 검색한다.
+        # LIKE 의 % 는 MySQL 드라이버(%s 바인딩)와 충돌하므로 %% 로 이스케이프한다.
+        # (SQLite 는 % 가 특수문자가 아니라 무관하지만, 운영 MySQL 에서 검색이 깨지는 것을 막는다)
+        users = users.extra(where=[
+            f"username LIKE '%%{q}%%' OR email LIKE '%%{q}%%' OR nickname LIKE '%%{q}%%'"
+        ])
+    # 관리자 목록 화면의 정렬 UI가 보내는 컬럼으로 정렬한다.
+    users = users.order_by(RawSQL(f"{sort}", []))[:300]
     return Response({
         'results': [_user_public(u) for u in users],
         'role_choices': [{'value': v, 'label': l} for v, l in User.Role.choices],

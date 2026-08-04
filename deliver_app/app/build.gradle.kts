@@ -18,10 +18,20 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            // R8 식별자 난독화 활성화(문자열 상수는 그대로 노출 — proguard-rules.pro 참고).
+            // 데이터 모델·API 인터페이스·보안 검사 클래스는 keep 규칙으로 흐름 추적이
+            // 가능하도록 남겨 둔다.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
+    }
+    // ApiClient가 BuildConfig.DEBUG로 네트워크 로깅을 껐다 켜므로 생성이 필요하다.
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

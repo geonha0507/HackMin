@@ -28,6 +28,8 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    'daphne',  # must be before django.contrib.staticfiles
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'storages',
+    'channels',
 
     # Local apps
     'common',
@@ -59,10 +62,6 @@ INSTALLED_APPS = [
     'rider',
     'enrollment',
     'downloads',
-    # 'web' (점주 SSR 콘솔)은 web_bff 컨테이너로 이관되어 제거되었다.
-    # 점주 웹은 이제 DB에 붙지 않고 /api/v1 만 호출한다.
-    # 'admin_web' (관리자 콘솔)은 admin_bff 컨테이너로 이관되어 제거되었다.
-    # 관리자 웹도 이제 DB에 붙지 않고 /api/v1 만 호출한다.
 ]
 
 # 세션 기반 관리자/점주 웹 로그인 경로
@@ -98,6 +97,18 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+# --- Django Channels (WebSocket) -------------------------------------------
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.pubsub.RedisPubSubChannelLayer',
+        'CONFIG': {
+            'hosts': [(os.environ.get('REDIS_HOST', '127.0.0.1'),
+                       int(os.environ.get('REDIS_PORT', 6379)))],
+        },
+    },
+}
 
 
 # DB_ENGINE=mysql 이면 MySQL(RDS) 사용, 그 외(기본값)는 로컬 SQLite 사용.
@@ -158,17 +169,8 @@ if os.environ.get('USE_S3', '0') == '1':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # --- 리뷰 이미지 전용 스토리지 (민감정보 분리) ------------------------------
-# 리뷰 이미지는 민감정보가 아니므로, USE_S3=1 로 나머지 파일을 S3 에 올리더라도
-# 이 파일들만은 항상 도커 볼륨(media_data → /app/media)에 저장한다.
-# 사업자등록증 등 민감 파일만 S3 에 남긴다.
-#
-# REVIEW_IMAGE_URL 은 브라우저가 이미지를 직접 열 공개 URL 의 접두사다.
-# 점주 웹(:8001)과 API(:8000)가 다른 오리진이면 절대 URL 이어야 브라우저가
-# 불러올 수 있으므로, docker-compose 에서 http://localhost:8000/media/ 처럼
-# API 공개 주소로 넣어준다(운영은 실제 도메인). 같은 오리진(nginx 뒤)이면
-# 기본값 '/media/' 로 충분하다.
 REVIEW_IMAGE_ROOT = os.environ.get('REVIEW_IMAGE_ROOT', str(MEDIA_ROOT))
-REVIEW_IMAGE_URL = os.environ.get('REVIEW_IMAGE_URL', MEDIA_URL)
+REVIEW_IMAGE_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

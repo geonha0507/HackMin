@@ -1,5 +1,9 @@
 """Owner order & payment management (/api/v1/owner/{orders,payments})."""
 
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
@@ -9,6 +13,8 @@ from orders.models import Order
 from .serializers import OwnerOrderSerializer
 from payments.models import Payment, Refund
 from payments.serializers import PaymentSerializer, RefundSerializer
+
+logger = logging.getLogger(__name__)
 
 
 def _order_scope(request):
@@ -47,7 +53,29 @@ def _set_status(request, pk, new_status, allowed_from=None):
         return None, error_response('invalid_transition', '허용되지 않는 상태 전이입니다.', 409)
     order.status = new_status
     order.save(update_fields=['status'])
+
+    # WebSocket broadcast: 고객에게 실시간 상태 변경 알림
+    _broadcast_status(order)
+
     return order, None
+
+
+def _broadcast_status(order):
+    """주문 상태 변경을 WebSocket 으로 broadcast 한다."""
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.pk}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.pk,
+                'status': order.status,
+                'status_display': order.get_status_display(),
+            },
+        )
+    except Exception:
+        # channel layer 장애가 주문 처리를 막으면 안 된다
+        logger.exception('WebSocket broadcast failed for order %s', order.pk)
 
 
 @api_view(['POST'])

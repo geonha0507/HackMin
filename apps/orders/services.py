@@ -4,7 +4,13 @@
 에러 응답 매핑만 담당하고, 실제 DB 트랜잭션 로직은 여기에 둔다.
 """
 
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 from carts.models import Cart, CartItem
 from carts.services import compute_line_total, compute_unit_price
@@ -63,6 +69,9 @@ def cancel_order(order):
     order.status = Order.Status.CANCELLED
     order.save(update_fields=['status'])
 
+    # WebSocket broadcast: 점주에게 실시간 취소 알림
+    _broadcast_status(order)
+
     # 결제된 건이 있으면 함께 취소.
     for payment in order.payments.filter(status=Payment.Status.PAID):
         payment.status = Payment.Status.CANCELLED
@@ -116,3 +125,20 @@ def reorder_to_cart(user, order):
         else:
             excluded_count += 1
     return cart, excluded_count
+
+
+def _broadcast_status(order):
+    """주문 상태 변경을 WebSocket 으로 broadcast 한다."""
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'order_{order.pk}',
+            {
+                'type': 'order_status_update',
+                'order_id': order.pk,
+                'status': order.status,
+                'status_display': order.get_status_display(),
+            },
+        )
+    except Exception:
+        logger.exception('WebSocket broadcast failed for order %s', order.pk)

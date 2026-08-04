@@ -52,3 +52,4 @@ _to_delete/
 
 # 로컬 인증서/키 파일
 global-bundle.pem
+nginx/hackmin.conf

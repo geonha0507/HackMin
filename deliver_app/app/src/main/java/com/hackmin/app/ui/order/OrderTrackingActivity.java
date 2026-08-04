@@ -2,18 +2,19 @@ package com.hackmin.app.ui.order;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.hackmin.app.R;
 import com.hackmin.app.data.model.order.OrderDto;
 import com.hackmin.app.data.model.order.OrderItemDto;
 import com.hackmin.app.network.ApiClient;
+import com.hackmin.app.network.OrderWebSocketClient;
+import com.hackmin.app.network.SessionManager;
 import com.hackmin.app.ui.home.HomeActivity;
 import com.hackmin.app.ui.review.WriteReviewActivity;
 
@@ -23,12 +24,12 @@ import retrofit2.Response;
 
 public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivity {
 
+    private static final String TAG = "OrderTracking";
+
     // 상태 인덱스: 0=점주확인대기, 1=주문접수, 2=조리중, 3=배달중, 4=배달완료, -1=주문취소
     private int currentStatusIndex = 0;
 
-    // ===== [C] START: 주문추적 GET /orders/{id} 연동 =====
     private long orderId = -1;
-    // ===== [C] END =====
 
     /** 리뷰 작성 진입에 필요한 식당 id / 표시용 이름 (주문 조회 후 채워짐) */
     private long restaurantId = -1;
@@ -47,6 +48,9 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
 
     private final String[] statusLabels = {"점주확인대기", "주문접수", "조리중", "배달중", "배달완료"};
 
+    // ===== WebSocket 실시간 업데이트 =====
+    private OrderWebSocketClient wsClient;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,7 +62,6 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
         btnGoHome.setOnClickListener(v -> goHome());
         btnWriteReview.setOnClickListener(v -> goWriteReview());
 
-        // ===== [C] START: 주문추적 GET /orders/{id} 연동 =====
         orderId = getIntent().getLongExtra("order_id", -1);
 
         btnCancelOrder.setOnClickListener(v -> cancelOrder());
@@ -69,7 +72,47 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
             return;
         }
         loadOrder();
-        // ===== [C] END =====
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        connectWebSocket();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        disconnectWebSocket();
+    }
+
+    // ===== WebSocket 연결/해제 =====
+
+    private void connectWebSocket() {
+        if (orderId <= 0) return;
+
+        String token = SessionManager.getInstance(this).getAccessToken();
+        if (token == null || token.isEmpty()) {
+            Log.w(TAG, "No access token — WebSocket skipped");
+            return;
+        }
+
+        wsClient = new OrderWebSocketClient(orderId, token, (status, statusDisplay) -> {
+            Log.d(TAG, "WS status update: " + status + " (" + statusDisplay + ")");
+            lastStatus = status;
+            currentStatusIndex = statusToIndex(status);
+            renderStatus();
+            Toast.makeText(this, "주문 상태: " + (statusDisplay != null ? statusDisplay : status),
+                    Toast.LENGTH_SHORT).show();
+        });
+        wsClient.connect();
+    }
+
+    private void disconnectWebSocket() {
+        if (wsClient != null) {
+            wsClient.disconnect();
+            wsClient = null;
+        }
     }
 
     private void initViews() {
@@ -94,7 +137,6 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
         };
     }
 
-    // ===== [C] START: 주문추적 GET /orders/{id} 연동 =====
     private void loadOrder() {
         ApiClient.orderApi(this).getOrder(orderId)
                 .enqueue(new Callback<OrderDto>() {
@@ -117,14 +159,12 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
     }
 
     private void bindOrder(OrderDto order) {
-        // 목록 응답에 식당명이 없으므로 주문번호를 상단에 표시
         String title = order.getOrderNumber() != null
                 ? order.getOrderNumber() : ("주문 #" + order.getId());
         tvRestaurantName.setText(title);
         tvOrderItemsSummary.setText(buildItemsSummary(order));
         tvDeliveryAddress.setText(buildAddress(order));
 
-        // 리뷰 작성 진입에 필요한 값 보관
         restaurantId = order.getRestaurant() != null ? order.getRestaurant() : -1;
         restaurantName = title;
 
@@ -170,14 +210,14 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
         if (status == null) return 0;
         switch (status) {
             case "pending":
-            case "placed":     return 0; // 점주확인대기
-            case "accepted":   return 1; // 주문접수
+            case "placed":     return 0;
+            case "accepted":   return 1;
             case "cooking":
-            case "cooked":     return 2; // 조리중
-            case "delivering": return 3; // 배달중
-            case "delivered":  return 4; // 배달완료
+            case "cooked":     return 2;
+            case "delivering": return 3;
+            case "delivered":  return 4;
             case "cancelled":
-            case "rejected":   return -1; // 주문취소
+            case "rejected":   return -1;
             default:           return 0;
         }
     }
@@ -204,11 +244,9 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
                     }
                 });
     }
-    // ===== [C] END =====
 
     private void renderStatus() {
         if (currentStatusIndex == -1) {
-            // 주문취소/거절 상태 — 실제 사유에 따라 배너 문구를 구분한다.
             tvCancelledBanner.setText("rejected".equals(lastStatus)
                     ? "이 주문은 점주에 의해 거절되었습니다"
                     : "이 주문은 취소되었습니다");
@@ -219,17 +257,15 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
             return;
         }
 
-        // ===== [C] START: 취소상태 복귀 시 진행바 재표시 (재조회 대응) =====
         tvCancelledBanner.setVisibility(View.GONE);
         containerProgress.setVisibility(View.VISIBLE);
-        // ===== [C] END =====
 
         tvCurrentStatus.setText(statusLabels[currentStatusIndex]);
 
         for (int i = 0; i < dots.length; i++) {
             dots[i].setBackgroundColor(i <= currentStatusIndex
-                    ? 0xFFFF6F61 // 진행된 단계: 보라색
-                    : 0xFFBDBDBD); // 아직 안된 단계: 회색
+                    ? 0xFFFF6F61
+                    : 0xFFBDBDBD);
         }
         for (int i = 0; i < lines.length; i++) {
             lines[i].setBackgroundColor(i < currentStatusIndex
@@ -237,10 +273,7 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
                     : 0xFFBDBDBD);
         }
 
-        // 배달중(3) 이후로는 취소 불가 처리 (배달완료 포함)
         btnCancelOrder.setVisibility(currentStatusIndex >= 3 ? View.GONE : View.VISIBLE);
-
-        // 배달완료(4)일 때만 리뷰 쓰기 노출
         btnWriteReview.setVisibility(currentStatusIndex == 4 ? View.VISIBLE : View.GONE);
     }
 }
