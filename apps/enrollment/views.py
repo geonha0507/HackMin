@@ -164,6 +164,7 @@ def review_enrollment_request(request, request_id):
             name=enrollment.restaurant_name,
             phone=enrollment.phone,
             business_license=enrollment.business_license
+            is_open=True
         )
         
         enrollment.status = 'approved'
