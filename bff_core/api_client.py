@@ -41,6 +41,7 @@ def _parse_error(response):
         body = response.json()
     except ValueError:
         return ApiError(response.status_code, 'invalid_response', response.text[:200])
+        return ApiError(response.status_code, 'invalid_response', '요청을 처리하지 못했습니다.')
 
     if isinstance(body, dict):
         # common.exceptions 형식: {"code": "...", "message": "..."}
