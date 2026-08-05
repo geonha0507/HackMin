@@ -8,30 +8,33 @@ import android.widget.Toast;
 /**
  * 네이티브 보안 가드 로더 (훈련용).
  *
- * <p>네이티브 라이브러리({@code libhackminsec})가 로드될 때 루팅·Frida 흔적을 검사한다.
- * 탐지되면 네이티브가 안내 메시지를 띄운 뒤(JNI 업콜) 스스로 프로세스를 종료한다.</p>
+ * <p>이 클래스는 네이티브 라이브러리({@code libhackminsec}) 로드와, (message 빌드에서만) 네이티브가
+ * 올려주는 안내 토스트 표시를 담당한다. 루팅·Frida <b>판정과 종료는 전부 네이티브</b>가 하며,
+ * Java 에는 판정 분기가 없다.</p>
  *
- * <p>Java 계층에는 "루팅됨?"을 판단하는 boolean 메서드나 {@code if(탐지){차단}} 분기가 없다.
- * 따라서 Frida로 Java 메서드를 후킹해 우회하는 방식은 통하지 않는다. 아래
- * {@link #notifyTamper()}는 <b>안내 표시 전용</b>이며, 이를 후킹해 무력화해도 종료는
- * 네이티브가 그대로 수행한다(메시지만 사라질 뿐 차단은 유지). 실제 우회하려면 strip 된
- * {@code .so}를 IDA로 분석해 네이티브 판정 함수를 주소 후킹해야 한다.</p>
+ * <p>종료 방식은 빌드 플래그로 갈린다(app/build.gradle.kts 의 -PguardMode):</p>
+ * <ul>
+ *   <li><b>inline</b>(기본): 로드 순간 네이티브가 동기·인라인으로 즉시 종료. 콜백/스레드 없음 →
+ *       {@code notifyTamper} 는 호출되지 않는다. 우회하려면 strip 된 {@code .so} 를 Ghidra 로
+ *       분석해 판정 함수를 패치해야 한다.</li>
+ *   <li><b>message</b>: 네이티브 백그라운드 스레드가 탐지 후 {@link #notifyTamper(int)} 로 토스트를
+ *       띄우고 종료.</li>
+ * </ul>
  */
 public final class SecurityGuard {
 
+    private static Context appContext;
+
     private SecurityGuard() {}
 
-    /** 안내 토스트 표시에 사용할 애플리케이션 컨텍스트. */
-    private static volatile Context appContext;
-
     static {
-        // 로드 자체가 네이티브 가드를 발동시킨다.
+        // 로드 자체가 네이티브 가드를 발동시킨다(탐지 시 네이티브가 프로세스를 종료).
         System.loadLibrary("hackminsec");
     }
 
     /**
-     * 보안 가드를 활성화한다. 컨텍스트를 보관해 두어, 네이티브가 탐지 시 안내 메시지를
-     * 띄울 수 있게 한다. 앱 진입 시 한 번 호출한다.
+     * 가드 발동 + (message 빌드용) 토스트 컨텍스트 등록.
+     * 이 메서드를 호출(클래스 로드)하는 것만으로 위 static 초기화가 실행되어 가드가 동작한다.
      */
     public static void init(Context ctx) {
         if (ctx != null) {
@@ -40,19 +43,19 @@ public final class SecurityGuard {
     }
 
     /**
-     * 네이티브 가드가 위협 탐지 시 호출한다(백그라운드 스레드 → 메인 스레드 토스트).
-     * 표시 전용이며, 실제 종료는 네이티브가 수행한다.
+     * 네이티브(message 빌드)가 탐지 시 호출하는 안내 콜백. 메인 스레드에서 토스트를 띄운다.
+     * inline 빌드에서는 호출되지 않는다.
+     *
+     * @param code 0 = 루팅, 1 = 비정상 환경(Frida 등)
      */
-    static void notifyTamper() {
-        final Context c = appContext;
-        if (c == null) {
-            return;
-        }
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(c, "루팅이 감지되어 앱을 종료합니다.", Toast.LENGTH_LONG).show();
-            }
-        });
+    @SuppressWarnings("unused") // 네이티브에서 JNI 로 호출
+    public static void notifyTamper(int code) {
+        final Context ctx = appContext;
+        if (ctx == null) return;
+        final String msg = (code == 0)
+                ? "루팅이 감지되어 앱을 종료합니다."
+                : "비정상 실행 환경이 감지되어 앱을 종료합니다.";
+        new Handler(Looper.getMainLooper()).post(
+                () -> Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show());
     }
 }

@@ -16,9 +16,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 네이티브 루팅 탐지(libhackminsec) 빌드 설정.
+        //  가드 종료 방식을 빌드 플래그로 전환한다(기본 inline):
+        //    ./gradlew assembleRelease                     → inline  (탐지 즉시 조용히 종료, Ghidra 필수)
+        //    ./gradlew assembleRelease -PguardMode=message  → message (로그인 후 "루팅 감지" 토스트→종료)
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++17"
+                arguments += "-DGUARD_MODE=${project.findProperty("guardMode") ?: "inline"}"
             }
         }
         // 실기기(arm64)·에뮬레이터(x86_64) 커버. 필요 시 ABI 추가 가능.
