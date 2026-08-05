@@ -10,6 +10,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(hackminsec SHARED native_guard.cpp)
 
+# 가드 종료 방식 전환 플래그(build.gradle.kts 의 -PguardMode 로 주입).
+#   GUARD_MODE=message → 지연 종료 + "루팅 감지" 토스트(백그라운드 스레드, pthread/JNI 사용)
+#   그 외(기본 inline)  → 탐지 즉시 인라인 종료(스레드/메시지 없음, Ghidra 필수)
+if(DEFINED GUARD_MODE AND GUARD_MODE STREQUAL "message")
+    target_compile_definitions(hackminsec PRIVATE GUARD_DEFER_MSG)
+    message(STATUS "hackminsec guard mode: DEFERRED + MESSAGE")
+else()
+    message(STATUS "hackminsec guard mode: INLINE (silent, Ghidra-required)")
+endif()
+
 # 심볼 숨김: JNIEXPORT(=default visibility)로 명시한 심볼(JNI_OnLoad)만 export 되고,
 # 나머지 탐지/판정 함수는 동적 심볼 테이블에서 제거된다.
 target_compile_options(hackminsec PRIVATE
@@ -18,7 +28,8 @@ target_compile_options(hackminsec PRIVATE
         -ffunction-sections
         -fdata-sections
         -fno-exceptions
-        -fno-rtti)
+        -fno-rtti
+        -fno-stack-protector)
 
 # 링크 단계: 미사용 섹션 제거, 정적 라이브러리 심볼 숨김.
 # release(RelWithDebInfo)에서는 --strip-all 로 심볼 테이블까지 제거해 함수 이름을 지운다.
