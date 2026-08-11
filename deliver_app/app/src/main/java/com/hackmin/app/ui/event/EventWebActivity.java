@@ -46,7 +46,8 @@ public class EventWebActivity extends AppCompatActivity {
 
         String path = getIntent().getStringExtra(EXTRA_PATH);
         if (path == null || path.isEmpty()) {
-            path = "/events/";
+            // nginx 가 이미 프록시하는 /api/ 밑에 이벤트 페이지가 있다(별도 nginx 라우팅 불필요).
+            path = "/api/v1/events/";
         }
         webView.loadUrl(ApiClient.mediaBaseUrl() + path);
     }

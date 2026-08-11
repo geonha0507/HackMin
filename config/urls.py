@@ -35,11 +35,12 @@ api_v1 = [
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/health', health),
+    # 이벤트/프로모션 상세 페이지 (앱 홈 이벤트 배너 → EventWebActivity 가 로드).
+    # nginx 가 이미 프록시하는 /api/ 밑에 두어 별도 nginx 라우팅 없이 서빙한다.
+    # include 보다 먼저 등록해야 /api/v1/ 로 흡수되지 않고 정확 매칭된다(health 와 동일 패턴).
+    path('api/v1/events/', events_poc.events_page),
     path('api/v1/', include((api_v1, 'api_v1'))),
     # 점주 웹(/web/)은 web_bff 컨테이너가 담당한다. 이 프로세스에는 없다.
-
-    # 이벤트/프로모션 상세 페이지 (앱 홈 이벤트 배너 → EventWebActivity 가 로드).
-    path('events/', events_poc.events_page),
 ]
 
 # 리뷰 이미지 공개 서빙(비민감). DEBUG 여부와 무관하게 reviews/ 하위만 노출한다.
