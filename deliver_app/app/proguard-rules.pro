@@ -23,6 +23,10 @@
 # 후킹 우회를 재현할 수 있어야 함 — MOB-004 참조).
 -keep class com.hackmin.app.security.** { *; }
 
+# 입력 검문소(JNI): 클래스·네이티브 메서드명을 보존해야 libhackminfilter 의
+# Java_..._nativeContainsXss 심볼과 링크가 유지된다(이름 바뀌면 UnsatisfiedLinkError).
+-keep class com.hackmin.app.util.XssInputGuard { *; }
+
 # ── 어노테이션/제네릭 시그니처 보존(Retrofit·Gson 동작에 필요) ──
 -keepattributes Signature
 -keepattributes *Annotation*
