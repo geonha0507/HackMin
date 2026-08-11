@@ -9,6 +9,7 @@ web_bff 의 모든 데이터 접근은 이 모듈을 거친다. 뷰에서 ORM �
 """
 
 import logging
+import os
 
 import httpx
 from django.conf import settings
@@ -17,19 +18,24 @@ logger = logging.getLogger(__name__)
 
 # X-Internal-Key: 서버측 BFF 임을 API 에 증명하는 내부 호출 키. 이 헤더가 유효하면
 # API 의 PayloadEnforcementMiddleware 가 평문 호출을 허용한다(앱은 암호화 강제).
-# 키는 서버 환경변수에만 있고 APK·브라우저로는 절대 나가지 않는다.
+# 키는 서버 환경변수에만 있어야 한다 — 기본값을 두면 리포를 본 사람이 헤더 한 줄로
+# 강제 미들웨어를 통째로 우회할 수 있다.
 # web_bff/admin_bff 는 config.settings 를 쓰지 않으므로(각자 standalone settings),
-# API 서버와 동일한 env·기본값을 여기서 직접 읽어 단일 소스로 맞춘다.
-import os
+# API 서버와 동일한 env 를 여기서 직접 읽는다.
+PAYLOAD_INTERNAL_KEY = os.environ.get('PAYLOAD_INTERNAL_KEY', '')
+if not PAYLOAD_INTERNAL_KEY:
+    logger.warning(
+        'PAYLOAD_INTERNAL_KEY 미설정 — API 가 강제 모드(PAYLOAD_ENFORCE=1)라면 '
+        'BFF 호출이 400 으로 거부됩니다.'
+    )
 
-PAYLOAD_INTERNAL_KEY = os.environ.get(
-    'PAYLOAD_INTERNAL_KEY', 'Z90pA78Pyhwpd/ZRpfsuRV91Itg/yuD1Joulvp/IG0w=')
+_headers = {'X-Internal-Key': PAYLOAD_INTERNAL_KEY} if PAYLOAD_INTERNAL_KEY else {}
 
 # httpx.Client 는 스레드 안전하므로 프로세스당 하나를 재사용한다 (커넥션 풀링).
 _client = httpx.Client(
     base_url=settings.API_BASE_URL,
     timeout=settings.API_TIMEOUT,
-    headers={'X-Internal-Key': PAYLOAD_INTERNAL_KEY},
+    headers=_headers,
 )
 
 SESSION_KEY = 'hackmin_auth'

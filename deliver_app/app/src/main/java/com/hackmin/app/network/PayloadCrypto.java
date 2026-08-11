@@ -2,8 +2,11 @@ package com.hackmin.app.network;
 
 import android.util.Base64;
 
+import com.hackmin.app.BuildConfig;
+
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.MGF1ParameterSpec;
@@ -24,24 +27,37 @@ import javax.crypto.spec.SecretKeySpec;
  * <ul>
  *   <li>RSA/ECB/OAEPWithSHA-256AndMGF1Padding (hash=SHA-256, MGF1=SHA-256)</li>
  *   <li>AES/GCM/NoPadding, 256bit key, 12-byte IV, 128-bit tag(ciphertext 뒤 부착)</li>
- *   <li>HMAC-SHA256(secret, "METHOD\nFULL_PATH\nX-Enc-Key") → base64</li>
+ *   <li>HMAC-SHA256(secret, "METHOD\nFULL_PATH\nX-Enc-Key\nBODY_SHA256") → base64</li>
+ *   <li>BODY_SHA256 = base64(sha256(네트워크로 나가는 원본 본문 바이트))</li>
  * </ul>
  *
  * <p><b>비밀의 위치</b>가 이 방식의 핵심이다:
  * <ul>
  *   <li>서버 <b>공개키</b>만 담긴다 → APK 가 뜯겨도 복호화 비밀은 새지 않는다.
  *       (세션키는 서버 개인키로만 복원 가능)</li>
- *   <li>{@code APP_HMAC_SECRET} 은 <b>이 바이너리에만</b> 존재한다 → 서버는 이 서명으로
- *       "정말 앱이 보낸 요청"인지 검증한다. 공개키만으로 봉투를 위조해도 서명을 못 만들어
- *       거부된다. 유효 요청을 만들려면 이 시크릿을 APK 에서 추출(리버싱)하거나
- *       런타임에 후킹(Frida)해야 한다.</li>
+ *   <li>HMAC 시크릿은 <b>이 바이너리에만</b> 존재해야 한다 → 소스에 상수로 박지 않고
+ *       {@link BuildConfig} 를 통해 빌드 시점에 주입한다(gradle.properties 는 gitignore).
+ *       서버는 이 서명으로 "정말 앱이 보낸 요청"인지 검증한다.</li>
  * </ul>
+ *
+ * <p><b>gradle 설정</b> (app/build.gradle):
+ * <pre>
+ * android {
+ *     buildFeatures { buildConfig true }
+ *     defaultConfig {
+ *         buildConfigField "String", "PAYLOAD_HMAC_SECRET",
+ *                 "\"${project.findProperty('payloadHmacSecret') ?: ''}\""
+ *     }
+ * }
+ * </pre>
+ * 그리고 <b>gitignore 된</b> gradle.properties 에:
+ * <pre>payloadHmacSecret=서버 PAYLOAD_APP_HMAC_SECRET 와 동일한 값</pre>
  */
 public final class PayloadCrypto {
 
     /**
      * 서버 공개키 (SPKI DER, base64 단일 라인). keys/payload_public.pem 와 동일 키.
-     * 데모용 개발 키이며, 서버 개인키 교체 시 이 값도 함께 갱신해야 한다.
+     * 공개키이므로 리포에 있어도 무방하다. 서버 개인키 교체 시 함께 갱신할 것.
      */
     private static final String SERVER_PUBLIC_KEY_B64 =
             "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1IZA+tLtDFM2hcwJBdha"
@@ -54,11 +70,9 @@ public final class PayloadCrypto {
 
     /**
      * 앱 요청 서명용 HMAC 시크릿. 서버 settings.PAYLOAD_APP_HMAC_SECRET 와 동일해야 한다.
-     * <b>이 값이 명분의 핵심</b> — 서버는 이걸로 요청 진위를 검증하므로, 공격자는 이 값을
-     * 추출/후킹하지 않으면 유효 요청을 만들 수 없다. 랩/프로덕션에선 서버 env 와 함께
-     * 새 값으로 교체하고 앱을 재빌드할 것.
+     * <b>소스에 하드코딩하지 않는다</b> — 빌드 시점에 BuildConfig 로 주입된다.
      */
-    private static final String APP_HMAC_SECRET = "VND7AfiCMSCTg9ZuHJW+JJLnEXzgq5uc4FhotbYRecg=";
+    private static final String APP_HMAC_SECRET = BuildConfig.PAYLOAD_HMAC_SECRET;
 
     private static final int GCM_TAG_BITS = 128;
     private static final int IV_LEN = 12;
@@ -67,6 +81,11 @@ public final class PayloadCrypto {
     private static volatile PublicKey serverKey;
 
     private PayloadCrypto() {}
+
+    /** HMAC 시크릿이 주입됐는지. 비어 있으면 서명을 만들 수 없다(= 서버가 거부). */
+    public static boolean hasSecret() {
+        return APP_HMAC_SECRET != null && !APP_HMAC_SECRET.isEmpty();
+    }
 
     private static PublicKey serverKey() throws Exception {
         if (serverKey == null) {
@@ -116,17 +135,24 @@ public final class PayloadCrypto {
         return c.doFinal(data);
     }
 
+    /** 서버 crypto.body_digest 와 동일: base64(SHA-256(bytes)). */
+    public static String sha256B64(byte[] data) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        return b64(md.digest(data == null ? new byte[0] : data));
+    }
+
     /**
      * 요청 서명. 서버 crypto.sign_request 와 동일 규약:
-     * {@code HMAC-SHA256(APP_HMAC_SECRET, "METHOD\nFULL_PATH\nX-Enc-Key")} → base64.
+     * {@code HMAC-SHA256(secret, "METHOD\nFULL_PATH\nX-Enc-Key\nBODY_SHA256")} → base64.
      *
-     * @param method    HTTP 메서드(대문자, 예: "POST")
-     * @param fullPath  쿼리 포함 경로 (예: "/api/v1/orders?page=2")
-     * @param encKeyB64 X-Enc-Key 헤더 값(래핑된 세션키 base64)
+     * @param method       HTTP 메서드(대문자, 예: "POST")
+     * @param fullPath     쿼리 포함 경로 (예: "/api/v1/orders?page=2")
+     * @param encKeyB64    X-Enc-Key 헤더 값(래핑된 세션키 base64)
+     * @param bodySha256B64 X-Body-Sha256 헤더 값(원본 본문 바이트의 base64 SHA-256)
      */
-    public static String signRequest(String method, String fullPath, String encKeyB64)
-            throws Exception {
-        String message = method + "\n" + fullPath + "\n" + encKeyB64;
+    public static String signRequest(String method, String fullPath,
+                                     String encKeyB64, String bodySha256B64) throws Exception {
+        String message = method + "\n" + fullPath + "\n" + encKeyB64 + "\n" + bodySha256B64;
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(
                 APP_HMAC_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));

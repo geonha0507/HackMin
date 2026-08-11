@@ -10,6 +10,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # 이 파일은 config/settings/base.py 이므로 프로젝트 루트는 세 단계 위.
@@ -202,10 +203,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': (
         'common.enc.EncryptedJSONParser',
         'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
+        'common.enc.SignedMultiPartParser',
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'common.enc.EncryptedJSONRenderer',
+        # 브라우저로 /api/v1 을 열었을 때 406 대신 DRF 브라우저블 API 가 뜨도록 유지.
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
 }
 
@@ -217,38 +220,73 @@ SIMPLE_JWT = {
 }
 
 # --- Payload encryption (hybrid RSA-OAEP + AES-256-GCM) --------------------
-# 앱↔서버 본문 암호화용 서버 개인키(PEM). 우선순위: 환경변수 > dev 파일.
-# 프로덕션에선 반드시 PAYLOAD_PRIVATE_KEY_PEM 환경변수로 주입하고 dev 키는 폐기할 것.
-PAYLOAD_PRIVATE_KEY_PEM = os.environ.get('PAYLOAD_PRIVATE_KEY_PEM', '')
-if not PAYLOAD_PRIVATE_KEY_PEM:
-    _payload_key_file = BASE_DIR / 'keys' / 'payload_private_dev.pem'
-    if _payload_key_file.exists():
-        PAYLOAD_PRIVATE_KEY_PEM = _payload_key_file.read_text()
+# 암호화 강제 여부. **기본 Off** — env 를 빠뜨렸을 때 조용히 켜져서 앱이 전면 400 이
+# 되는 사고를 막는다. 앱(APK)에 CryptoInterceptor 가 들어간 빌드를 배포한 뒤에 켠다.
+PAYLOAD_ENFORCE = os.environ.get('PAYLOAD_ENFORCE', '0') == '1'
 
-# 앱과 공유하는 HMAC 시크릿. **APK 에만** 존재해야 명분이 성립하므로(리포·브라우저엔
-# 없어야 함), 랩/프로덕션에선 반드시 PAYLOAD_APP_HMAC_SECRET 를 새로 만들어 환경변수로
-# 주입하고 앱도 같은 값으로 재빌드한다. 아래 기본값은 개발팀 로컬 실행용일 뿐이다.
-PAYLOAD_APP_HMAC_SECRET = os.environ.get(
-    'PAYLOAD_APP_HMAC_SECRET', 'VND7AfiCMSCTg9ZuHJW+JJLnEXzgq5uc4FhotbYRecg=')
+# 서버 RSA 개인키(PEM). 우선순위: base64 env > raw PEM env > dev 파일.
+#   PEM 은 여러 줄이라 docker compose 의 env_file 파서와 CI 검증을 통과하지 못한다.
+#   그래서 배포에는 base64 한 줄(PAYLOAD_PRIVATE_KEY_B64)을 쓴다:
+#     base64 -w0 keys/payload_private.pem
+_payload_key_b64 = os.environ.get('PAYLOAD_PRIVATE_KEY_B64', '')
+if _payload_key_b64:
+    import base64 as _b64
+    PAYLOAD_PRIVATE_KEY_PEM = _b64.b64decode(_payload_key_b64).decode('utf-8')
+else:
+    PAYLOAD_PRIVATE_KEY_PEM = os.environ.get('PAYLOAD_PRIVATE_KEY_PEM', '')
+    if not PAYLOAD_PRIVATE_KEY_PEM:
+        _payload_key_file = BASE_DIR / 'keys' / 'payload_private_dev.pem'
+        if _payload_key_file.exists():
+            PAYLOAD_PRIVATE_KEY_PEM = _payload_key_file.read_text()
+
+# 앱과 공유하는 HMAC 시크릿. **APK 와 서버 env 에만** 존재해야 한다 —
+# 기본값을 두지 않는다(리포에 값이 있으면 우회로가 그대로 열린다).
+PAYLOAD_APP_HMAC_SECRET = os.environ.get('PAYLOAD_APP_HMAC_SECRET', '')
 
 # 서버측 BFF(web_bff/admin_bff)만 아는 내부 호출 키. 이 키가 유효하면 평문 호출을
-# 허용한다(SSR 호환). **APK·브라우저에는 절대 넣지 말 것** — 넣으면 평문 우회로가
-# 생긴다. 랩/프로덕션에선 환경변수로 주입.
-PAYLOAD_INTERNAL_KEY = os.environ.get(
-    'PAYLOAD_INTERNAL_KEY', 'Z90pA78Pyhwpd/ZRpfsuRV91Itg/yuD1Joulvp/IG0w=')
+# 허용한다(SSR 호환 + curl 로 운영/디버깅). **APK·브라우저·리포에 절대 넣지 말 것** —
+# 넣으면 헤더 한 줄로 강제 미들웨어를 통째로 우회할 수 있다.
+PAYLOAD_INTERNAL_KEY = os.environ.get('PAYLOAD_INTERNAL_KEY', '')
 
-# 암호화 강제 여부. 기본 On. 앱↔서버 스택을 동시에 배포할 수 없는 개발 상황에선
-# PAYLOAD_ENFORCE=0 으로 임시 비활성 가능(그동안 평문 폴백 우회로가 다시 열림에 유의).
-PAYLOAD_ENFORCE = os.environ.get('PAYLOAD_ENFORCE', '1') == '1'
+# 필수값 검증 — 없는 값이 런타임에 조용한 장애로 터지는 대신 배포가 실패하게 한다.
+#
+# 개인키는 PAYLOAD_ENFORCE 와 무관하게 필요하다. 강제를 꺼도(듀얼 모드) 앱은
+# X-Enc-Key 를 붙여 암호문을 보내고, 서버는 그걸 개인키로 풀어야 하기 때문이다.
+# 키가 없으면 '앱 요청만' 500 이 되는데 헬스체크·웹은 멀쩡해서 발견이 늦는다.
+# 기본값은 0(검사 안 함) — 아직 개인키를 주입하지 않은 현재 배포가 깨지지 않도록.
+# 개인키를 GitHub Secrets 에 넣은 뒤 리포지토리 변수 PAYLOAD_APP_REQUIRED=1 로 올린다.
+PAYLOAD_APP_REQUIRED = os.environ.get('PAYLOAD_APP_REQUIRED', '0') == '1'
+
+if PAYLOAD_APP_REQUIRED and not PAYLOAD_PRIVATE_KEY_PEM:
+    raise ImproperlyConfigured(
+        'PAYLOAD_PRIVATE_KEY_B64 미설정 — 앱이 보낸 암호문을 복호화할 수 없습니다. '
+        'base64 -w0 keys/payload_private.pem 결과를 주입하거나, '
+        '앱 배포 전이라면 PAYLOAD_APP_REQUIRED=0 으로 두세요.'
+    )
+
+# HMAC 시크릿과 내부키는 '강제 모드'에서만 의미가 있다.
+#   - HMAC 이 비면 verify_app_signature 가 항상 False → 앱 전면 400
+#   - 내부키가 비면 _is_internal 이 항상 False → BFF 도 전면 400 (웹 전체 다운)
+if PAYLOAD_ENFORCE:
+    _missing = [
+        name for name, value in (
+            ('PAYLOAD_APP_HMAC_SECRET', PAYLOAD_APP_HMAC_SECRET),
+            ('PAYLOAD_INTERNAL_KEY', PAYLOAD_INTERNAL_KEY),
+        ) if not value
+    ]
+    if _missing:
+        raise ImproperlyConfigured(
+            'PAYLOAD_ENFORCE=1 인데 다음 값이 비어 있습니다: %s. '
+            '환경변수를 주입하거나 PAYLOAD_ENFORCE=0 으로 두세요.' % ', '.join(_missing)
+        )
 
 # 강제 대상에서 제외할 경로 프리픽스(암호화 헤더가 없는 정상 트래픽).
-#   - /api/v1/health        : 헬스체크
-#   - /api/v1/events        : 앱 WebView 가 로드하는 이벤트 HTML 페이지
-#   - /media                : 공개 이미지 서빙
+#   - /api/v1/health : 헬스체크
+#   - /api/v1/events : 앱 WebView 가 로드하는 이벤트 HTML 페이지
+# (/media 는 _should_enforce 가 /api/ 로 시작하지 않는 경로를 이미 통과시켜 무의미)
 PAYLOAD_ENFORCE_EXEMPT_PREFIXES = (
     '/api/v1/health',
     '/api/v1/events',
-    '/media',
 )
 
 # CORS 공통값. 오리진 허용 정책(CORS_ALLOW_ALL_ORIGINS 등)은 dev/prod 에서 지정.

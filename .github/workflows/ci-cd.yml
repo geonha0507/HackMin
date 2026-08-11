@@ -204,10 +204,28 @@ jobs:
       - name: 필수 설정값 확인
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          PAYLOAD_ENFORCE: ${{ vars.PAYLOAD_ENFORCE || '0' }}
+          PAYLOAD_APP_REQUIRED: ${{ vars.PAYLOAD_APP_REQUIRED || '0' }}
+          PAYLOAD_PRIVATE_KEY_B64: ${{ secrets.PAYLOAD_PRIVATE_KEY_B64 }}
+          PAYLOAD_APP_HMAC_SECRET: ${{ secrets.PAYLOAD_APP_HMAC_SECRET }}
+          PAYLOAD_INTERNAL_KEY: ${{ secrets.PAYLOAD_INTERNAL_KEY }}
         run: |
           fail=0
           [ -n "$INSTANCE_ID" ]          || { echo "::error::리포지토리 변수 EC2_INSTANCE_ID 미설정"; fail=1; }
           [ -n "$DJANGO_SECRET_KEY" ]    || { echo "::error::시크릿 DJANGO_SECRET_KEY 미설정"; fail=1; }
+
+          # 강제 모드에서 값이 비면 settings 가 ImproperlyConfigured 로 죽는다.
+          # 이미지가 올라간 뒤 죽는 것보다 여기서 먼저 막는 편이 낫다.
+          # 앱이 암호문을 보내는 순간 개인키가 없으면 앱 요청만 500 이 된다(웹은 멀쩡).
+          if [ "$PAYLOAD_APP_REQUIRED" = "1" ]; then
+            [ -n "$PAYLOAD_PRIVATE_KEY_B64" ] || { echo "::error::PAYLOAD_APP_REQUIRED=1 인데 시크릿 PAYLOAD_PRIVATE_KEY_B64 미설정"; fail=1; }
+          fi
+          # 강제 모드에서 값이 비면 settings 가 ImproperlyConfigured 로 죽는다.
+          if [ "$PAYLOAD_ENFORCE" = "1" ]; then
+            [ -n "$PAYLOAD_PRIVATE_KEY_B64" ] || { echo "::error::PAYLOAD_ENFORCE=1 인데 시크릿 PAYLOAD_PRIVATE_KEY_B64 미설정"; fail=1; }
+            [ -n "$PAYLOAD_APP_HMAC_SECRET" ] || { echo "::error::PAYLOAD_ENFORCE=1 인데 시크릿 PAYLOAD_APP_HMAC_SECRET 미설정"; fail=1; }
+            [ -n "$PAYLOAD_INTERNAL_KEY" ]    || { echo "::error::PAYLOAD_ENFORCE=1 인데 시크릿 PAYLOAD_INTERNAL_KEY 미설정"; fail=1; }
+          fi
           exit $fail
 
       # EIC 는 임시 SSH 키를 사용한다 — 고정 키(EC2_SSH_KEY) 불필요.
@@ -281,6 +299,15 @@ jobs:
           # 들어간 빌드를 배포한 뒤에 리포지토리 변수로 1 로 올린다. 0 이면 미들웨어·
           # 파서·렌더러가 모두 통과 모드라 기존 앱/웹 동작에 영향이 없다.
           PAYLOAD_ENFORCE: ${{ vars.PAYLOAD_ENFORCE || '0' }}
+          # 앱이 배포되어 암호문을 보내기 시작하면 1 로 올린다(개인키 필수 검증).
+          PAYLOAD_APP_REQUIRED: ${{ vars.PAYLOAD_APP_REQUIRED || '0' }}
+          # 서버 RSA 개인키 — PEM 은 여러 줄이라 env_file 파서를 통과 못 한다.
+          # base64 한 줄로 넣을 것:  base64 -w0 keys/payload_private.pem
+          PAYLOAD_PRIVATE_KEY_B64: ${{ secrets.PAYLOAD_PRIVATE_KEY_B64 }}
+          # 앱(APK)과 공유하는 서명 시크릿. 앱도 같은 값으로 재빌드해야 한다.
+          PAYLOAD_APP_HMAC_SECRET: ${{ secrets.PAYLOAD_APP_HMAC_SECRET }}
+          # BFF 전용 내부 호출 키. api/web/admin 세 컨테이너가 같은 값을 봐야 한다.
+          PAYLOAD_INTERNAL_KEY: ${{ secrets.PAYLOAD_INTERNAL_KEY }}
           ADMIN_BIND: ${{ vars.ADMIN_BIND || '127.0.0.1' }}
         run: |
           umask 077
@@ -293,7 +320,8 @@ jobs:
                     DJANGO_SSL_REDIRECT DB_ENGINE DB_NAME DB_USER DB_PASSWORD
                     DB_HOST DB_PORT USE_S3 AWS_S3_BUCKET_NAME AWS_S3_REGION_NAME
                     AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY
-                    SEED_DEMO PAYLOAD_ENFORCE"
+                    SEED_DEMO PAYLOAD_ENFORCE PAYLOAD_APP_REQUIRED PAYLOAD_PRIVATE_KEY_B64
+                    PAYLOAD_APP_HMAC_SECRET PAYLOAD_INTERNAL_KEY"
 
           # docker compose 의 env_file 파서는 따옴표 없는 값에서 줄바꿈을 만나면
           # 형식이 깨지고, 공백 뒤의 #부터는 주석으로 잘라낸다. 조용히 잘린 채
@@ -375,6 +403,30 @@ jobs:
             esac
           done
           echo "전체 서비스 정상"
+          EOF
+
+      # /api/v1/health 는 강제 대상에서 제외된 경로라, 위 헬스체크만으로는
+      # "정책이 의도와 다르게 걸려서 API 가 전부 400" 인 상태를 잡지 못한다.
+      # 비exempt 경로를 헤더 없이 때려서 현재 정책이 의도대로인지 확인한다.
+      #   듀얼 모드(0): 평문 curl 이 **되어야** 한다  ← 팀 요구사항을 회귀 테스트로 고정
+      #   강제 모드(1): 400 이어야 한다
+      - name: 페이로드 정책 스모크
+        env:
+          PAYLOAD_ENFORCE: ${{ vars.PAYLOAD_ENFORCE || '0' }}
+        run: |
+          /tmp/eic-ssh.sh "PAYLOAD_ENFORCE='$PAYLOAD_ENFORCE' bash -s" <<'EOF'
+          set -e
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+                   -H "Host: hackmin.com" \
+                   "http://127.0.0.1:8000/api/v1/restaurants" || echo 000)
+          if [ "$PAYLOAD_ENFORCE" = "1" ]; then
+            echo "  강제 모드 · 헤더 없는 curl → $code (400 기대)"
+            [ "$code" = "400" ] || { echo "강제 모드가 동작하지 않습니다"; exit 1; }
+          else
+            echo "  듀얼 모드 · 헤더 없는 curl → $code (200 기대)"
+            [ "$code" = "200" ] || { echo "평문 curl 이 막혔습니다 — 듀얼 모드가 아닙니다"; exit 1; }
+          fi
+          echo "페이로드 정책 정상"
           EOF
 
       - name: 배포 실패 시 로그 수집
