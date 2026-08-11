@@ -22,6 +22,9 @@ db.sqlite3-journal
 # 템플릿은 커밋한다 (실제 값이 아니라 키 목록만 들어있음)
 !.env.example
 
+# Payload encryption — 공개키만 커밋, 개인키는 절대 커밋 금지
+keys/*private*.pem
+
 # OS / editor
 .DS_Store
 Thumbs.db

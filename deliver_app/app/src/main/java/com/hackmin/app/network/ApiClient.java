@@ -91,6 +91,11 @@ public final class ApiClient {
                     })
                     .addInterceptor(new AuthInterceptor(tokenProvider))
                     .addInterceptor(logging)
+                    // CryptoInterceptor는 반드시 application 인터셉터 중 마지막(소켓에 가장
+                    // 가깝게) — 소켓으로 나가는 바이트가 암호문이 되어 Burp 등 프록시엔
+                    // 암호문만 잡힌다. logging은 그 앞이라 logcat에는 평문이 남는다(로컬
+                    // 디버깅용; 릴리스 빌드는 위에서 로깅 레벨을 NONE으로 낮춘다).
+                    .addInterceptor(new CryptoInterceptor())
                     // GET 응답에 짧은 캐시 허용(서버가 캐시 헤더를 안 줘도 강제로 붙인다).
                     .addNetworkInterceptor(chain -> {
                         Response resp = chain.proceed(chain.request());
@@ -106,7 +111,11 @@ public final class ApiClient {
                     .connectTimeout(15, TimeUnit.SECONDS)
                     .readTimeout(15, TimeUnit.SECONDS);
 
-            if (cacheDir != null) {
+            // 페이로드 암호화가 켜지면 HTTP 응답 캐시를 끈다. CryptoInterceptor는
+            // Content-Length 정합성 때문에 application 인터셉터로 두어야 하고, 그러면
+            // OkHttp Cache에는 '암호문' 응답이 저장된다. 세션키는 요청마다 랜덤이라
+            // 캐시 히트 시 이번 요청 키로는 저장된 암호문을 복호화할 수 없다(=캐시 무의미).
+            if (cacheDir != null && !CryptoInterceptor.ENABLED) {
                 httpCache = new Cache(new File(cacheDir, "http-cache"), 5L * 1024 * 1024); // 5MB
                 builder.cache(httpCache);
             }

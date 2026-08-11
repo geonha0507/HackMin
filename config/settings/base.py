@@ -72,6 +72,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    # 페이로드 암호화 강제: 비신뢰(앱) 요청은 X-Enc-Key + 유효 X-Sig 없으면 400.
+    # 서버측 BFF 는 X-Internal-Key 로 통과. 헤더만 보고 본문 스트림은 건드리지 않는다.
+    'common.enc.PayloadEnforcementMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -193,6 +196,17 @@ REST_FRAMEWORK = {
     ),
     'EXCEPTION_HANDLER': 'common.exceptions.hackmin_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': (),
+    # 페이로드 하이브리드 암호화(듀얼 모드): X-Enc-Key 헤더가 있으면 요청/응답 본문을
+    # 복호화/암호화하고, 없으면 평범한 JSON으로 폴백. 누가 평문으로 호출해도 되는지는
+    # PayloadEnforcementMiddleware 가 통제한다(BFF 는 허용, 앱/공격자는 강제).
+    'DEFAULT_PARSER_CLASSES': (
+        'common.enc.EncryptedJSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'common.enc.EncryptedJSONRenderer',
+    ),
 }
 
 SIMPLE_JWT = {
@@ -201,6 +215,41 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'ROTATE_REFRESH_TOKENS': False,
 }
+
+# --- Payload encryption (hybrid RSA-OAEP + AES-256-GCM) --------------------
+# 앱↔서버 본문 암호화용 서버 개인키(PEM). 우선순위: 환경변수 > dev 파일.
+# 프로덕션에선 반드시 PAYLOAD_PRIVATE_KEY_PEM 환경변수로 주입하고 dev 키는 폐기할 것.
+PAYLOAD_PRIVATE_KEY_PEM = os.environ.get('PAYLOAD_PRIVATE_KEY_PEM', '')
+if not PAYLOAD_PRIVATE_KEY_PEM:
+    _payload_key_file = BASE_DIR / 'keys' / 'payload_private_dev.pem'
+    if _payload_key_file.exists():
+        PAYLOAD_PRIVATE_KEY_PEM = _payload_key_file.read_text()
+
+# 앱과 공유하는 HMAC 시크릿. **APK 에만** 존재해야 명분이 성립하므로(리포·브라우저엔
+# 없어야 함), 랩/프로덕션에선 반드시 PAYLOAD_APP_HMAC_SECRET 를 새로 만들어 환경변수로
+# 주입하고 앱도 같은 값으로 재빌드한다. 아래 기본값은 개발팀 로컬 실행용일 뿐이다.
+PAYLOAD_APP_HMAC_SECRET = os.environ.get(
+    'PAYLOAD_APP_HMAC_SECRET', 'VND7AfiCMSCTg9ZuHJW+JJLnEXzgq5uc4FhotbYRecg=')
+
+# 서버측 BFF(web_bff/admin_bff)만 아는 내부 호출 키. 이 키가 유효하면 평문 호출을
+# 허용한다(SSR 호환). **APK·브라우저에는 절대 넣지 말 것** — 넣으면 평문 우회로가
+# 생긴다. 랩/프로덕션에선 환경변수로 주입.
+PAYLOAD_INTERNAL_KEY = os.environ.get(
+    'PAYLOAD_INTERNAL_KEY', 'Z90pA78Pyhwpd/ZRpfsuRV91Itg/yuD1Joulvp/IG0w=')
+
+# 암호화 강제 여부. 기본 On. 앱↔서버 스택을 동시에 배포할 수 없는 개발 상황에선
+# PAYLOAD_ENFORCE=0 으로 임시 비활성 가능(그동안 평문 폴백 우회로가 다시 열림에 유의).
+PAYLOAD_ENFORCE = os.environ.get('PAYLOAD_ENFORCE', '1') == '1'
+
+# 강제 대상에서 제외할 경로 프리픽스(암호화 헤더가 없는 정상 트래픽).
+#   - /api/v1/health        : 헬스체크
+#   - /api/v1/events        : 앱 WebView 가 로드하는 이벤트 HTML 페이지
+#   - /media                : 공개 이미지 서빙
+PAYLOAD_ENFORCE_EXEMPT_PREFIXES = (
+    '/api/v1/health',
+    '/api/v1/events',
+    '/media',
+)
 
 # CORS 공통값. 오리진 허용 정책(CORS_ALLOW_ALL_ORIGINS 등)은 dev/prod 에서 지정.
 CORS_ALLOW_CREDENTIALS = True
