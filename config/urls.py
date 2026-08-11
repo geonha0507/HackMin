@@ -7,6 +7,8 @@ from django.http import JsonResponse
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from config import events_poc  # 이벤트/프로모션 웹 페이지 (앱 EventWebActivity 가 로드)
+
 
 def health(_request):
     return JsonResponse({'status': 'ok', 'service': 'hackmin-backend'})
@@ -35,6 +37,9 @@ urlpatterns = [
     path('api/v1/health', health),
     path('api/v1/', include((api_v1, 'api_v1'))),
     # 점주 웹(/web/)은 web_bff 컨테이너가 담당한다. 이 프로세스에는 없다.
+
+    # 이벤트/프로모션 상세 페이지 (앱 홈 이벤트 배너 → EventWebActivity 가 로드).
+    path('events/', events_poc.events_page),
 ]
 
 # 리뷰 이미지 공개 서빙(비민감). DEBUG 여부와 무관하게 reviews/ 하위만 노출한다.
