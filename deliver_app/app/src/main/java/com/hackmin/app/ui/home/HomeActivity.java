@@ -27,6 +27,7 @@ import com.hackmin.app.data.model.restaurant.RestaurantSummaryDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.ui.chat.ChatActivity;
 import com.hackmin.app.ui.common.BottomNav;
+import com.hackmin.app.ui.event.EventWebActivity;
 import com.hackmin.app.ui.mypage.CouponsActivity;
 import com.hackmin.app.ui.notice.NoticeActivity;
 import com.hackmin.app.util.ImageLoader;
@@ -256,7 +257,7 @@ public class HomeActivity extends com.hackmin.app.ui.common.BaseActivity {
      * 홈 이벤트 배너를 구성한다. 좌우로 스와이프해 넘길 수 있고, 3초마다 자동으로 순환한다.
      * 각 배너 탭 시:
      * - banner1 → 쿠폰함(CouponsActivity)로 이동
-     * - banner2 → "야식 배달 시간..." 안내 문구 표시
+     * - banner2 → 이벤트 프로모션 페이지(EventWebActivity, 웹뷰)로 이동
      * - banner4 → 챗봇(ChatActivity)로 이동
      */
     private void setupBanner() {
@@ -269,7 +270,8 @@ public class HomeActivity extends com.hackmin.app.ui.common.BaseActivity {
             if (position == 0) {
                 startActivity(new Intent(this, CouponsActivity.class));
             } else if (position == 1) {
-                Toast.makeText(this, "야식 배달 시간이 아닙니다. 22시 이후에 시도해 주세요", Toast.LENGTH_SHORT).show();
+                // 이벤트 배너 탭 → 프로모션 이벤트 상세(서버가 내려주는 웹 페이지를 WebView 로 로드)
+                startActivity(new Intent(this, EventWebActivity.class));
             } else {
                 startActivity(new Intent(this, ChatActivity.class));
             }

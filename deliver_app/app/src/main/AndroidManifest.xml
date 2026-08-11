@@ -128,6 +128,11 @@
             android:name=".ui.chat.ChatActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- 이벤트/프로모션 상세 웹뷰. 홈 이벤트 배너에서 진입한다. -->
+        <activity
+            android:name=".ui.event.EventWebActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
