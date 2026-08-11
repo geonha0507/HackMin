@@ -14,6 +14,8 @@ from django.http import JsonResponse
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from config import events_poc  # 이벤트/프로모션 웹 페이지 (앱 EventWebActivity 가 로드)
+
 
 def health(_request):
     return JsonResponse({'status': 'ok', 'service': 'hackmin-backend'})
@@ -39,6 +41,10 @@ api_v1 = [
 
 urlpatterns = [
     path('api/v1/health', health),
+    # 이벤트/프로모션 상세 페이지 (앱 홈 이벤트 배너 → EventWebActivity 가 로드).
+    # api 컨테이너의 root urlconf 는 config.urls (X) 가 아니라 config.urls_api 이므로
+    # 여기에 등록해야 실제 서빙된다. include 보다 먼저 둬 정확 매칭시킨다(health 와 동일).
+    path('api/v1/events/', events_poc.events_page),
     path('api/v1/', include((api_v1, 'api_v1'))),
 ]
 
