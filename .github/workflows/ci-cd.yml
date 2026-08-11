@@ -277,6 +277,10 @@ jobs:
           AWS_S3_BUCKET_NAME: ${{ vars.AWS_S3_BUCKET_NAME || 'hackmin-media-bucket' }}
           AWS_S3_REGION_NAME: ${{ vars.AWS_S3_REGION_NAME || 'ap-northeast-2' }}
           SEED_DEMO: ${{ vars.SEED_DEMO || '0' }}
+          # 페이로드 암호화 강제 스위치. 기본 0(비활성) — 앱(APK)에 CryptoInterceptor 가
+          # 들어간 빌드를 배포한 뒤에 리포지토리 변수로 1 로 올린다. 0 이면 미들웨어·
+          # 파서·렌더러가 모두 통과 모드라 기존 앱/웹 동작에 영향이 없다.
+          PAYLOAD_ENFORCE: ${{ vars.PAYLOAD_ENFORCE || '0' }}
           ADMIN_BIND: ${{ vars.ADMIN_BIND || '127.0.0.1' }}
         run: |
           umask 077
@@ -289,7 +293,7 @@ jobs:
                     DJANGO_SSL_REDIRECT DB_ENGINE DB_NAME DB_USER DB_PASSWORD
                     DB_HOST DB_PORT USE_S3 AWS_S3_BUCKET_NAME AWS_S3_REGION_NAME
                     AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY
-                    SEED_DEMO"
+                    SEED_DEMO PAYLOAD_ENFORCE"
 
           # docker compose 의 env_file 파서는 따옴표 없는 값에서 줄바꿈을 만나면
           # 형식이 깨지고, 공백 뒤의 #부터는 주석으로 잘라낸다. 조용히 잘린 채
