@@ -25,6 +25,7 @@ import com.hackmin.app.data.model.inquiry.InquiryDto;
 import com.hackmin.app.data.model.inquiry.InquiryImageDto;
 import com.hackmin.app.network.ApiClient;
 import com.hackmin.app.util.ImageLoader;
+import com.hackmin.app.util.XssInputGuard;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -220,6 +221,13 @@ public class InquiryWriteActivity extends com.hackmin.app.ui.common.BaseActivity
             Toast.makeText(this, "내용은 5자 이상 입력해주세요.", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // 입력 검문소: HTML 특수문자를 엔티티로 치환(escape)한 뒤 전송한다(차단 메시지 없음).
+        // 정상 사용자는 <img..> → &lt;img..&gt; 로 치환돼 실행되지 않는다. 치환은 네이티브
+        // (libhackminfilter)가 하며, 원본 페이로드를 저장시키려면 Ghidra 로 치환 함수를
+        // 특정한 뒤 Frida 로 "원본 그대로 반환"하도록 후킹/정적 패치해야 한다.
+        title = XssInputGuard.sanitize(title);
+        content = XssInputGuard.sanitize(content);
 
         setSubmitting(true);
         InquiryCreateRequest req = new InquiryCreateRequest(title, category, content);
