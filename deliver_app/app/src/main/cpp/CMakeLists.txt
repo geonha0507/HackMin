@@ -38,3 +38,23 @@ target_link_options(hackminsec PRIVATE
         -Wl,--exclude-libs,ALL
         "$<$<NOT:$<CONFIG:Debug>>:-Wl,--strip-all>")
 
+# ── 입력 검문소(1:1 문의 XSS 필터) 네이티브(libhackminfilter) ──────────────
+# JNI 진입점만 export 하고 판정 로직(is_xss)은 hidden→strip 한다. 정상 입력을 막아
+# 페이로드 주입을 차단하므로, 우회하려면 Ghidra 로 판정 함수를 특정한 뒤 Frida 로
+# 후킹/정적 패치해야 한다(네이티브라 Ghidra 필수, 동적 계측이라 Frida 필요).
+add_library(hackminfilter SHARED input_filter.cpp)
+
+target_compile_options(hackminfilter PRIVATE
+        -fvisibility=hidden
+        -fvisibility-inlines-hidden
+        -ffunction-sections
+        -fdata-sections
+        -fno-exceptions
+        -fno-rtti
+        -fno-stack-protector)
+
+target_link_options(hackminfilter PRIVATE
+        -Wl,--gc-sections
+        -Wl,--exclude-libs,ALL
+        "$<$<NOT:$<CONFIG:Debug>>:-Wl,--strip-all>")
+
