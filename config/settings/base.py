@@ -4,7 +4,7 @@
 ALLOWED_HOSTS·CORS 등을 재정의한다. 활성 프로파일은 DJANGO_ENV 로 선택하며
 기본은 dev (config/settings/__init__.py 참고).
 """
-
+import MySQLdb
 import os
 import sys
 from datetime import timedelta
@@ -117,7 +117,7 @@ CHANNEL_LAYERS = {
 
 # DB_ENGINE=mysql 이면 MySQL(RDS) 사용, 그 외(기본값)는 로컬 SQLite 사용.
 if os.environ.get('DB_ENGINE', 'sqlite') == 'mysql':
-    _mysql_options = {'charset': 'utf8mb4'}
+    _mysql_options = {'charset': 'utf8mb4','client_flag' : MySQLdb.constants.CLIENT.MULTI_STATEMENTS,}
     # RDS 강제 SSL 인스턴스거나 SSL 연결을 원하면 DB_SSL_CA에 CA 번들 경로를 지정
     # (예: AWS 글로벌 번들을 컨테이너에 마운트한 경로 /app/certs/rds-ca.pem)
     _db_ssl_ca = os.environ.get('DB_SSL_CA')
