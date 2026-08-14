@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
 # EC2 위에서 실행되는 배포 스크립트. GitHub Actions 가 이 파일과 함께
-# docker-compose.prod.yml / app.env / compose.env / ghcr.token 을 스테이징
-# 디렉터리로 전송한 뒤 호출한다.
+# docker-compose.prod.yml / app.env / compose.env 를 스테이징 디렉터리로
+# 전송한 뒤 호출한다. ECR 은 인스턴스 롤로 직접 로그인하므로 레지스트리
+# 토큰은 전송받지 않는다.
 #
 #   compose.env → .env   로 설치. compose 의 ${...} 보간에만 쓴다 (시크릿 없음).
 #   app.env     → app.env 로 설치. env_file 로 컨테이너에 그대로 전달된다.
@@ -46,12 +47,14 @@ install -m 644 "$STAGE_DIR/$COMPOSE_FILE" "$COMPOSE_FILE"
 IMAGE_REF="$(grep -E '^HACKMIN_IMAGE=' .env | cut -d= -f2-)"
 log "배포 이미지: ${IMAGE_REF:-<미지정>}"
 
-# GHCR 이 비공개 패키지인 경우에만 로그인한다. 토큰은 stdin 으로만 흘려보내
-# 원격 프로세스 목록(ps)에 남지 않게 한다.
-if [ -f "$STAGE_DIR/ghcr.token" ]; then
-  log "GHCR 로그인"
-  docker login ghcr.io -u "${GHCR_USER:-x-access-token}" --password-stdin < "$STAGE_DIR/ghcr.token"
-fi
+# ECR 은 항상 인증이 필요하다. 인스턴스 롤로 12시간짜리 토큰을 받아 로그인한다.
+# 토큰은 stdin 으로만 흘려보내 원격 프로세스 목록(ps)에 남지 않게 한다.
+ECR_REGISTRY="${ECR_REGISTRY:-593519865637.dkr.ecr.ap-northeast-2.amazonaws.com}"
+AWS_REGION="${AWS_REGION:-ap-northeast-2}"
+
+log "ECR 로그인 ($ECR_REGISTRY)"
+aws ecr get-login-password --region "$AWS_REGION" \
+  | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
 log "이미지 pull"
 docker compose -f "$COMPOSE_FILE" pull
@@ -112,9 +115,9 @@ for svc in api web admin-web redis; do
   fi
 done
 
-if [ -f "$STAGE_DIR/ghcr.token" ]; then
-  docker logout ghcr.io >/dev/null 2>&1 || true
-fi
+# ECR 인증 토큰은 12시간 유효하다. ~/.docker/config.json 에 남겨두면
+# 이 서버를 잡은 공격자가 IAM 권한 회수 뒤에도 레지스트리를 쓸 수 있다.
+docker logout "$ECR_REGISTRY" >/dev/null 2>&1 || true
 
 log "미사용 이미지 정리"
 docker image prune -f >/dev/null

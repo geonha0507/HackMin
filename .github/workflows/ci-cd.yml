@@ -1,7 +1,7 @@
 name: CI/CD
 
 # PR 에서는 검증 + 이미지 빌드까지만 (레지스트리 push 없음).
-# main 에 머지되면 GHCR 로 push 하고 EC2 에 배포한다.
+# main 에 머지되면 ECR 로 push 하고 EC2 에 배포한다.
 on:
   push:
     branches: [main]
@@ -21,7 +21,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: 593519865637.dkr.ecr.ap-northeast-2.amazonaws.com
+  AWS_REGION: ap-northeast-2
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -83,7 +84,7 @@ jobs:
         run: python manage.py check --deploy --fail-level ERROR
 
   # ---------------------------------------------------------------------------
-  # 2) 빌드 — 3개 이미지(API · Web BFF · Admin BFF) 빌드, main 에서만 GHCR push
+  # 2) 빌드 — 3개 이미지(API · Web BFF · Admin BFF) 빌드, main 에서만 ECR push
   # ---------------------------------------------------------------------------
   build:
     name: 이미지 빌드
@@ -92,32 +93,35 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
-      packages: write
+      id-token: write          # OIDC 토큰 발급 (ECR 로그인에 필요)
     outputs:
-      image: ${{ steps.meta.outputs.image }}
+      registry: ${{ steps.meta.outputs.registry }}
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
-      # GHCR 경로는 소문자만 허용한다 (리포지토리명에 대문자가 섞여 있음).
-      # image 는 베이스 이름. web/admin 은 뒤에 -web, -admin 을 붙인다.
-      - name: 이미지 이름/태그 결정
+      # ECR 리포지토리는 미리 만들어져 있어야 한다 (ECR 은 자동 생성하지 않는다):
+      #   hackmin/api  hackmin/owner-web  hackmin/admin-web  hackmin/base-api
+      - name: 레지스트리/태그 결정
         id: meta
         env:
           REQUESTED_TAG: ${{ inputs.image_tag }}
         run: |
-          echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "registry=${REGISTRY}" >> "$GITHUB_OUTPUT"
           echo "tag=${REQUESTED_TAG:-$GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: GHCR 로그인
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      # 루트 Dockerfile 의 FROM 이 ECR 베이스를 가리키므로 PR 에서도 로그인이
+      # 필요하다 (push 는 안 해도 pull 은 해야 빌드가 된다).
+      - name: AWS 자격증명 설정 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR 로그인
+        uses: aws-actions/amazon-ecr-login@v2
 
       # workflow_dispatch 로 기존 태그를 지정한 롤백이면 재빌드하지 않는다.
 
@@ -131,8 +135,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.image }}:latest
+            ${{ env.REGISTRY }}/hackmin/api:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/hackmin/api:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
@@ -146,8 +150,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ steps.meta.outputs.image }}-web:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.image }}-web:latest
+            ${{ env.REGISTRY }}/hackmin/owner-web:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/hackmin/owner-web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
@@ -161,8 +165,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ steps.meta.outputs.image }}-admin:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.image }}-admin:latest
+            ${{ env.REGISTRY }}/hackmin/admin-web:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/hackmin/admin-web:latest
           cache-from: type=gha,scope=admin
           cache-to: type=gha,mode=max,scope=admin
 
@@ -181,10 +185,9 @@ jobs:
       url: https://hackmin.com/api/v1/health
     permissions:
       contents: read
-      packages: read
       id-token: write          # OIDC 토큰 발급에 필요
     env:
-      IMAGE: ${{ needs.build.outputs.image }}
+      REGISTRY: ${{ needs.build.outputs.registry }}
       TAG: ${{ needs.build.outputs.tag }}
       APP_DIR: ${{ vars.APP_DIR || '/opt/hackmin' }}
       STAGE_DIR: /tmp/hackmin-deploy
@@ -347,9 +350,9 @@ jobs:
           # .env — compose 파일의 ${...} 치환에만 쓴다. 시크릿을 넣지 않는다.
           # 3개 이미지 변수: API / Web BFF / Admin BFF
           cat > stage/compose.env <<EOF
-          HACKMIN_IMAGE=$IMAGE:$TAG
-          HACKMIN_WEB_IMAGE=$IMAGE-web:$TAG
-          HACKMIN_ADMIN_IMAGE=$IMAGE-admin:$TAG
+          HACKMIN_IMAGE=$REGISTRY/hackmin/api:$TAG
+          HACKMIN_WEB_IMAGE=$REGISTRY/hackmin/owner-web:$TAG
+          HACKMIN_ADMIN_IMAGE=$REGISTRY/hackmin/admin-web:$TAG
           ADMIN_BIND=$ADMIN_BIND
           EOF
           # heredoc 들여쓰기 제거
@@ -365,26 +368,26 @@ jobs:
           echo "compose.env:"
           cat stage/compose.env
 
+      # ECR 은 EC2 가 인스턴스 롤로 직접 로그인하므로 레지스트리 토큰을
+      # 전송하지 않는다 (GHCR 시절의 ghcr.token 이 없어졌다).
       - name: 배포 파일 전송
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           umask 077
           cp docker-compose.prod.yml scripts/deploy_remote.sh stage/
-          printf '%s' "$GHCR_TOKEN" > stage/ghcr.token
 
           /tmp/eic-ssh.sh \
             "rm -rf '$STAGE_DIR' && mkdir -p '$STAGE_DIR' && chmod 700 '$STAGE_DIR'"
 
           /tmp/eic-ssh.sh scp -q \
             stage/app.env stage/compose.env stage/docker-compose.prod.yml \
-            stage/deploy_remote.sh stage/ghcr.token \
+            stage/deploy_remote.sh \
             "$SSH_USER@$INSTANCE_ID:$STAGE_DIR/"
 
       - name: 배포 실행
         run: |
           /tmp/eic-ssh.sh \
-            "APP_DIR='$APP_DIR' STAGE_DIR='$STAGE_DIR' GHCR_USER='${{ github.actor }}' \
+            "APP_DIR='$APP_DIR' STAGE_DIR='$STAGE_DIR' \
+             ECR_REGISTRY='$REGISTRY' AWS_REGION='$AWS_REGION' \
              bash '$STAGE_DIR/deploy_remote.sh'"
 
       - name: 헬스체크 (서버 내부)

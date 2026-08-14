@@ -1,20 +1,10 @@
-FROM python:3.11
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# API 이미지 — 공통 베이스(hackmin/base-api)에 앱 코드만 얹는다.
+#
+# 시스템 패키지와 파이썬 의존성은 docker/Dockerfile.base 로 옮겼다.
+# requirements.txt 를 고쳤다면 베이스 이미지를 먼저 갱신해야 반영된다.
+FROM 593519865637.dkr.ecr.ap-northeast-2.amazonaws.com/hackmin/base-api:python3.11
 
 WORKDIR /app
-
-# mysqlclient 빌드에 필요한 시스템 패키지 (+ 헬스체크용 netcat)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-libmysqlclient-dev \
-    pkg-config \
-    gcc \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
