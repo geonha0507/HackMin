@@ -1,0 +1,86 @@
+name: 베이스 이미지 빌드
+
+# hackmin/base-api 를 만들어 ECR 에 올린다.
+#
+# 앱 이미지(ci-cd.yml)와 달리 **커밋마다 자동으로 돌지 않는다.** 베이스는
+# requirements.txt 나 시스템 패키지가 바뀌었을 때만 갱신하면 되기 때문이다.
+# 그래서 수동 트리거(workflow_dispatch)만 둔다.
+#
+# 실행 후 출력되는 다이제스트를 기록해 두면, 나중에 이미지가 바꿔치기됐는지
+# 대조할 수 있다 (태그는 같은데 다이제스트가 다르면 누군가 덮어쓴 것이다).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '베이스 이미지 태그. 루트 Dockerfile 의 FROM 과 일치해야 한다.'
+        required: false
+        default: 'python3.11'
+        type: string
+
+env:
+  REGISTRY: 593519865637.dkr.ecr.ap-northeast-2.amazonaws.com
+  AWS_REGION: ap-northeast-2
+  REPO: hackmin/base-api
+
+jobs:
+  build-base:
+    name: base-api 빌드 & 푸시
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write          # OIDC 토큰 발급 (ECR 로그인에 필요)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # 운영 EC2 가 아니라 CI 롤로 푸시한다. 운영 서버에는 push 권한이
+      # 있어서는 안 되므로, 베이스 갱신을 서버에서 하지 않는다.
+      - name: AWS 자격증명 설정 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR 로그인
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 안정 태그(python3.11)는 계속 덮어쓰므로, 되돌릴 수 있도록
+      # 날짜 태그를 함께 남긴다.
+      - name: 날짜 태그 생성
+        id: meta
+        run: echo "date=$(date -u +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: 빌드 & 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.base
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPO }}:${{ inputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.REPO }}:${{ inputs.tag }}-${{ steps.meta.outputs.date }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,mode=max,scope=base
+
+      # 다이제스트를 실행 요약에 남긴다. 이 값이 이미지 무결성의 기준선이다.
+      - name: 다이제스트 기록
+        run: |
+          aws ecr describe-images \
+            --repository-name "$REPO" \
+            --image-ids imageTag='${{ inputs.tag }}' \
+            --query 'imageDetails[0].{태그:imageTags,다이제스트:imageDigest,푸시시각:imagePushedAt,크기:imageSizeInBytes}' \
+            --output json | tee digest.json
+
+          {
+            echo "### 베이스 이미지 갱신 완료"
+            echo ""
+            echo '```json'
+            cat digest.json
+            echo '```'
+            echo ""
+            echo "이 다이제스트를 기록해 두세요. 태그가 같은데 값이 바뀌었다면"
+            echo "누군가 이미지를 덮어쓴 것입니다."
+          } >> "$GITHUB_STEP_SUMMARY"

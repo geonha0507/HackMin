@@ -1,0 +1,33 @@
+# hackmin/base-api — API 이미지의 공통 베이스.
+#
+# 왜 분리하나:
+#   - mysqlclient / cryptography / pycryptodome 는 소스 컴파일이라 매 빌드마다
+#     수 분을 잡아먹는다. 여기에 미리 넣어두면 앱 빌드는 COPY 한 줄로 끝난다.
+#   - Docker Hub 의 인증 없는 pull rate limit(6시간당 100회)을 피한다.
+#   - 업스트림 python:3.11 태그가 갱신돼도 우리가 고정한 시점의 이미지를 쓴다.
+#
+# 이 이미지는 CI 가 자동으로 만들지 않는다. 의존성이 바뀌었을 때만 수동으로 갱신한다:
+#
+#   ECR=593519865637.dkr.ecr.ap-northeast-2.amazonaws.com
+#   aws ecr get-login-password --region ap-northeast-2 \
+#     | docker login --username AWS --password-stdin "$ECR"
+#   docker build -f docker/Dockerfile.base -t "$ECR/hackmin/base-api:python3.11" .
+#   docker push "$ECR/hackmin/base-api:python3.11"
+FROM python:3.11
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# mysqlclient 빌드에 필요한 시스템 패키지 (+ 헬스체크용 netcat)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-libmysqlclient-dev \
+    pkg-config \
+    gcc \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 앱 코드는 넣지 않는다. 의존성만 굳혀 두는 이미지다.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
