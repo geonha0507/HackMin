@@ -5,6 +5,7 @@ ALLOWED_HOSTS·CORS 등을 재정의한다. 활성 프로파일은 DJANGO_ENV �
 기본은 dev (config/settings/__init__.py 참고).
 """
 import MySQLdb
+import MySQLdb.constants.CLIENT
 import os
 import sys
 from datetime import timedelta
