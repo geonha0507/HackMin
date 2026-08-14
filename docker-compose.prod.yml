@@ -120,6 +120,20 @@ services:
   # 관리자 웹 (/admin-web/, Django 기본 /admin/).
   # 외부에 직접 노출하지 않고 nginx 가 IP 제한을 건 뒤 프록시한다.
   # 로컬 검증이 필요하면 .env 에서 ADMIN_BIND=0.0.0.0 으로 임시 변경.
+  #
+  # [2026-08-14] 관리자 웹을 VPN 전용으로 분리하면서 SESSION_COOKIE_SECURE 를 끈다.
+  #   관리자 경로는 ALB(TLS 종단)를 거치지 않고 OpenVPN → nginx :80 으로 직결된다.
+  #   nginx 가 443 을 듣지 않으므로 이 경로는 평문 http 다. app.env 의
+  #   SESSION_COOKIE_SECURE=1 을 그대로 두면 Django 가 Secure 쿠키를 내려보내고
+  #   브라우저가 http 페이지에서 그것을 폐기한다. 결과는 "로그인은 매번 성공하는데
+  #   세션이 유지되지 않아 로그인 화면으로 되돌아오는" 무한 루프다.
+  #
+  #   이 override 는 admin-web 컨테이너에만 적용된다. api·점주 웹은 ALB 뒤에서
+  #   https 로 서비스되므로 Secure 쿠키를 그대로 유지한다.
+  #
+  #   잔여 리스크: 관리자 세션 쿠키가 평문으로 오간다. 다만 그 구간은
+  #   ① VPN 터널(AES-256-GCM) ② VPC 내부뿐이라 인터넷에는 노출되지 않는다.
+  #   근본 해결은 관리자 전용 443 리스너에 인증서를 붙이는 것.
   # ---------------------------------------------------------------------------
   admin-web:
     image: ${HACKMIN_ADMIN_IMAGE:?HACKMIN_ADMIN_IMAGE 가 .env 에 설정되어야 합니다}
@@ -135,6 +149,7 @@ services:
       - /srv/hackmin/media:/app/media
     environment:
       REDIS_HOST: redis
+      SESSION_COOKIE_SECURE: "0"
     security_opt:
       - no-new-privileges:true
     logging:
