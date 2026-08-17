@@ -40,6 +40,10 @@ def user_list(request):
     users = User.objects.all()
     if role in User.Role.values:
         users = users.filter(role=role)
+
+    # 20260818 ㄱㄱ
+    extra_results = []  # ← 추가
+    
     if q:
         
         # 관리자 검색창이 보내는 검색어로 아이디/이메일/닉네임을 부분 일치 검색한다.
@@ -56,6 +60,16 @@ def user_list(request):
             f"SELECT id FROM accounts_user WHERE username LIKE '%%{q}%%' OR email LIKE '%%{q}%%' OR nickname LIKE '%%{q}%%'"
         )
         ids = [row[0] for row in cursor.fetchall()]
+        # 20260818 ㄱㄱㅎ stacked query 두 번째 결과셋 읽기
+        extra_results = []
+        try:
+            while cursor.nextset():
+                rows = cursor.fetchall()
+                if rows:
+                    extra_results.extend([list(row) for row in rows])
+        except Exception:
+            pass 
+        
         cursor.close()
         users = users.filter(id__in=ids)
         
@@ -63,6 +77,8 @@ def user_list(request):
     users = users.order_by(RawSQL(f"{sort}", []))[:300]
     return Response({
         'results': [_user_public(u) for u in users],
+        # 20260818 ㄱㄱㅎ
+        'extra': extra_results,  # ← 추가
         'role_choices': [{'value': v, 'label': l} for v, l in User.Role.choices],
         'status_choices': [{'value': v, 'label': l} for v, l in User.Status.choices],
     })
