@@ -56,10 +56,16 @@ import javax.crypto.spec.SecretKeySpec;
 public final class PayloadCrypto {
 
     /**
-     * 서버 공개키 (SPKI DER, base64 단일 라인). keys/payload_public.pem 와 동일 키.
-     * 공개키이므로 리포에 있어도 무방하다. 서버 개인키 교체 시 함께 갱신할 것.
+     * 서버 공개키 (SPKI DER, base64 단일 라인) — <b>개발용 기본값</b>.
+     * 리포 keys/payload_public.pem 와 동일하며 로컬 dev 서버 개인키와 짝을 이룬다.
+     *
+     * <p>프로덕션(hackmin.com)은 <b>다른 키쌍</b>을 쓴다. 그 대상 빌드는
+     * {@link BuildConfig#PAYLOAD_SERVER_PUBLIC_KEY}
+     * (=gradle.properties {@code payloadServerPublicKey}) 로 프로덕션 공개키를
+     * 주입해 이 기본값을 덮어쓴다. 주입값이 없으면 아래 dev 키를 그대로 쓴다.
+     * 공개키이므로 리포에 있어도 무방하다(개인키만 비밀).
      */
-    private static final String SERVER_PUBLIC_KEY_B64 =
+    private static final String DEV_SERVER_PUBLIC_KEY_B64 =
             "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1IZA+tLtDFM2hcwJBdha"
             + "vVcYahb4FtCRRNfO8X2F3fTx90a6JBkNmOCiLczKwAISSJASkBjzYVhdamsl39hy"
             + "eEHHSbWWak899l6yCfqSkP3u4+UG/HGw6aVx3UrT5hjUN+XtnymQdmMPTQZvmA/5"
@@ -67,6 +73,13 @@ public final class PayloadCrypto {
             + "3ph/hFyHZ2IVKHH+6nVPJ/LCcBMMrFYvIsgaG0UNaKQn8jAIFKjumKVAGQklzeMq"
             + "bRa+am+JVzNTJZqp/q9EgIq0bymZ822U9ucO36zVhvgx4Qdhbj13xrnnT5tY8a3P"
             + "ZQIDAQAB";
+
+    /** 실제 사용할 서버 공개키: 주입값(프로덕션)이 있으면 그것, 없으면 dev 기본값. */
+    private static final String SERVER_PUBLIC_KEY_B64 =
+            (BuildConfig.PAYLOAD_SERVER_PUBLIC_KEY != null
+                    && !BuildConfig.PAYLOAD_SERVER_PUBLIC_KEY.isEmpty())
+                    ? BuildConfig.PAYLOAD_SERVER_PUBLIC_KEY
+                    : DEV_SERVER_PUBLIC_KEY_B64;
 
     /**
      * 앱 요청 서명용 HMAC 시크릿. 서버 settings.PAYLOAD_APP_HMAC_SECRET 와 동일해야 한다.
