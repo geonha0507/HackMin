@@ -1,0 +1,8 @@
+# rider_app(해킹커넥트) 빌드 산출물 — 루트 .gitignore의 Android 규칙과 동일 취지.
+.gradle/
+build/
+app/build/
+captures/
+.cxx/
+# 루트 .gitignore가 *.jar 를 전역 무시하므로, gradle 래퍼 jar만 예외로 커밋한다.
+!gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,280 @@
+package com.hackmin.connect.ui.delivery;
+
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.hackmin.connect.R;
+import com.hackmin.connect.data.model.rider.DeliveryDetailDto;
+import com.hackmin.connect.data.model.rider.DeliveryStatusRequest;
+import com.hackmin.connect.network.ApiClient;
+import com.hackmin.connect.ui.common.BaseActivity;
+import com.hackmin.connect.ui.common.BottomNav;
+import com.hackmin.connect.ui.common.ClickGuard;
+import com.hackmin.connect.util.ConnectFormat;
+import com.hackmin.connect.util.DeliveryFee;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+/**
+ * 배달 상세 — 픽업지(가게)·전달지(고객) 정보와 진행 단계 표시,
+ * 하단 버튼으로 상태를 한 단계씩 진행한다:
+ * 신규 콜(assigned) → 픽업 완료(picked_up) → 배달 중(delivering) → 배달 완료(delivered).
+ */
+public class DeliveryDetailActivity extends BaseActivity {
+
+    public static final String EXTRA_DELIVERY_ID = "delivery_id";
+    public static final String EXTRA_RESTAURANT = "restaurant";
+    public static final String EXTRA_TOTAL = "total";
+
+    private long deliveryId;
+    private DeliveryDetailDto current;
+
+    private TextView tvStatus, tvOrderNumber, tvRestaurant, tvTotal, tvFee,
+            tvCustomer, tvAddress, tvRequestNote;
+    private android.widget.ImageView ivRestaurant;
+    private TextView[] stepLabels;
+    private View[] stepDots;
+    private Button btnAction, btnCall;
+
+    // 거리 기반 배달료용 GPS 추적. 픽업 시점 좌표 → 배달완료 시점 좌표로 이동거리를 계산해 보고한다.
+    private com.hackmin.connect.util.LocationTracker tracker;
+    private double curLat, curLng;
+    private boolean hasLoc = false;
+    private double pickupLat, pickupLng;
+    private boolean hasPickup = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_delivery_detail);
+        BottomNav.setup(this, BottomNav.Tab.DELIVERY);
+
+        deliveryId = getIntent().getLongExtra(EXTRA_DELIVERY_ID, -1L);
+
+        tvStatus = findViewById(R.id.tv_status);
+        tvOrderNumber = findViewById(R.id.tv_order_number);
+        tvRestaurant = findViewById(R.id.tv_restaurant);
+        ivRestaurant = findViewById(R.id.iv_restaurant);
+        tvTotal = findViewById(R.id.tv_total);
+        tvFee = findViewById(R.id.tv_fee);
+        tvCustomer = findViewById(R.id.tv_customer);
+        tvAddress = findViewById(R.id.tv_address);
+        tvRequestNote = findViewById(R.id.tv_request_note);
+        btnAction = findViewById(R.id.btn_action);
+        btnCall = findViewById(R.id.btn_call);
+
+        stepDots = new View[]{
+                findViewById(R.id.step_dot_1), findViewById(R.id.step_dot_2),
+                findViewById(R.id.step_dot_3), findViewById(R.id.step_dot_4)};
+        stepLabels = new TextView[]{
+                findViewById(R.id.step_label_1), findViewById(R.id.step_label_2),
+                findViewById(R.id.step_label_3), findViewById(R.id.step_label_4)};
+
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+
+        // 목록에서 넘겨받은 가게 이름/주문금액(상세 API에는 없음).
+        String restaurant = getIntent().getStringExtra(EXTRA_RESTAURANT);
+        tvRestaurant.setText(restaurant == null || restaurant.isEmpty() ? "가게 미지정" : restaurant);
+        tvTotal.setText("주문금액 " + ConnectFormat.won(getIntent().getIntExtra(EXTRA_TOTAL, 0)));
+        tvFee.setText("배달료 " + ConnectFormat.won(DeliveryFee.PER_DELIVERY));
+
+        btnCall.setOnClickListener(v -> {
+            if (!ClickGuard.allow()) return;
+            if (current == null || current.getPhone() == null || current.getPhone().isEmpty()) {
+                Toast.makeText(this, "연락처 정보가 없어요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // ACTION_DIAL은 권한 불필요(다이얼러만 연다).
+            startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + current.getPhone())));
+        });
+
+        btnAction.setOnClickListener(v -> advanceStatus());
+
+        // 이동 거리 계산용 위치 추적기(권한은 홈에서 이미 요청됨).
+        tracker = new com.hackmin.connect.util.LocationTracker(this,
+                (latitude, longitude, accuracyMeters) -> {
+                    curLat = latitude; curLng = longitude; hasLoc = true;
+                });
+
+        load();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (com.hackmin.connect.util.LocationTracker.hasPermission(this)) {
+            tracker.start();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (tracker != null) tracker.stop();
+    }
+
+    private void load() {
+        ApiClient.riderApi(this).getDelivery(deliveryId).enqueue(new Callback<DeliveryDetailDto>() {
+            @Override
+            public void onResponse(Call<DeliveryDetailDto> call, Response<DeliveryDetailDto> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    current = response.body();
+                    render();
+                } else {
+                    Toast.makeText(DeliveryDetailActivity.this,
+                            "배달 정보를 찾을 수 없어요.", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<DeliveryDetailDto> call, Throwable t) {
+                Toast.makeText(DeliveryDetailActivity.this,
+                        "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void render() {
+        String status = current.getStatus() == null ? "" : current.getStatus();
+
+        DeliveryAdapter.bindStatus(tvStatus, status);
+        // 상세 응답에 매장명/사진이 있으면 우선 사용(없으면 목록에서 넘겨받은 값 유지).
+        if (current.getRestaurant() != null && !current.getRestaurant().isEmpty()) {
+            tvRestaurant.setText(current.getRestaurant());
+        }
+        com.hackmin.connect.util.ImageLoader.loadStore(ivRestaurant, current.getRestaurantImage());
+        // 배달료: 완료 건은 서버가 거리로 산정한 실제 금액, 그 외엔 기본료 안내.
+        if ("delivered".equals(status) && current.getFee() > 0) {
+            tvFee.setText("배달료 " + ConnectFormat.won(current.getFee())
+                    + " (" + String.format(java.util.Locale.KOREA, "%.1f", current.getDistanceKm()) + "km)");
+        } else {
+            tvFee.setText("배달료 기본 " + ConnectFormat.won(DeliveryFee.PER_DELIVERY) + " + 거리요금");
+        }
+        tvOrderNumber.setText("주문 " + (current.getOrderNumber() == null ? "-" : current.getOrderNumber()));
+        tvCustomer.setText(emptyDash(current.getCustomer()));
+        String addr = emptyDash(current.getAddress());
+        if (current.getAddressDetail() != null && !current.getAddressDetail().isEmpty()) {
+            addr += " " + current.getAddressDetail();
+        }
+        tvAddress.setText(addr);
+        tvRequestNote.setText(current.getRequestNote() == null || current.getRequestNote().isEmpty()
+                ? "요청사항 없음" : current.getRequestNote());
+
+        // 진행 단계(접수 → 픽업 → 배달 중 → 완료) 하이라이트.
+        int step = stepOf(status);
+        for (int i = 0; i < 4; i++) {
+            boolean on = i <= step;
+            stepDots[i].setBackgroundResource(on
+                    ? R.drawable.bg_step_dot_on : R.drawable.bg_step_dot_off);
+            stepLabels[i].setTextColor(getColor(on
+                    ? R.color.coral_primary : R.color.text_secondary));
+        }
+
+        switch (status) {
+            case "assigned":
+                btnAction.setVisibility(View.VISIBLE);
+                btnAction.setText("콜 수락하고 픽업 완료");
+                break;
+            case "picked_up":
+                btnAction.setVisibility(View.VISIBLE);
+                btnAction.setText("배달 시작");
+                break;
+            case "delivering":
+                btnAction.setVisibility(View.VISIBLE);
+                btnAction.setText("배달 완료");
+                break;
+            default: // delivered 등
+                btnAction.setVisibility(View.GONE);
+        }
+    }
+
+    /** 현재 상태의 다음 단계로 전이한다(서버가 미배정 건은 이때 본인에게 배정). */
+    private void advanceStatus() {
+        if (current == null || !ClickGuard.allow()) return;
+        String next;
+        switch (current.getStatus() == null ? "" : current.getStatus()) {
+            case "assigned":
+                next = "picked_up";
+                break;
+            case "picked_up":
+                next = "delivering";
+                break;
+            case "delivering":
+                next = "delivered";
+                break;
+            default:
+                return;
+        }
+
+        // 픽업 시점 좌표 기록(배달 완료 시 이 지점부터의 이동거리로 배달료 계산).
+        if ("picked_up".equals(next) && hasLoc) {
+            pickupLat = curLat; pickupLng = curLng; hasPickup = true;
+        }
+
+        // 배달 완료면 픽업→현재 이동거리(km)를 계산해 함께 보고한다(서버가 거리로 요금 산정).
+        DeliveryStatusRequest req;
+        if ("delivered".equals(next)) {
+            req = new DeliveryStatusRequest(next, reportedDistanceKm());
+        } else {
+            req = new DeliveryStatusRequest(next);
+        }
+
+        btnAction.setEnabled(false);
+        ApiClient.riderApi(this).updateDeliveryStatus(deliveryId, req)
+                .enqueue(new Callback<DeliveryDetailDto>() {
+            @Override
+            public void onResponse(Call<DeliveryDetailDto> call, Response<DeliveryDetailDto> response) {
+                btnAction.setEnabled(true);
+                if (response.isSuccessful() && response.body() != null) {
+                    current = response.body();
+                    if ("delivered".equals(current.getStatus())) {
+                        Toast.makeText(DeliveryDetailActivity.this,
+                                "배달 완료! 이동 " + String.format(java.util.Locale.KOREA, "%.1f", current.getDistanceKm())
+                                        + "km · 배달료 " + ConnectFormat.won(current.getFee())
+                                        + " 적립!", Toast.LENGTH_LONG).show();
+                    }
+                    render();
+                } else {
+                    Toast.makeText(DeliveryDetailActivity.this,
+                            "상태 변경에 실패했어요.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<DeliveryDetailDto> call, Throwable t) {
+                btnAction.setEnabled(true);
+                Toast.makeText(DeliveryDetailActivity.this,
+                        "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /** 픽업 지점 → 현재 위치의 직선 이동거리(km). GPS로 계산해 서버에 보고하는 값. */
+    private double reportedDistanceKm() {
+        if (!hasPickup || !hasLoc) return 0;
+        float[] result = new float[1];
+        android.location.Location.distanceBetween(pickupLat, pickupLng, curLat, curLng, result);
+        return result[0] / 1000.0; // m → km
+    }
+
+    private static int stepOf(String status) {
+        switch (status) {
+            case "picked_up": return 1;
+            case "delivering": return 2;
+            case "delivered": return 3;
+            default: return 0; // assigned
+        }
+    }
+
+    private static String emptyDash(String s) {
+        return s == null || s.isEmpty() ? "-" : s;
+    }
+}

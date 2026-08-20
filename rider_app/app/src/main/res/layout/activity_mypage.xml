@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 내정보: 라이더 프로필 카드 + 계정 정보 + 로그아웃 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_deep">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="내정보"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:padding="20dp"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="20dp">
+
+            <!-- 프로필 카드 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_coral"
+                android:padding="20dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:src="@drawable/ic_scooter"
+                    app:tint="#FFFFFF"
+                    android:contentDescription="라이더"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_nickname"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="라이더"
+                        android:textSize="19sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="해킹의 민족 라이더 파트너"
+                        android:textSize="12sp"
+                        android:textColor="#CCFFFFFF"
+                        android:layout_marginTop="2dp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 계정 정보 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_card"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp">
+
+                <LinearLayout style="@style/MyPageRow">
+                    <TextView style="@style/MyPageRowLabel" android:text="아이디"/>
+                    <TextView
+                        android:id="@+id/tv_username"
+                        style="@style/MyPageRowValue"
+                        android:text="-"/>
+                </LinearLayout>
+
+                <View style="@style/MyPageDivider"/>
+
+                <LinearLayout style="@style/MyPageRow">
+                    <TextView style="@style/MyPageRowLabel" android:text="휴대폰"/>
+                    <TextView
+                        android:id="@+id/tv_phone"
+                        style="@style/MyPageRowValue"
+                        android:text="-"/>
+                </LinearLayout>
+
+                <View style="@style/MyPageDivider"/>
+
+                <LinearLayout style="@style/MyPageRow">
+                    <TextView style="@style/MyPageRowLabel" android:text="이메일"/>
+                    <TextView
+                        android:id="@+id/tv_email"
+                        style="@style/MyPageRowValue"
+                        android:text="-"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 배달 정보 등록 -->
+            <LinearLayout
+                android:id="@+id/row_delivery_info"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginTop="16dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_badge"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription="배달 정보"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="배달 정보 등록"
+                    android:textSize="15sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="12dp"/>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription=""/>
+            </LinearLayout>
+
+            <!-- 개인정보보호 교육 다시보기 -->
+            <LinearLayout
+                android:id="@+id/row_education"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginTop="10dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_lock"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription="개인정보보호"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="개인정보보호 교육 다시보기"
+                    android:textSize="15sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="12dp"/>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription=""/>
+            </LinearLayout>
+
+            <!-- 로그아웃 -->
+            <LinearLayout
+                android:id="@+id/row_logout"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginTop="10dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_logout"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription="로그아웃"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="로그아웃"
+                    android:textSize="15sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="12dp"/>
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/text_secondary"
+                    android:contentDescription=""/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <include layout="@layout/bottom_nav"/>
+
+</LinearLayout>

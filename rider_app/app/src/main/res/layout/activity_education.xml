@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_deep">
+
+    <!-- 상단 타이틀 (투명 배경 · 스크롤 영역 밖에 고정) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/transparent"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="개인정보보호"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/coral_primary"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="배달을 시작하기 전, 꼭 확인해 주세요"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- 섹션 1 -->
+            <TextView style="@style/EduSectionTitle"
+                android:text="배달 시 취급되는 개인 정보"/>
+
+            <TextView style="@style/EduBody"
+                android:text="개인정보란 개인의 신체, 재산, 사회적 지위, 신분 등에 관해 알 수 있는 모든 정보들을 말해요."/>
+
+            <TextView style="@style/EduBullet" android:text="• 고객/사장님 이름"/>
+            <TextView style="@style/EduBullet" android:text="• 고객/가게 전화번호"/>
+            <TextView style="@style/EduBullet" android:text="• 고객/가게 주소"/>
+            <TextView style="@style/EduBullet" android:text="• 고객/가게 위치정보"/>
+            <TextView style="@style/EduBullet" android:text="• 연령 제한 상품 배달 시 확인하는 모든 신분증"/>
+            <TextView style="@style/EduBullet" android:text="• 주민등록번호, 운전면허번호, 여권번호, 외국인등록번호"/>
+            <TextView style="@style/EduBullet" android:text="• 배달 목적 외 개인정보 수집 및 이용"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="누설은 절대 하지 않아요!"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/coral_primary"
+                android:layout_marginTop="16dp"/>
+
+            <View style="@style/EduDivider"/>
+
+            <!-- 섹션 2 -->
+            <TextView style="@style/EduSectionTitle"
+                android:text="개인정보보호 동참해 주세요"/>
+
+            <TextView style="@style/EduBullet"
+                android:text="• 고객/가게의 개인정보는 SNS, 메신저, 커뮤니티 등 타인이 볼 수 있는 곳에 공유하지 않아요."/>
+            <TextView style="@style/EduBullet"
+                android:text="• 사적인 용무, 불편사항 전달 등의 개인적인 연락은 하지 않아요."/>
+            <TextView style="@style/EduBullet"
+                android:text="• 동의 없이 상대방을 촬영하지 않아요."/>
+            <TextView style="@style/EduBullet"
+                android:text="• 해킹커넥트 앱 내 위치 정보를 캡처해 공유하지 않아요."/>
+            <TextView style="@style/EduBullet"
+                android:text="• 개인정보를 포함한 가게와의 갈등이나 문제를 커뮤니티 등에 공유하지 않아요."/>
+
+            <View style="@style/EduDivider"/>
+
+            <!-- 섹션 3: 처벌 경고 -->
+            <TextView style="@style/EduSectionTitle"
+                android:text="만약 개인정보를 유출한다면?"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_banner_warn"
+                android:padding="16dp"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5년 이하의 징역이나 5천만원 이하의 벌금에 처할 수 있어요."
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/coral_primary_dark"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="악의적인 의도가 아니더라도 타인과 공유했다면 개인정보보호 위반이에요."
+                    android:textSize="13sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <!-- 확인 체크 -->
+            <CheckBox
+                android:id="@+id/cb_edu_agree"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="위 개인정보보호 교육 내용을 모두 확인했습니다"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="20dp"
+                app:buttonCompat="@drawable/checkbox_selector"
+                app:buttonTint="@null"
+                android:paddingStart="8dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- 하단 확인 버튼 -->
+    <Button
+        android:id="@+id/btn_edu_done"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_margin="16dp"
+        android:text="교육 확인 완료"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="@color/coral_primary"
+        app:cornerRadius="16dp"/>
+
+</LinearLayout>

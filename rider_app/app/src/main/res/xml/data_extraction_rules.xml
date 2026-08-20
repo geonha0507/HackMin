@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   데이터 추출 규칙(API 31+). allowBackup="false"라 클라우드 백업/기기 이전이
+   실제로 동작하지 않지만, 방어 심층화 차원에서 세션 토큰이 담긴
+   SharedPreferences는 클라우드 백업과 기기 이전 모두에서 명시적으로 제외한다.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="HackminPrefs.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="HackminPrefs.xml"/>
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/bg_deep">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- ===== 히어로 이미지: 좌우 꽉 채우는 풀블리드 ===== -->
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:src="@drawable/img_login_hero"
+            android:contentDescription="해킹커넥트 라이더"/>
+
+        <!-- ===== 브랜딩 텍스트 ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="해킹커넥트"
+            android:textSize="42sp"
+            android:textStyle="bold"
+            android:textColor="@color/coral_primary"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="원하는 시간에, 원하는 만큼 — 해킹의 민족 라이더"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="40dp"/>
+
+        <!-- ===== 입력/버튼 영역 (좌우 32dp 여백) ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:gravity="center_horizontal">
+
+        <!-- ===== 입력 영역 ===== -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="이메일 또는 아이디"
+            app:startIconDrawable="@android:drawable/ic_menu_edit"
+            app:startIconTint="@color/text_secondary"
+            app:boxBackgroundColor="#F8F9FA"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeWidth="0dp"
+            app:boxStrokeWidthFocused="1dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_login_id"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/text_primary"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="비밀번호"
+            app:startIconDrawable="@android:drawable/ic_lock_idle_lock"
+            app:startIconTint="@color/text_secondary"
+            app:passwordToggleEnabled="true"
+            app:boxBackgroundColor="#F8F9FA"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeWidth="0dp"
+            app:boxStrokeWidthFocused="1dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_login_pw"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:textColor="@color/text_primary"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <CheckBox
+            android:id="@+id/cb_save_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="아이디 저장"
+            android:textColor="@color/text_secondary"
+            android:layout_gravity="start"
+            android:layout_marginBottom="32dp"
+            app:buttonCompat="@drawable/checkbox_selector"
+            app:buttonTint="@null"
+            android:paddingStart="8dp"/>
+
+        <Button
+            android:id="@+id/btn_login"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="로그인"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:backgroundTint="@color/coral_primary"
+            app:cornerRadius="12dp"
+            android:elevation="4dp"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- ===== 하단 링크 ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="60dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="아직 라이더가 아니신가요?"
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"/>
+
+            <TextView
+                android:id="@+id/tv_go_signup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="라이더 지원(회원가입)"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/coral_primary"
+                android:padding="8dp"/>
+        </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

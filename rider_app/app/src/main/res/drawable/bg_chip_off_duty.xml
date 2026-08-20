@@ -1,0 +1,5 @@
+<!-- 운행 대기 상태 칩(반투명 검정) — 코랄 히어로 카드 위에서 흰 글자와 함께 쓴다 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#33000000"/>
+    <corners android:radius="999dp"/>
+</shape>

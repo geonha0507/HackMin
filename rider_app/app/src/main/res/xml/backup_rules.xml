@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   자동 백업(API 30 이하) 규칙.
+   allowBackup="false"라 실제로는 백업이 동작하지 않지만, 방어 심층화 차원에서
+   세션 토큰이 담긴 SharedPreferences는 명시적으로 백업 대상에서 제외한다.
+   (누군가 allowBackup을 되돌려도 토큰은 새어 나가지 않도록.)
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="HackminPrefs.xml"/>
+</full-backup-content>

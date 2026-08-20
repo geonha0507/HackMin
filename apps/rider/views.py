@@ -9,13 +9,33 @@ from common.exceptions import error_response
 from common.permissions import IsRider
 from orders.models import Order
 from promotions.services import award_order_points
-from .models import Delivery
-from .serializers import DeliveryDetailSerializer, DeliveryListSerializer
+from restaurants.models import Menu
+from .models import Delivery, RiderLocation, RiderProfile
+from .serializers import (
+    DeliveryDetailSerializer,
+    DeliveryListSerializer,
+    RiderLocationSerializer,
+    RiderMenuSerializer,
+    RiderProfileSerializer,
+)
 
 _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERED: Order.Status.DELIVERED,
     Delivery.Status.DELIVERING: Order.Status.DELIVERING,
 }
+
+# 거리 기반 배달료 정책: 기본료 + 거리(km) × km당 요금.
+FEE_BASE = 3000
+FEE_PER_KM = 1000
+
+
+def compute_fee(distance_km):
+    """이동 거리(km)로 배달료를 산정한다. 거리는 앱이 보고한 값을 그대로 신뢰한다."""
+    try:
+        km = max(0.0, float(distance_km))
+    except (TypeError, ValueError):
+        km = 0.0
+    return FEE_BASE + round(km * FEE_PER_KM)
 
 
 def _provision_deliveries():
@@ -67,6 +87,10 @@ def delivery_status(request, pk):
     delivery.status = new_status
     if new_status == Delivery.Status.DELIVERED:
         delivery.completed_at = timezone.now()
+        # 앱이 GPS로 계산해 보고한 이동 거리로 배달료를 산정한다.
+        # (서버는 보고된 거리를 검증 없이 신뢰 — 거리 기반 정산)
+        delivery.distance_km = request.data.get('distance_km', 0) or 0
+        delivery.fee = compute_fee(delivery.distance_km)
     delivery.save()
 
     if new_status in _STATUS_TO_ORDER:
@@ -76,3 +100,68 @@ def delivery_status(request, pk):
             award_order_points(delivery.order)
 
     return Response(DeliveryDetailSerializer(delivery).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def menus(request):
+    """해킹의 민족 전체 메뉴 목록(홈 노출용). 숨김(hidden) 메뉴는 제외하고,
+    매장명·가격·사진과 함께 내려준다. 사진 있는 메뉴를 우선 노출한다.
+
+    쿼리: ?limit=N (기본 30). 이미지 URL은 상대경로일 수 있고, 앱이 절대 URL로 만든다.
+    """
+    try:
+        limit = int(request.query_params.get('limit', 30))
+    except (TypeError, ValueError):
+        limit = 30
+    limit = max(1, min(limit, 100))
+
+    qs = (
+        Menu.objects.exclude(status=Menu.Status.HIDDEN)
+        .select_related('restaurant')
+        .order_by('-id')
+    )
+    # 사진 있는 메뉴를 앞으로(빈 이미지는 뒤로) 정렬 — DB 종류와 무관하게 파이썬에서 처리.
+    items = sorted(qs[: limit * 2], key=lambda m: (not bool(m.image), -m.id))[:limit]
+    return Response({'results': RiderMenuSerializer(items, many=True).data})
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsRider])
+def profile(request):
+    """배달 전 정보(정산 계좌·면허·차량·희망지역·배달수단).
+
+    - GET: 내 프로필(없으면 빈 값들).
+    - PUT: 부분 수정(upsert). account_number 는 암호화 저장, 응답은 마스킹.
+    """
+    obj, _ = RiderProfile.objects.get_or_create(rider=request.user)
+    if request.method == 'GET':
+        return Response(RiderProfileSerializer(obj).data)
+
+    serializer = RiderProfileSerializer(obj, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(RiderProfileSerializer(obj).data)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsRider])
+def location(request):
+    """라이더 본인의 실시간 위치.
+
+    - GET: 마지막으로 저장된 내 위치(없으면 204).
+    - PUT: {latitude, longitude, accuracy?} 로 내 위치를 갱신(upsert).
+      해킹커넥트(라이더 앱)가 운행 중 주기적으로 호출한다.
+    """
+    if request.method == 'GET':
+        loc = RiderLocation.objects.filter(rider=request.user).first()
+        if not loc:
+            return Response(status=204)
+        return Response(RiderLocationSerializer(loc).data)
+
+    serializer = RiderLocationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    loc, _ = RiderLocation.objects.update_or_create(
+        rider=request.user, defaults=serializer.validated_data,
+    )
+    return Response(RiderLocationSerializer(loc).data)
