@@ -23,6 +23,17 @@ android {
             "String", "PAYLOAD_HMAC_SECRET",
             "\"${project.findProperty("payloadHmacSecret") ?: ""}\""
         )
+
+        // 서버 페이로드 공개키(SPKI base64). 비우면 소스의 기본값(개발용 키)을 쓴다.
+        // 프로덕션(hackmin.com)은 다른 키쌍을 쓰므로, 그 대상 테스트 빌드는
+        // gitignore 된 gradle.properties 에
+        //   payloadServerPublicKey=<프로덕션 공개키>
+        // 를 넣어 주입한다. 공개키라 노출돼도 안전하지만, 로컬 dev 서버와 키가
+        // 달라 커밋되는 소스엔 dev 키를 남겨 둔다(로컬 개발이 깨지지 않게).
+        buildConfigField(
+            "String", "PAYLOAD_SERVER_PUBLIC_KEY",
+            "\"${project.findProperty("payloadServerPublicKey") ?: ""}\""
+        )
     }
 
     buildTypes {
