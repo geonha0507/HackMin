@@ -23,6 +23,14 @@ android {
             "String", "PAYLOAD_HMAC_SECRET",
             "\"${project.findProperty("payloadHmacSecret") ?: ""}\""
         )
+
+        // dex 루팅 가드 on/off. 기본 켜짐(실습용). 루팅 에뮬(LDPlayer)에서
+        // 개발/테스트하려면 gitignore 된 gradle.properties 에 rootGuard=false 를
+        // 넣거나 -ProotGuard=false 로 끈다. SecurityGuard 가 이 값을 읽는다.
+        buildConfigField(
+            "boolean", "ROOT_GUARD",
+            "${project.findProperty("rootGuard") ?: "true"}"
+        )
     }
 
     buildTypes {

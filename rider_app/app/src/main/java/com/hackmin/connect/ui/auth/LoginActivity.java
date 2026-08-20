@@ -14,6 +14,7 @@ import com.hackmin.connect.data.model.auth.LoginResponse;
 import com.hackmin.connect.data.model.auth.UserDto;
 import com.hackmin.connect.network.ApiClient;
 import com.hackmin.connect.network.SessionManager;
+import com.hackmin.connect.security.SecurityGuard;
 import com.hackmin.connect.ui.common.BaseActivity;
 import com.hackmin.connect.ui.education.EducationActivity;
 import com.hackmin.connect.ui.home.HomeActivity;
@@ -36,6 +37,10 @@ public class LoginActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 루팅 기기 차단(dex 가드). 루팅이면 종료 절차를 밟고 여기서 중단한다.
+        if (SecurityGuard.enforce(this)) {
+            return;
+        }
         setContentView(R.layout.activity_login);
 
         session = SessionManager.getInstance(this);
