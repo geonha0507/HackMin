@@ -1,0 +1,5 @@
+<!-- 홈 히어로 카드: 브랜드 코랄 배경, 20dp 라운드 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/coral_primary"/>
+    <corners android:radius="20dp"/>
+</shape>

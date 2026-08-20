@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 해킹의 민족(deliver_app)과 동일한 브랜드 팔레트 -->
+    <color name="coral_primary">#FF6F61</color>
+    <color name="coral_primary_dark">#E85A4D</color>
+    <color name="bg_deep">#FFFFFF</color>
+    <color name="bg_surface">#F5F5F5</color>
+    <color name="bg_surface_light">#EEEEEE</color>
+    <color name="stroke_dim">#E0E0E0</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_terminal_green">#2E7D32</color>
+
+    <!-- 라이더 앱 전용: 배달 진행 상태 색 -->
+    <color name="status_progress">#FFA000</color>
+
+    <!-- 앱 아이콘(어댑티브) 배경 — 해킹의 민족 아이콘과 동일 코랄 계열 -->
+    <color name="ic_launcher_background">#F86464</color>
+</resources>

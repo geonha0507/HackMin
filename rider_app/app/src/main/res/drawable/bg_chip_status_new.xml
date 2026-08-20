@@ -1,0 +1,5 @@
+<!-- 콜 상태 칩: 신규 콜(코랄) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/coral_primary"/>
+    <corners android:radius="999dp"/>
+</shape>

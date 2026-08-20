@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 수입 내역 행: 가게명 · 시각/주문번호 · 배달료 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_card"
+    android:padding="14dp"
+    android:layout_marginTop="8dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_restaurant"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="가게 이름"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+
+        <TextView
+            android:id="@+id/tv_meta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="3dp"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_fee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="+3,500원"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="@color/coral_primary"/>
+
+</LinearLayout>
