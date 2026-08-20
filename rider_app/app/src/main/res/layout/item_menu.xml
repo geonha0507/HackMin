@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 홈 '인기 메뉴' 가로 카드: 사진 + 메뉴명 + 매장 + 가격 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="150dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card"
+    android:padding="8dp"
+    android:layout_marginEnd="10dp">
+
+    <ImageView
+        android:id="@+id/iv_menu"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_thumb"
+        android:clipToOutline="true"
+        android:src="@drawable/ic_image_placeholder"
+        android:contentDescription="메뉴 사진"/>
+
+    <TextView
+        android:id="@+id/tv_menu_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="메뉴 이름"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="8dp"/>
+
+    <TextView
+        android:id="@+id/tv_menu_restaurant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="매장"
+        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="2dp"/>
+
+    <TextView
+        android:id="@+id/tv_menu_price"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0원"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/coral_primary"
+        android:layout_marginTop="4dp"/>
+
+</LinearLayout>

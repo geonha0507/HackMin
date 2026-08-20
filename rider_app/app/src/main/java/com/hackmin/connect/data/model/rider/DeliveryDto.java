@@ -7,6 +7,7 @@ public class DeliveryDto {
     @SerializedName("order") private long order;
     @SerializedName("order_number") private String orderNumber;
     @SerializedName("restaurant") private String restaurant;
+    @SerializedName("restaurant_image") private String restaurantImage;
     @SerializedName("total") private int total;
     @SerializedName("status") private String status;
     @SerializedName("assigned_at") private String assignedAt;
@@ -15,6 +16,7 @@ public class DeliveryDto {
     public long getOrder() { return order; }
     public String getOrderNumber() { return orderNumber; }
     public String getRestaurant() { return restaurant; }
+    public String getRestaurantImage() { return restaurantImage; }
     public int getTotal() { return total; }
     public String getStatus() { return status; }
     public String getAssignedAt() { return assignedAt; }

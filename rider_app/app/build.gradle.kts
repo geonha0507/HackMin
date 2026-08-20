@@ -61,6 +61,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // 이미지 로딩 (매장 사진) — deliver_app과 동일 버전
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
     // Testing (unit tests, run on JVM, no emulator needed)
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

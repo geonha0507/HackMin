@@ -38,6 +38,7 @@ public class DeliveryDetailActivity extends BaseActivity {
 
     private TextView tvStatus, tvOrderNumber, tvRestaurant, tvTotal, tvFee,
             tvCustomer, tvAddress, tvRequestNote;
+    private android.widget.ImageView ivRestaurant;
     private TextView[] stepLabels;
     private View[] stepDots;
     private Button btnAction, btnCall;
@@ -53,6 +54,7 @@ public class DeliveryDetailActivity extends BaseActivity {
         tvStatus = findViewById(R.id.tv_status);
         tvOrderNumber = findViewById(R.id.tv_order_number);
         tvRestaurant = findViewById(R.id.tv_restaurant);
+        ivRestaurant = findViewById(R.id.iv_restaurant);
         tvTotal = findViewById(R.id.tv_total);
         tvFee = findViewById(R.id.tv_fee);
         tvCustomer = findViewById(R.id.tv_customer);
@@ -116,6 +118,11 @@ public class DeliveryDetailActivity extends BaseActivity {
         String status = current.getStatus() == null ? "" : current.getStatus();
 
         DeliveryAdapter.bindStatus(tvStatus, status);
+        // 상세 응답에 매장명/사진이 있으면 우선 사용(없으면 목록에서 넘겨받은 값 유지).
+        if (current.getRestaurant() != null && !current.getRestaurant().isEmpty()) {
+            tvRestaurant.setText(current.getRestaurant());
+        }
+        com.hackmin.connect.util.ImageLoader.loadStore(ivRestaurant, current.getRestaurantImage());
         tvOrderNumber.setText("주문 " + (current.getOrderNumber() == null ? "-" : current.getOrderNumber()));
         tvCustomer.setText(emptyDash(current.getCustomer()));
         String addr = emptyDash(current.getAddress());
@@ -171,6 +178,7 @@ public class DeliveryDetailActivity extends BaseActivity {
             default:
                 return;
         }
+
         btnAction.setEnabled(false);
         ApiClient.riderApi(this).updateDeliveryStatus(deliveryId, new DeliveryStatusRequest(next))
                 .enqueue(new Callback<DeliveryDetailDto>() {

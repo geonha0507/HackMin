@@ -197,6 +197,18 @@
                         android:layout_marginStart="8dp"/>
                 </LinearLayout>
 
+                <!-- 매장 사진 -->
+                <ImageView
+                    android:id="@+id/iv_restaurant"
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/bg_thumb"
+                    android:clipToOutline="true"
+                    android:src="@drawable/ic_image_placeholder"
+                    android:contentDescription="매장 사진"
+                    android:layout_marginTop="12dp"/>
+
                 <TextView
                     android:id="@+id/tv_restaurant"
                     android:layout_width="wrap_content"
@@ -205,7 +217,7 @@
                     android:textSize="17sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
-                    android:layout_marginTop="8dp"/>
+                    android:layout_marginTop="12dp"/>
 
                 <TextView
                     android:id="@+id/tv_order_number"

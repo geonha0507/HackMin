@@ -10,43 +10,45 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="32dp"
         android:gravity="center_horizontal">
 
-        <!-- ===== 상단 브랜딩 영역 (해킹의 민족 패밀리 브랜딩) ===== -->
-        <LinearLayout
+        <!-- ===== 히어로 이미지: 좌우 꽉 채우는 풀블리드 ===== -->
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:src="@drawable/img_login_hero"
+            android:contentDescription="해킹커넥트 라이더"/>
+
+        <!-- ===== 브랜딩 텍스트 ===== -->
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="해킹커넥트"
+            android:textSize="42sp"
+            android:textStyle="bold"
+            android:textColor="@color/coral_primary"
+            android:letterSpacing="0.1"
+            android:layout_marginTop="20dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="원하는 시간에, 원하는 만큼 — 해킹의 민족 라이더"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="40dp"/>
+
+        <!-- ===== 입력/버튼 영역 (좌우 32dp 여백) ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginTop="60dp"
-            android:layout_marginBottom="60dp">
-
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@drawable/ic_scooter"
-                app:tint="@color/coral_primary"
-                android:layout_marginBottom="12dp"
-                android:contentDescription="해킹커넥트 로고"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="해킹커넥트"
-                android:textSize="42sp"
-                android:textStyle="bold"
-                android:textColor="@color/coral_primary"
-                android:letterSpacing="0.1"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="원하는 시간에, 원하는 만큼 — 해킹의 민족 라이더"
-                android:textSize="14sp"
-                android:textColor="@color/text_secondary"
-                android:layout_marginTop="8dp"/>
-        </LinearLayout>
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:gravity="center_horizontal">
 
         <!-- ===== 입력 영역 ===== -->
         <com.google.android.material.textfield.TextInputLayout
@@ -147,6 +149,8 @@
                 android:textStyle="bold"
                 android:textColor="@color/coral_primary"
                 android:padding="8dp"/>
+        </LinearLayout>
+
         </LinearLayout>
 
     </LinearLayout>

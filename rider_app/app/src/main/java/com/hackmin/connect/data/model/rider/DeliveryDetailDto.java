@@ -7,6 +7,8 @@ public class DeliveryDetailDto {
     @SerializedName("order") private long order;
     @SerializedName("order_number") private String orderNumber;
     @SerializedName("status") private String status;
+    @SerializedName("restaurant") private String restaurant;
+    @SerializedName("restaurant_image") private String restaurantImage;
     @SerializedName("customer") private String customer;
     @SerializedName("phone") private String phone;
     @SerializedName("address") private String address;
@@ -19,6 +21,8 @@ public class DeliveryDetailDto {
     public long getOrder() { return order; }
     public String getOrderNumber() { return orderNumber; }
     public String getStatus() { return status; }
+    public String getRestaurant() { return restaurant; }
+    public String getRestaurantImage() { return restaurantImage; }
     public String getCustomer() { return customer; }
     public String getPhone() { return phone; }
     public String getAddress() { return address; }

@@ -62,23 +62,12 @@ public class EarningsActivity extends BaseActivity {
             @Override
             public void onResponse(Call<PagedResponse<DeliveryDto>> call,
                                    Response<PagedResponse<DeliveryDto>> response) {
-                List<DeliveryDto> done = new ArrayList<>();
-                int todayCount = 0;
                 if (response.isSuccessful() && response.body() != null
                         && response.body().getResults() != null) {
-                    for (DeliveryDto d : response.body().getResults()) {
-                        if ("delivered".equals(d.getStatus())) {
-                            done.add(d);
-                            if (ConnectFormat.isToday(d.getAssignedAt())) todayCount++;
-                        }
-                    }
+                    renderEarnings(response.body().getResults());
+                } else {
+                    renderEarnings(new ArrayList<>());
                 }
-                tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayCount)));
-                tvTodayCount.setText("완료 " + todayCount + "건");
-                tvTotalEarn.setText(ConnectFormat.won(DeliveryFee.earned(done.size())));
-                tvTotalCount.setText("완료 " + done.size() + "건");
-                adapter.submit(done);
-                tvEmpty.setVisibility(done.isEmpty() ? View.VISIBLE : View.GONE);
             }
 
             @Override
@@ -87,5 +76,22 @@ public class EarningsActivity extends BaseActivity {
                 tvEmpty.setText("내역을 불러오지 못했어요.\n네트워크 상태를 확인해 주세요.");
             }
         });
+    }
+
+    private void renderEarnings(List<DeliveryDto> all) {
+        List<DeliveryDto> done = new ArrayList<>();
+        int todayCount = 0;
+        for (DeliveryDto d : all) {
+            if ("delivered".equals(d.getStatus())) {
+                done.add(d);
+                if (ConnectFormat.isToday(d.getAssignedAt())) todayCount++;
+            }
+        }
+        tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayCount)));
+        tvTodayCount.setText("완료 " + todayCount + "건");
+        tvTotalEarn.setText(ConnectFormat.won(DeliveryFee.earned(done.size())));
+        tvTotalCount.setText("완료 " + done.size() + "건");
+        adapter.submit(done);
+        tvEmpty.setVisibility(done.isEmpty() ? View.VISIBLE : View.GONE);
     }
 }

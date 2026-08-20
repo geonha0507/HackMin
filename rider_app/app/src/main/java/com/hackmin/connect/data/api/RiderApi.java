@@ -37,4 +37,8 @@ public interface RiderApi {
     /** 마지막으로 저장된 내 위치 조회(없으면 204) */
     @GET("rider/location")
     Call<RiderLocationDto> getLocation();
+
+    /** 해킹의 민족 전체 메뉴 목록(홈 노출용, 사진 포함) */
+    @GET("rider/menus")
+    Call<PagedResponse<MenuDto>> getMenus(@Query("limit") Integer limit);
 }

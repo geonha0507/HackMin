@@ -11,6 +11,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.connect.R;
 import com.hackmin.connect.data.model.common.PagedResponse;
@@ -49,6 +51,8 @@ public class HomeActivity extends BaseActivity {
 
     private LocationTracker locationTracker;
     private long lastSentAt = 0L;
+    private MenuAdapter menuAdapter;
+    private View sectionMenus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +73,13 @@ public class HomeActivity extends BaseActivity {
         tvLocationAddress = findViewById(R.id.tv_location_address);
         tvLocationCoords = findViewById(R.id.tv_location_coords);
         dotLive = findViewById(R.id.dot_live);
+
+        // 해킹의 민족 인기 메뉴 (가로 스크롤).
+        sectionMenus = findViewById(R.id.section_menus);
+        RecyclerView rvMenus = findViewById(R.id.rv_menus);
+        rvMenus.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        menuAdapter = new MenuAdapter();
+        rvMenus.setAdapter(menuAdapter);
 
         // 실시간 위치 추적기. 위치가 갱신될 때마다 카드에 주소·좌표를 그린다.
         locationTracker = new LocationTracker(this, new LocationTracker.Callback() {
@@ -115,6 +126,7 @@ public class HomeActivity extends BaseActivity {
         super.onResume();
         renderDuty();
         loadSummary();
+        loadMenus();
         // 운행 중이면 화면 복귀 시 추적을 (재)개한다.
         if (session.isOnDuty()) {
             startLocationTracking();
@@ -223,22 +235,7 @@ public class HomeActivity extends BaseActivity {
                         || response.body().getResults() == null) {
                     return;
                 }
-                int todayDone = 0;
-                int newCalls = 0;
-                for (DeliveryDto d : response.body().getResults()) {
-                    if ("delivered".equals(d.getStatus())
-                            && ConnectFormat.isToday(d.getAssignedAt())) {
-                        todayDone++;
-                    }
-                    if ("assigned".equals(d.getStatus())) {
-                        newCalls++;
-                    }
-                }
-                tvTodayCount.setText(todayDone + "건");
-                tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayDone)));
-                tvNewCalls.setText(newCalls > 0
-                        ? "대기 중인 신규 콜 " + newCalls + "건"
-                        : "대기 중인 신규 콜이 없어요");
+                renderSummary(response.body().getResults());
             }
 
             @Override
@@ -246,5 +243,57 @@ public class HomeActivity extends BaseActivity {
                 // 홈 요약 로딩 실패는 조용히 무시(다음 onResume에서 재시도).
             }
         });
+    }
+
+    /**
+     * 홈에 노출할 해킹의 민족 인기 메뉴를 서버(/rider/menus)에서 불러와 표시한다.
+     * 실제 메뉴명·가격·사진(매장 이미지)이 내려오며, 데이터가 없거나 실패하면 섹션을 숨긴다.
+     */
+    private void loadMenus() {
+        ApiClient.riderApi(this).getMenus(20).enqueue(
+                new Callback<PagedResponse<com.hackmin.connect.data.model.rider.MenuDto>>() {
+            @Override
+            public void onResponse(Call<PagedResponse<com.hackmin.connect.data.model.rider.MenuDto>> call,
+                                   Response<PagedResponse<com.hackmin.connect.data.model.rider.MenuDto>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    renderMenus(response.body().getResults());
+                } else {
+                    renderMenus(null);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PagedResponse<com.hackmin.connect.data.model.rider.MenuDto>> call, Throwable t) {
+                renderMenus(null); // 실패 시 섹션 숨김(홈 나머지는 정상 표시)
+            }
+        });
+    }
+
+    private void renderMenus(java.util.List<com.hackmin.connect.data.model.rider.MenuDto> menus) {
+        if (menus == null || menus.isEmpty()) {
+            sectionMenus.setVisibility(View.GONE);
+            return;
+        }
+        sectionMenus.setVisibility(View.VISIBLE);
+        menuAdapter.submit(menus);
+    }
+
+    private void renderSummary(java.util.List<DeliveryDto> deliveries) {
+        int todayDone = 0;
+        int newCalls = 0;
+        for (DeliveryDto d : deliveries) {
+            if ("delivered".equals(d.getStatus())
+                    && ConnectFormat.isToday(d.getAssignedAt())) {
+                todayDone++;
+            }
+            if ("assigned".equals(d.getStatus())) {
+                newCalls++;
+            }
+        }
+        tvTodayCount.setText(todayDone + "건");
+        tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayDone)));
+        tvNewCalls.setText(newCalls > 0
+                ? "대기 중인 신규 콜 " + newCalls + "건"
+                : "대기 중인 신규 콜이 없어요");
     }
 }

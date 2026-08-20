@@ -3,6 +3,7 @@ package com.hackmin.connect.ui.delivery;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hackmin.connect.R;
 import com.hackmin.connect.util.ConnectFormat;
+import com.hackmin.connect.util.ImageLoader;
 import com.hackmin.connect.data.model.rider.DeliveryDto;
 
 import java.util.ArrayList;
@@ -48,6 +50,7 @@ public class DeliveryAdapter extends RecyclerView.Adapter<DeliveryAdapter.Holder
         DeliveryDto d = items.get(position);
         h.tvRestaurant.setText(d.getRestaurant() == null || d.getRestaurant().isEmpty()
                 ? "가게 미지정" : d.getRestaurant());
+        ImageLoader.loadStore(h.ivRestaurant, d.getRestaurantImage());
         h.tvOrderNumber.setText("주문 " + (d.getOrderNumber() == null ? "-" : d.getOrderNumber()));
         h.tvTotal.setText("주문금액 " + ConnectFormat.won(d.getTotal()));
         h.tvTime.setText(ConnectFormat.shortTime(d.getAssignedAt()));
@@ -90,10 +93,12 @@ public class DeliveryAdapter extends RecyclerView.Adapter<DeliveryAdapter.Holder
     }
 
     static class Holder extends RecyclerView.ViewHolder {
+        final ImageView ivRestaurant;
         final TextView tvRestaurant, tvOrderNumber, tvTotal, tvTime, tvStatus;
 
         Holder(@NonNull View itemView) {
             super(itemView);
+            ivRestaurant = itemView.findViewById(R.id.iv_restaurant);
             tvRestaurant = itemView.findViewById(R.id.tv_restaurant);
             tvOrderNumber = itemView.findViewById(R.id.tv_order_number);
             tvTotal = itemView.findViewById(R.id.tv_total);

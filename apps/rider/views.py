@@ -9,11 +9,13 @@ from common.exceptions import error_response
 from common.permissions import IsRider
 from orders.models import Order
 from promotions.services import award_order_points
+from restaurants.models import Menu
 from .models import Delivery, RiderLocation
 from .serializers import (
     DeliveryDetailSerializer,
     DeliveryListSerializer,
     RiderLocationSerializer,
+    RiderMenuSerializer,
 )
 
 _STATUS_TO_ORDER = {
@@ -80,6 +82,30 @@ def delivery_status(request, pk):
             award_order_points(delivery.order)
 
     return Response(DeliveryDetailSerializer(delivery).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def menus(request):
+    """해킹의 민족 전체 메뉴 목록(홈 노출용). 숨김(hidden) 메뉴는 제외하고,
+    매장명·가격·사진과 함께 내려준다. 사진 있는 메뉴를 우선 노출한다.
+
+    쿼리: ?limit=N (기본 30). 이미지 URL은 상대경로일 수 있고, 앱이 절대 URL로 만든다.
+    """
+    try:
+        limit = int(request.query_params.get('limit', 30))
+    except (TypeError, ValueError):
+        limit = 30
+    limit = max(1, min(limit, 100))
+
+    qs = (
+        Menu.objects.exclude(status=Menu.Status.HIDDEN)
+        .select_related('restaurant')
+        .order_by('-id')
+    )
+    # 사진 있는 메뉴를 앞으로(빈 이미지는 뒤로) 정렬 — DB 종류와 무관하게 파이썬에서 처리.
+    items = sorted(qs[: limit * 2], key=lambda m: (not bool(m.image), -m.id))[:limit]
+    return Response({'results': RiderMenuSerializer(items, many=True).data})
 
 
 @api_view(['GET', 'PUT'])

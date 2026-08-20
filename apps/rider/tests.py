@@ -95,3 +95,36 @@ class RiderLocationTest(APITestCase):
         resp = self.client.put('/api/v1/rider/location',
                                {'latitude': 37.0, 'longitude': 127.0}, format='json')
         self.assertIn(resp.status_code, (403, 401))
+
+
+class RiderMenusTest(APITestCase):
+    def setUp(self):
+        from restaurants.models import Menu, Restaurant
+        self.rider = User.objects.create_user(
+            username='rider3@test.com', email='rider3@test.com',
+            password='Rider1234!', nickname='라이더3', name='최라이더',
+            phone='01077778888', role=User.Role.RIDER,
+        )
+        self.owner = User.objects.create_user(
+            username='owner3@test.com', email='owner3@test.com',
+            password='Owner1234!', nickname='점주3', name='정점주',
+            phone='01099990000', role=User.Role.OWNER,
+        )
+        self.rest = Restaurant.objects.create(owner=self.owner, name='교촌치킨 강남점', cuisine_type='치킨')
+        Menu.objects.create(restaurant=self.rest, name='허니콤보', price=20000)
+        Menu.objects.create(restaurant=self.rest, name='레드콤보', price=21000)
+        Menu.objects.create(restaurant=self.rest, name='숨김메뉴', price=1000, status=Menu.Status.HIDDEN)
+
+    def test_menus_returns_visible_with_restaurant_name(self):
+        """전체 메뉴 목록이 매장명·가격과 함께 내려오고, 숨김 메뉴는 제외된다."""
+        self.client.force_authenticate(self.rider)
+        resp = self.client.get('/api/v1/rider/menus')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        names = [m['name'] for m in resp.data['results']]
+        self.assertIn('허니콤보', names)
+        self.assertIn('레드콤보', names)
+        self.assertNotIn('숨김메뉴', names)
+        first = resp.data['results'][0]
+        self.assertEqual(first['restaurant'], '교촌치킨 강남점')
+        self.assertIn('price', first)
+        self.assertIn('image', first)
