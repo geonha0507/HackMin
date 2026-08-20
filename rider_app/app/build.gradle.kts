@@ -64,6 +64,9 @@ dependencies {
     // 이미지 로딩 (매장 사진) — deliver_app과 동일 버전
     implementation("com.github.bumptech.glide:glide:4.16.0")
 
+    // 실시간 위치: FusedLocationProvider(고정밀·저전력). GMS 없으면 LocationManager로 폴백.
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     // Testing (unit tests, run on JVM, no emulator needed)
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
