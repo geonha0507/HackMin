@@ -1,5 +1,7 @@
 """Rider delivery endpoints (/api/v1/rider/deliveries). Require rider role."""
 
+import math
+
 from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -30,12 +32,29 @@ FEE_PER_KM = 1000
 
 
 def compute_fee(distance_km):
-    """이동 거리(km)로 배달료를 산정한다. 거리는 앱이 보고한 값을 그대로 신뢰한다."""
+    """이동 거리(km)로 배달료를 산정한다."""
     try:
         km = max(0.0, float(distance_km))
     except (TypeError, ValueError):
         km = 0.0
     return FEE_BASE + round(km * FEE_PER_KM)
+
+
+# 위치 무결성: 단일 위치 갱신이 이 거리(km)를 초과해 점프하면 순간이동으로 보고 거부한다.
+# 실시간 추적 앱은 수 초 간격으로 갱신하므로 한 번에 2km를 넘을 수 없다.
+# → 커스텀 클라이언트로 한 번에 먼 좌표를 찍는 방식이 막히고, 거리를 부풀리려면
+#   '연속된 짧은 좌표들'을 계속 보내야 한다(= 앱 내 위치 제공자 후킹이 필요).
+MAX_SEGMENT_KM = 2.0
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """두 좌표 사이 대원거리(km)."""
+    radius = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return 2 * radius * math.asin(math.sqrt(a))
 
 
 def _provision_deliveries():
@@ -85,11 +104,18 @@ def delivery_status(request, pk):
         delivery.rider = request.user
 
     delivery.status = new_status
+    if new_status == Delivery.Status.DELIVERING:
+        # 배달 시작 시점의 누적 이동거리를 스냅샷 — 완료까지의 증가분이 '이 배달의
+        # 실제 이동거리'가 된다.
+        loc = RiderLocation.objects.filter(rider=request.user).first()
+        delivery.start_distance_km = loc.total_distance_km if loc else 0.0
     if new_status == Delivery.Status.DELIVERED:
         delivery.completed_at = timezone.now()
-        # 앱이 GPS로 계산해 보고한 이동 거리로 배달료를 산정한다.
-        # (서버는 보고된 거리를 검증 없이 신뢰 — 거리 기반 정산)
-        delivery.distance_km = request.data.get('distance_km', 0) or 0
+        # 클라가 보고한 distance_km 는 신뢰하지 않는다. 서버가 위치 트랙으로 관측한
+        # 실제 이동거리(속도상한을 통과한 연속 좌표들의 누적 증가분)로 산정한다.
+        loc = RiderLocation.objects.filter(rider=request.user).first()
+        observed = (loc.total_distance_km - delivery.start_distance_km) if loc else 0.0
+        delivery.distance_km = max(0.0, round(observed, 3))
         delivery.fee = compute_fee(delivery.distance_km)
     delivery.save()
 
@@ -161,8 +187,25 @@ def location(request):
 
     serializer = RiderLocationSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    # 직전 위치와 비교해 이동속도를 검증하고, 통과한 구간거리만 누적한다.
+    prev = RiderLocation.objects.filter(rider=request.user).first()
+    total = 0.0
+    if prev:
+        seg = _haversine_km(prev.latitude, prev.longitude,
+                            data['latitude'], data['longitude'])
+        if seg > MAX_SEGMENT_KM:
+            return error_response(
+                'implausible_move',
+                f'위치가 한 번에 너무 멀리 이동했습니다({seg:.1f}km). 순간이동은 허용되지 않습니다.',
+                400)
+        total = prev.total_distance_km + seg
+
+    defaults = dict(data)
+    defaults['total_distance_km'] = total
     loc, _ = RiderLocation.objects.update_or_create(
-        rider=request.user, defaults=serializer.validated_data,
+        rider=request.user, defaults=defaults,
     )
     return Response(RiderLocationSerializer(loc).data)
 

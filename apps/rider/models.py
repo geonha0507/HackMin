@@ -21,6 +21,10 @@ class Delivery(models.Model):
     # 서버는 보고된 거리를 그대로 신뢰해 요금을 계산한다(거리 기반 정산).
     distance_km = models.FloatField(default=0)
     fee = models.PositiveIntegerField(default=0)
+    # 배달 시작(픽업/배달중) 시점의 라이더 누적 이동거리 스냅샷. 배달완료 시
+    # (현재 누적거리 - 이 스냅샷) 이 '이 배달에서 서버가 관측한 실제 이동거리'다.
+    # 서버는 이 값으로 배달료를 산정한다(클라가 보고한 distance_km 는 신뢰하지 않는다).
+    start_distance_km = models.FloatField(default=0)
     # 정산 확정 여부. 라이더가 '배달완료'로 바꿔도 배달료는 '정산 대기'일 뿐이고,
     # 주문한 고객이 수령확인(POST /orders/<id>/confirm-receipt)을 해야 settled=True 가
     # 되어 지급 대상이 된다. 고객 확인 없이는 라이더가 돈을 받을 수 없다.
@@ -75,6 +79,9 @@ class RiderLocation(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     accuracy = models.FloatField(null=True, blank=True)  # 위치 오차(m)
+    # 서버가 관측한 누적 이동거리(km). 위치가 갱신될 때마다 직전 좌표와의 거리를
+    # 더한다. 단, 순간이동(속도상한 초과)은 갱신 자체가 거부되므로 여기에 안 쌓인다.
+    total_distance_km = models.FloatField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

@@ -71,17 +71,17 @@ class RiderLocationTest(APITestCase):
         self.assertAlmostEqual(get.data['longitude'], 127.0276)
 
     def test_put_upserts_single_row(self):
-        """두 번 보내면 새 행이 아니라 기존 위치를 덮어쓴다."""
+        """두 번 보내면 새 행이 아니라 기존 위치를 덮어쓴다(근거리 이동)."""
         self.client.force_authenticate(self.rider)
         self.client.put('/api/v1/rider/location',
                         {'latitude': 37.0, 'longitude': 127.0}, format='json')
         self.client.put('/api/v1/rider/location',
-                        {'latitude': 38.0, 'longitude': 128.0}, format='json')
+                        {'latitude': 37.005, 'longitude': 127.0}, format='json')
         from rider.models import RiderLocation
         self.assertEqual(RiderLocation.objects.filter(rider=self.rider).count(), 1)
         # self.rider.location 은 첫 PUT 때 세팅된 역참조 캐시라 stale — DB에서 새로 조회한다.
         self.assertAlmostEqual(
-            RiderLocation.objects.get(rider=self.rider).latitude, 38.0)
+            RiderLocation.objects.get(rider=self.rider).latitude, 37.005)
 
     def test_invalid_latitude_rejected(self):
         self.client.force_authenticate(self.rider)
@@ -180,25 +180,50 @@ class RiderDistanceFeeTest(APITestCase):
         self.delivery = Delivery.objects.create(order=order, status=Delivery.Status.DELIVERING,
                                                 rider=self.rider)
 
-    def test_fee_scales_with_reported_distance(self):
-        """앱이 보고한 거리로 배달료가 커진다(서버가 거리를 신뢰)."""
+    def _send_track(self, km_total, steps=10):
+        """가까운 좌표를 여러 번 보내 서버 누적거리를 ~km_total 만큼 만든다(각 구간 <2km)."""
+        self.client.force_authenticate(self.rider)
+        step_deg = (km_total / steps) / 111.0  # 위도 1도 ≈ 111km
+        lat = 37.0
+        self.client.put('/api/v1/rider/location',
+                        {'latitude': lat, 'longitude': 127.0}, format='json')
+        for _ in range(steps):
+            lat += step_deg
+            self.client.put('/api/v1/rider/location',
+                            {'latitude': lat, 'longitude': 127.0}, format='json')
+
+    def test_fee_from_server_observed_track(self):
+        """배달료는 서버가 관측한 위치 트랙 거리로 산정된다(클라 보고 distance_km 무시)."""
+        self._send_track(7.5, steps=10)
         self.client.force_authenticate(self.rider)
         resp = self.client.put(
             f'/api/v1/rider/deliveries/{self.delivery.id}/status',
-            {'status': 'delivered', 'distance_km': 7.5}, format='json')
+            {'status': 'delivered', 'distance_km': 9999}, format='json')  # 클라값 무시됨
         self.assertEqual(resp.status_code, 200, resp.content)
-        # 기본 3000 + 7.5km × 1000 = 10500
-        self.assertEqual(resp.data['fee'], 10500)
-        self.assertAlmostEqual(resp.data['distance_km'], 7.5)
+        # 서버 관측 트랙 ~7.5km 기준(반올림 오차 허용). 9999 아님 = 클라 무시 증명.
+        self.assertGreater(resp.data['distance_km'], 6.5)
+        self.assertLess(resp.data['distance_km'], 8.5)
+        self.assertGreater(resp.data['fee'], 9000)
+        self.assertLess(resp.data['fee'], 12000)
 
-    def test_spoofed_large_distance_inflates_fee(self):
-        """거리 조작(과장 보고) 시 요금이 그대로 부풀려진다(의도된 취약점)."""
+    def test_spoofed_single_distance_ignored(self):
+        """트랙 없이 distance_km만 크게 보내도 무시된다 → 기본료만(단발 조작 무력화)."""
         self.client.force_authenticate(self.rider)
         resp = self.client.put(
             f'/api/v1/rider/deliveries/{self.delivery.id}/status',
             {'status': 'delivered', 'distance_km': 9999}, format='json')
         self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertEqual(resp.data['fee'], 3000 + 9999 * 1000)
+        self.assertEqual(resp.data['distance_km'], 0)
+        self.assertEqual(resp.data['fee'], 3000)
+
+    def test_teleport_location_rejected(self):
+        """단일 위치 갱신이 상한(2km)을 넘게 점프하면 거부된다(순간이동 차단)."""
+        self.client.force_authenticate(self.rider)
+        self.client.put('/api/v1/rider/location',
+                        {'latitude': 37.0, 'longitude': 127.0}, format='json')
+        resp = self.client.put('/api/v1/rider/location',
+                               {'latitude': 35.1, 'longitude': 129.0}, format='json')  # 부산급
+        self.assertEqual(resp.status_code, 400, resp.content)
 
 
 class RiderMenusTest(APITestCase):
@@ -263,25 +288,27 @@ class ReceiptConfirmGateTest(APITestCase):
         self.delivery = Delivery.objects.create(order=self.order, rider=self.rider,
                                                 status=Delivery.Status.DELIVERING)
 
-    def _complete_delivery(self, distance_km=10):
+    def _complete_delivery(self):
         self.client.force_authenticate(self.rider)
         return self.client.put(
             f'/api/v1/rider/deliveries/{self.delivery.id}/status',
-            {'status': 'delivered', 'distance_km': distance_km}, format='json')
+            {'status': 'delivered'}, format='json')
 
     def test_delivered_is_pending_until_customer_confirms(self):
         """라이더 배달완료 직후엔 정산 대기(settled=False), earnings는 pending."""
-        resp = self._complete_delivery(10)
+        resp = self._complete_delivery()
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertFalse(resp.data['settled'])
+        fee = resp.data['fee']
         self.client.force_authenticate(self.rider)
         earn = self.client.get('/api/v1/rider/earnings')
         self.assertEqual(earn.data['settled_total'], 0)
-        self.assertEqual(earn.data['pending_total'], 13000)  # 3000 + 10*1000
+        self.assertEqual(earn.data['pending_total'], fee)  # 배달비는 아직 '대기'
 
     def test_customer_confirm_settles_fee(self):
         """고객 수령확인 → settled=True, earnings가 settled로 이동."""
-        self._complete_delivery(10)
+        comp = self._complete_delivery()
+        fee = comp.data['fee']
         self.client.force_authenticate(self.customer)
         conf = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
         self.assertEqual(conf.status_code, 200, conf.content)
@@ -292,7 +319,7 @@ class ReceiptConfirmGateTest(APITestCase):
 
         self.client.force_authenticate(self.rider)
         earn = self.client.get('/api/v1/rider/earnings')
-        self.assertEqual(earn.data['settled_total'], 13000)
+        self.assertEqual(earn.data['settled_total'], fee)  # 확인 후 지급 확정으로 이동
         self.assertEqual(earn.data['pending_total'], 0)
 
     def test_confirm_before_delivered_rejected(self):
@@ -303,7 +330,7 @@ class ReceiptConfirmGateTest(APITestCase):
 
     def test_non_owner_cannot_confirm(self):
         """남의 주문은 수령확인 불가(404)."""
-        self._complete_delivery(10)
+        self._complete_delivery()
         other = User.objects.create_user(
             username='sx@test.com', email='sx@test.com', password='Cust1234!',
             nickname='타인', name='타인', phone='01044440000', role=User.Role.CUSTOMER,
