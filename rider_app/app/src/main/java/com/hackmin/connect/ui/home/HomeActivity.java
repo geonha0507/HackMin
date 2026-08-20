@@ -15,6 +15,7 @@ import androidx.core.app.ActivityCompat;
 import com.hackmin.connect.R;
 import com.hackmin.connect.data.model.common.PagedResponse;
 import com.hackmin.connect.data.model.rider.DeliveryDto;
+import com.hackmin.connect.data.model.rider.RiderLocationDto;
 import com.hackmin.connect.network.ApiClient;
 import com.hackmin.connect.network.SessionManager;
 import com.hackmin.connect.ui.common.BaseActivity;
@@ -37,6 +38,8 @@ import retrofit2.Response;
 public class HomeActivity extends BaseActivity {
 
     private static final int REQ_LOCATION = 1001;
+    // 서버 위치 전송 최소 간격(ms). LocationTracker는 더 자주 갱신하지만 서버 부하를 줄인다.
+    private static final long SEND_INTERVAL_MS = 8000L;
 
     private SessionManager session;
     private TextView tvGreeting, tvDutyState, tvTodayCount, tvTodayEarn, tvNewCalls;
@@ -45,6 +48,7 @@ public class HomeActivity extends BaseActivity {
     private Button btnDuty;
 
     private LocationTracker locationTracker;
+    private long lastSentAt = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +81,7 @@ public class HomeActivity extends BaseActivity {
                 tvLocationState.setTextColor(getColor(R.color.text_terminal_green));
                 tvLocationCoords.setVisibility(View.VISIBLE);
                 tvLocationCoords.setText(String.format(Locale.US, "%.6f, %.6f", latitude, longitude));
+                sendLocationToServer(latitude, longitude, accuracyMeters);
             }
 
             @Override
@@ -148,6 +153,34 @@ public class HomeActivity extends BaseActivity {
             tvLocationState.setText("위치 꺼짐");
             tvLocationState.setTextColor(getColor(R.color.text_secondary));
         }
+    }
+
+    /**
+     * 현재 위치를 서버(/rider/location)로 전송한다. 운행 중일 때만, 최소
+     * {@link #SEND_INTERVAL_MS} 간격으로 보내 서버 부하와 배터리를 아낀다.
+     * 전송 실패는 조용히 무시(다음 갱신에서 재시도) — 화면 표시는 이미 됐다.
+     */
+    private void sendLocationToServer(double lat, double lng, float accuracy) {
+        if (!session.isOnDuty()) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now - lastSentAt < SEND_INTERVAL_MS) return;
+        lastSentAt = now;
+
+        RiderLocationDto body = new RiderLocationDto(lat, lng, accuracy > 0 ? (double) accuracy : null);
+        ApiClient.riderApi(this).updateLocation(body).enqueue(new Callback<RiderLocationDto>() {
+            @Override
+            public void onResponse(Call<RiderLocationDto> call, Response<RiderLocationDto> response) {
+                // 성공/실패 모두 UI엔 영향 없음(좌표는 이미 표시). 실패 시 다음 주기에 재시도.
+                if (!response.isSuccessful()) {
+                    lastSentAt = 0L; // 다음 콜백에서 즉시 재시도되도록 스로틀 해제
+                }
+            }
+
+            @Override
+            public void onFailure(Call<RiderLocationDto> call, Throwable t) {
+                lastSentAt = 0L;
+            }
+        });
     }
 
     @Override

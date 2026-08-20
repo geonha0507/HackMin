@@ -6,7 +6,18 @@ deliver_app과 공유한다.
 
 - 패키지: `com.hackmin.connect`
 - 백엔드: `https://hackmin.com/api/v1/` (deliver_app과 동일 서버·동일 페이로드 암호화)
-- 사용 API: `/auth/login|logout|refresh`, `/me`, `/rider/deliveries*`
+- 사용 API: `/auth/signup|login|logout|refresh`, `/auth/check-duplicate`, `/me`,
+  `/rider/deliveries*`, `/rider/location`(실시간 위치 relay, 신규)
+
+### 서버 변경(배포 필요)
+
+이 앱이 서버와 실제로 통신하려면 아래 백엔드 변경이 hackmin.com에 배포돼야 한다
+(브랜치 머지 → CI/CD). 로컬 테스트는 통과(`manage.py test rider` 7/7).
+
+- `apps/accounts/serializers.py` — 회원가입에서 `role=rider` 허용(admin은 계속 거부)
+- `apps/rider/models.py` — `RiderLocation`(라이더별 현재 좌표, OneToOne) 신규 + 마이그레이션 `0002`
+- `apps/rider/views.py`·`urls.py` — `GET/PUT /rider/location`(IsRider). PUT은 upsert, GET은 없으면 204
+- `apps/rider/tests.py` — 가입/위치 relay 테스트
 
 ## 화면 구성 (배민커넥트 스타일 4탭)
 

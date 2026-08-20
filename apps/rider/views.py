@@ -9,8 +9,12 @@ from common.exceptions import error_response
 from common.permissions import IsRider
 from orders.models import Order
 from promotions.services import award_order_points
-from .models import Delivery
-from .serializers import DeliveryDetailSerializer, DeliveryListSerializer
+from .models import Delivery, RiderLocation
+from .serializers import (
+    DeliveryDetailSerializer,
+    DeliveryListSerializer,
+    RiderLocationSerializer,
+)
 
 _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERED: Order.Status.DELIVERED,
@@ -76,3 +80,26 @@ def delivery_status(request, pk):
             award_order_points(delivery.order)
 
     return Response(DeliveryDetailSerializer(delivery).data)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsRider])
+def location(request):
+    """라이더 본인의 실시간 위치.
+
+    - GET: 마지막으로 저장된 내 위치(없으면 204).
+    - PUT: {latitude, longitude, accuracy?} 로 내 위치를 갱신(upsert).
+      해킹커넥트(라이더 앱)가 운행 중 주기적으로 호출한다.
+    """
+    if request.method == 'GET':
+        loc = RiderLocation.objects.filter(rider=request.user).first()
+        if not loc:
+            return Response(status=204)
+        return Response(RiderLocationSerializer(loc).data)
+
+    serializer = RiderLocationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    loc, _ = RiderLocation.objects.update_or_create(
+        rider=request.user, defaults=serializer.validated_data,
+    )
+    return Response(RiderLocationSerializer(loc).data)

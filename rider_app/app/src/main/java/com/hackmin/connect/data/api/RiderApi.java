@@ -29,4 +29,12 @@ public interface RiderApi {
             @Path("id") long deliveryId,
             @Body DeliveryStatusRequest request
     );
+
+    /** 내 실시간 위치 전송(운행 중 주기적으로 호출) */
+    @PUT("rider/location")
+    Call<RiderLocationDto> updateLocation(@Body RiderLocationDto location);
+
+    /** 마지막으로 저장된 내 위치 조회(없으면 204) */
+    @GET("rider/location")
+    Call<RiderLocationDto> getLocation();
 }

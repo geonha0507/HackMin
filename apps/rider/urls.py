@@ -8,4 +8,5 @@ urlpatterns = [
     path('rider/deliveries', views.delivery_list, name='deliveries'),
     path('rider/deliveries/<int:pk>', views.delivery_detail, name='delivery-detail'),
     path('rider/deliveries/<int:pk>/status', views.delivery_status, name='delivery-status'),
+    path('rider/location', views.location, name='location'),
 ]
