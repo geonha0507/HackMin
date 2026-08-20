@@ -1,0 +1,5 @@
+<!-- 실시간 표시용 초록 점(라이브 인디케이터) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="@color/text_terminal_green"/>
+    <size android:width="8dp" android:height="8dp"/>
+</shape>

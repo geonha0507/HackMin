@@ -159,6 +159,77 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- 실시간 위치 카드 -->
+            <LinearLayout
+                android:id="@+id/card_location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_card"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_gps"
+                        app:tint="@color/coral_primary"
+                        android:contentDescription="실시간 위치"/>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="내 위치"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginStart="8dp"/>
+
+                    <View
+                        android:id="@+id/dot_live"
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_live"
+                        android:layout_marginEnd="6dp"
+                        android:visibility="gone"/>
+
+                    <TextView
+                        android:id="@+id/tv_location_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="위치 꺼짐"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"/>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_location_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="운행을 시작하면 실시간 위치가 표시돼요"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="10dp"/>
+
+                <TextView
+                    android:id="@+id/tv_location_coords"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:fontFamily="monospace"
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone"/>
+            </LinearLayout>
+
             <!-- 신규 콜 안내 -->
             <LinearLayout
                 android:id="@+id/card_new_calls"

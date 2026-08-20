@@ -28,7 +28,7 @@ class SignupSerializer(serializers.ModelSerializer):
     bank_name = serializers.CharField(write_only=True, required=False, help_text="은행명 (점주웹)")
     # 입력은 평문 계좌번호를 받고, 저장은 account_number_encrypted 컬럼에 암호화해 넣는다.
     account_number = serializers.CharField(write_only=True, required=False, help_text="계좌번호 (점주웹)")
-    role = serializers.CharField(write_only=True, required=False, help_text="role (owner 또는 customer)")
+    role = serializers.CharField(write_only=True, required=False, help_text="role (owner, customer 또는 rider)")
 
     class Meta:
         model = User
@@ -45,8 +45,11 @@ class SignupSerializer(serializers.ModelSerializer):
 
         이 엔드포인트는 AllowAny 다. 검증이 없으면 role=admin 으로 가입해
         관리자 API 전체를 열 수 있다.
+
+        rider 는 해킹커넥트(라이더 앱) 회원가입용. 실서비스라면 심사 후 발급이
+        맞지만 훈련 환경이라 즉시 가입을 허용한다(라이더는 배달 엔드포인트만 접근).
         """
-        if value not in (User.Role.CUSTOMER, User.Role.OWNER):
+        if value not in (User.Role.CUSTOMER, User.Role.OWNER, User.Role.RIDER):
             raise serializers.ValidationError('허용되지 않는 역할입니다.')
         return value
 

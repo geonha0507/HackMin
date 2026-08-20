@@ -23,9 +23,10 @@ deliver_app과 공유한다.
 
 ## 계정
 
-라이더 계정은 가입 엔드포인트로 만들 수 없다(`/auth/signup`은 customer/owner만 허용).
-Django admin 등에서 `role=rider` 계정을 만들어 로그인한다. 앱은 로그인 응답의
-role이 `rider`가 아니면 세션을 만들지 않고 거부한다.
+로그인 화면의 **라이더 지원(회원가입)** 으로 `role=rider` 계정을 만든다
+(같은 `/auth/signup`에 `role: "rider"` 를 보냄 — `apps/accounts/serializers.py`
+`validate_role`이 rider를 허용하도록 확장됨. **서버에 이 변경이 배포돼야 가입이 된다**).
+앱은 로그인 응답의 role이 `rider`가 아니면 세션을 만들지 않고 거부한다.
 
 ## 빌드 & 배포
 

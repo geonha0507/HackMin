@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.textfield.TextInputEditText;
@@ -58,6 +59,11 @@ public class LoginActivity extends BaseActivity {
         }
 
         btnLogin.setOnClickListener(v -> doLogin());
+
+        // 라이더 지원(회원가입) — role=rider 로 가입한다.
+        TextView tvGoSignup = findViewById(R.id.tv_go_signup);
+        tvGoSignup.setOnClickListener(v ->
+                startActivity(new Intent(this, SignupActivity.class)));
 
         // 비밀번호 칸에서 엔터(완료) 키를 누르면 로그인 실행.
         etLoginPw.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
