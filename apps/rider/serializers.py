@@ -45,7 +45,7 @@ class DeliveryDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order', 'order_number', 'status', 'restaurant', 'restaurant_image',
             'customer', 'phone', 'address', 'address_detail', 'request_note',
-            'distance_km', 'fee', 'assigned_at', 'completed_at',
+            'distance_km', 'fee', 'settled', 'assigned_at', 'completed_at',
         ]
 
     def get_restaurant_image(self, obj):

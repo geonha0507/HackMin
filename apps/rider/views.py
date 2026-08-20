@@ -1,6 +1,6 @@
 """Rider delivery endpoints (/api/v1/rider/deliveries). Require rider role."""
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -165,3 +165,19 @@ def location(request):
         rider=request.user, defaults=serializer.validated_data,
     )
     return Response(RiderLocationSerializer(loc).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def earnings(request):
+    """내 배달비 정산 현황.
+
+    배달완료(delivered) 건의 배달료를 두 갈래로 집계한다:
+      - settled_total : 고객 수령확인까지 끝나 '지급 확정'된 금액
+      - pending_total : 배달은 끝났으나 고객 수령확인 대기 중(=아직 못 받는 돈)
+    즉 고객이 수령확인을 해야만 배달료가 settled_total 로 넘어간다.
+    """
+    qs = Delivery.objects.filter(rider=request.user, status=Delivery.Status.DELIVERED)
+    settled = qs.filter(settled=True).aggregate(s=Sum('fee'))['s'] or 0
+    pending = qs.filter(settled=False).aggregate(s=Sum('fee'))['s'] or 0
+    return Response({'settled_total': settled, 'pending_total': pending})

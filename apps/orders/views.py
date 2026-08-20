@@ -5,6 +5,7 @@
 
 from datetime import date
 
+from django.utils import timezone
 from rest_framework import generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -76,6 +77,30 @@ def order_status(request, pk):
     if not order:
         return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
     return Response({'id': order.id, 'order_number': order.order_number, 'status': order.status})
+
+
+@api_view(['POST'])
+@permission_classes([IsCustomer])
+def confirm_receipt(request, pk):
+    """고객 수령확인. 배달이 '배달완료'된 뒤 주문한 고객이 이 확인을 해야
+    라이더 배달료가 '정산 확정(settled)'된다. 확인 전에는 지급 대기 상태다.
+
+    소유자(주문한 고객)만, 배달완료 상태에서만 가능. 이미 확정됐으면 그대로 둔다.
+    """
+    from rider.models import Delivery  # 앱 간 순환 import 회피(지연 로드)
+
+    order = Order.objects.filter(pk=pk, user=request.user).first()
+    if not order:
+        return error_response('not_found', '주문을 찾을 수 없습니다.', 404)
+    delivery = getattr(order, 'delivery', None)
+    if not delivery or delivery.status != Delivery.Status.DELIVERED:
+        return error_response('not_deliverable', '배달완료 상태에서만 수령확인할 수 있습니다.', 409)
+
+    if not delivery.settled:
+        delivery.settled = True
+        delivery.settled_at = timezone.now()
+        delivery.save(update_fields=['settled', 'settled_at'])
+    return Response({'order': order.id, 'settled': True, 'fee': delivery.fee})
 
 
 @api_view(['POST'])

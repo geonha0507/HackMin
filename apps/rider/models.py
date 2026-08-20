@@ -21,6 +21,11 @@ class Delivery(models.Model):
     # 서버는 보고된 거리를 그대로 신뢰해 요금을 계산한다(거리 기반 정산).
     distance_km = models.FloatField(default=0)
     fee = models.PositiveIntegerField(default=0)
+    # 정산 확정 여부. 라이더가 '배달완료'로 바꿔도 배달료는 '정산 대기'일 뿐이고,
+    # 주문한 고객이 수령확인(POST /orders/<id>/confirm-receipt)을 해야 settled=True 가
+    # 되어 지급 대상이 된다. 고객 확인 없이는 라이더가 돈을 받을 수 없다.
+    settled = models.BooleanField(default=False)
+    settled_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f'Delivery(order={self.order_id}, {self.status})'

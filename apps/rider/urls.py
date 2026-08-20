@@ -11,4 +11,5 @@ urlpatterns = [
     path('rider/location', views.location, name='location'),
     path('rider/menus', views.menus, name='menus'),
     path('rider/profile', views.profile, name='profile'),
+    path('rider/earnings', views.earnings, name='earnings'),
 ]

@@ -232,3 +232,82 @@ class RiderMenusTest(APITestCase):
         self.assertEqual(first['restaurant'], '교촌치킨 강남점')
         self.assertIn('price', first)
         self.assertIn('image', first)
+
+
+class ReceiptConfirmGateTest(APITestCase):
+    """[시나리오] 고객 수령확인 게이트.
+
+    라이더가 '배달완료'로 바꿔도 배달료는 '정산 대기'일 뿐이고, 주문한 고객이
+    수령확인을 해야 정산이 확정된다 → 고객앱(=고객 역할) 없이는 라이더가 돈을 못 받음.
+    """
+
+    def setUp(self):
+        from orders.models import Order
+        from restaurants.models import Restaurant
+        from rider.models import Delivery
+        self.rider = User.objects.create_user(
+            username='sr@test.com', email='sr@test.com', password='Rider1234!',
+            nickname='정산라이더', name='정산', phone='01011110000', role=User.Role.RIDER,
+        )
+        self.owner = User.objects.create_user(
+            username='so@test.com', email='so@test.com', password='Owner1234!',
+            nickname='점주S', name='점주', phone='01022220000', role=User.Role.OWNER,
+        )
+        self.customer = User.objects.create_user(
+            username='sc@test.com', email='sc@test.com', password='Cust1234!',
+            nickname='손님S', name='손님', phone='01033330000', role=User.Role.CUSTOMER,
+        )
+        rest = Restaurant.objects.create(owner=self.owner, name='정산분식', cuisine_type='분식')
+        self.order = Order.objects.create(user=self.customer, restaurant=rest, total=20000,
+                                          status=Order.Status.DELIVERING)
+        self.delivery = Delivery.objects.create(order=self.order, rider=self.rider,
+                                                status=Delivery.Status.DELIVERING)
+
+    def _complete_delivery(self, distance_km=10):
+        self.client.force_authenticate(self.rider)
+        return self.client.put(
+            f'/api/v1/rider/deliveries/{self.delivery.id}/status',
+            {'status': 'delivered', 'distance_km': distance_km}, format='json')
+
+    def test_delivered_is_pending_until_customer_confirms(self):
+        """라이더 배달완료 직후엔 정산 대기(settled=False), earnings는 pending."""
+        resp = self._complete_delivery(10)
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertFalse(resp.data['settled'])
+        self.client.force_authenticate(self.rider)
+        earn = self.client.get('/api/v1/rider/earnings')
+        self.assertEqual(earn.data['settled_total'], 0)
+        self.assertEqual(earn.data['pending_total'], 13000)  # 3000 + 10*1000
+
+    def test_customer_confirm_settles_fee(self):
+        """고객 수령확인 → settled=True, earnings가 settled로 이동."""
+        self._complete_delivery(10)
+        self.client.force_authenticate(self.customer)
+        conf = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        self.assertEqual(conf.status_code, 200, conf.content)
+        self.assertTrue(conf.data['settled'])
+
+        from rider.models import Delivery
+        self.assertTrue(Delivery.objects.get(pk=self.delivery.id).settled)
+
+        self.client.force_authenticate(self.rider)
+        earn = self.client.get('/api/v1/rider/earnings')
+        self.assertEqual(earn.data['settled_total'], 13000)
+        self.assertEqual(earn.data['pending_total'], 0)
+
+    def test_confirm_before_delivered_rejected(self):
+        """배달완료 전엔 수령확인 불가(409)."""
+        self.client.force_authenticate(self.customer)
+        resp = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        self.assertEqual(resp.status_code, 409, resp.content)
+
+    def test_non_owner_cannot_confirm(self):
+        """남의 주문은 수령확인 불가(404)."""
+        self._complete_delivery(10)
+        other = User.objects.create_user(
+            username='sx@test.com', email='sx@test.com', password='Cust1234!',
+            nickname='타인', name='타인', phone='01044440000', role=User.Role.CUSTOMER,
+        )
+        self.client.force_authenticate(other)
+        resp = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        self.assertEqual(resp.status_code, 404, resp.content)
