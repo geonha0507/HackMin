@@ -2,6 +2,7 @@
 
 import math
 
+from django.contrib.auth import get_user_model
 from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -20,6 +21,8 @@ from .serializers import (
     RiderMenuSerializer,
     RiderProfileSerializer,
 )
+
+User = get_user_model()
 
 _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERED: Order.Status.DELIVERED,
@@ -224,3 +227,44 @@ def earnings(request):
     settled = qs.filter(settled=True).aggregate(s=Sum('fee'))['s'] or 0
     pending = qs.filter(settled=False).aggregate(s=Sum('fee'))['s'] or 0
     return Response({'settled_total': settled, 'pending_total': pending})
+
+
+# ─────────────────────────────────────────────────────────────
+#  [의도된 취약점] IDOR / BOLA (Broken Object Level Authorization)
+#
+#  대조군: 위 profile()·location() 은 대상을 request.user 로 고정한다(정상).
+#  아래 두 엔드포인트는 URL 의 rider pk 로 대상 객체를 찾고, 요청자가 그
+#  라이더 본인인지 검증하지 않는다. 로그인한 라이더면 누구나 순차 id 를
+#  갈아끼워 타 라이더의 정산 정보를 열람(GET)·변조(PUT)할 수 있다.
+#  → 공격자가 남의 계좌번호를 자기 것으로 바꿔 정산금을 가로챈다(교육용).
+# ─────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def rider_profile_by_id(request, pk):
+    """라이더 pk 의 프로필 조회. 소유권 검증 없음(IDOR)."""
+    obj = RiderProfile.objects.filter(rider_id=pk).select_related('rider').first()
+    if not obj:
+        return error_response('not_found', '프로필을 찾을 수 없습니다.', 404)
+    data = RiderProfileSerializer(obj).data
+    # id↔사람 매핑을 쉽게 해 열거(enumeration)를 돕는다 — 취약점 데모용.
+    data['rider_id'] = obj.rider_id
+    data['nickname'] = getattr(obj.rider, 'nickname', '')
+    return Response(data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsRider])
+def rider_account_by_id(request, pk):
+    """라이더 pk 의 정산 계좌 변경. 소유권 검증 없음(IDOR).
+
+    body: {"account_number": "...", "bank_name"?, "account_holder"?}
+    공격자가 타 라이더 계좌를 자기 것으로 바꿔 정산금을 가로챌 수 있다.
+    """
+    if not User.objects.filter(pk=pk).exists():
+        return error_response('not_found', '라이더를 찾을 수 없습니다.', 404)
+    obj, _ = RiderProfile.objects.get_or_create(rider_id=pk)
+    serializer = RiderProfileSerializer(obj, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(RiderProfileSerializer(obj).data)

@@ -338,3 +338,57 @@ class ReceiptConfirmGateTest(APITestCase):
         self.client.force_authenticate(other)
         resp = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
         self.assertEqual(resp.status_code, 404, resp.content)
+
+
+class RiderIdorTest(APITestCase):
+    """[의도된 취약점] IDOR/BOLA: 라이더 A 가 라이더 B 의 프로필/계좌에 접근·변조."""
+
+    def setUp(self):
+        self.attacker = User.objects.create_user(
+            username='atk@test.com', email='atk@test.com', password='Rider1234!',
+            nickname='공격자', name='공격', phone='01010101010', role=User.Role.RIDER,
+        )
+        self.victim = User.objects.create_user(
+            username='vic@test.com', email='vic@test.com', password='Rider1234!',
+            nickname='피해자', name='피해', phone='01020202020', role=User.Role.RIDER,
+        )
+        from accounts.crypto_utils import encrypt_aes128
+        from rider.models import RiderProfile
+        # 피해자는 정상적으로 자기 정산 계좌를 등록해 둔 상태.
+        prof = RiderProfile.objects.create(
+            rider=self.victim, bank_name='국민은행', account_holder='피해자')
+        prof.account_number_encrypted = encrypt_aes128('110001112222')
+        prof.save()
+
+    def test_attacker_reads_victim_profile_via_idor(self):
+        """공격자가 피해자 pk 로 프로필을 열람할 수 있다(소유권 검증 없음)."""
+        self.client.force_authenticate(self.attacker)
+        resp = self.client.get(f'/api/v1/riders/{self.victim.id}/profile')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['rider_id'], self.victim.id)
+        self.assertEqual(resp.data['nickname'], '피해자')
+        self.assertEqual(resp.data['bank_name'], '국민은행')
+
+    def test_attacker_changes_victim_account_via_idor(self):
+        """공격자가 피해자 계좌를 자기 것으로 바꾼다(정산금 탈취)."""
+        self.client.force_authenticate(self.attacker)
+        resp = self.client.put(
+            f'/api/v1/riders/{self.victim.id}/account',
+            {'account_number': '999888777666', 'account_holder': '공격자'},
+            format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        from accounts.crypto_utils import decrypt_aes128
+        from rider.models import RiderProfile
+        prof = RiderProfile.objects.get(rider=self.victim)
+        # 피해자 계좌가 공격자 값으로 바뀌었다.
+        self.assertEqual(decrypt_aes128(prof.account_number_encrypted), '999888777666')
+
+    def test_idor_endpoint_requires_rider_role(self):
+        """비-라이더(고객)는 접근 불가(인증은 있으나 IsRider 통과 못함)."""
+        customer = User.objects.create_user(
+            username='cc@test.com', email='cc@test.com', password='Cust1234!',
+            nickname='손님', name='손님', phone='01030303030', role=User.Role.CUSTOMER,
+        )
+        self.client.force_authenticate(customer)
+        resp = self.client.get(f'/api/v1/riders/{self.victim.id}/profile')
+        self.assertIn(resp.status_code, (401, 403))
