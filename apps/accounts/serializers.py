@@ -29,11 +29,20 @@ class SignupSerializer(serializers.ModelSerializer):
     # 입력은 평문 계좌번호를 받고, 저장은 account_number_encrypted 컬럼에 암호화해 넣는다.
     account_number = serializers.CharField(write_only=True, required=False, help_text="계좌번호 (점주웹)")
     role = serializers.CharField(write_only=True, required=False, help_text="role (owner, customer 또는 rider)")
+    # 라이더(해킹커넥트) 본인확인용 주민등록번호. 입력은 평문 13자리, 저장은 암호화 컬럼.
+    resident_number = serializers.CharField(
+        write_only=True, required=False, help_text="주민등록번호 13자리 (라이더)")
 
     class Meta:
         model = User
         fields = ['username', 'password', 'email', 'phone', 'nickname', 'name', 'role',
-                  'bank_name', 'account_number']
+                  'bank_name', 'account_number', 'resident_number']
+
+    def validate_resident_number(self, value):
+        digits = value.replace('-', '').strip()
+        if not (digits.isdigit() and len(digits) == 13):
+            raise serializers.ValidationError('주민등록번호는 숫자 13자리여야 합니다.')
+        return digits
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
@@ -69,6 +78,7 @@ class SignupSerializer(serializers.ModelSerializer):
 
         bank_name = validated_data.pop('bank_name', None)
         account_number = validated_data.pop('account_number', None)
+        resident_number = validated_data.pop('resident_number', None)
 
         # 점주: 계좌번호 암호화
         account_number_encrypted = None
@@ -78,10 +88,19 @@ class SignupSerializer(serializers.ModelSerializer):
             except Exception as e:
                 raise serializers.ValidationError(f'계좌번호 암호화 중 오류가 발생했습니다: {str(e)}')
 
+        # 라이더: 주민등록번호 암호화(평문 저장 금지)
+        resident_number_encrypted = None
+        if resident_number:
+            try:
+                resident_number_encrypted = encrypt_aes128(resident_number)
+            except Exception as e:
+                raise serializers.ValidationError(f'주민등록번호 암호화 중 오류가 발생했습니다: {str(e)}')
+
         user = User(
             role=role,
             bank_name=bank_name,
             account_number_encrypted=account_number_encrypted,
+            resident_number_encrypted=resident_number_encrypted,
             **validated_data
         )
         user.set_password(password)

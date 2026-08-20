@@ -67,6 +67,9 @@ dependencies {
     // 실시간 위치: FusedLocationProvider(고정밀·저전력). GMS 없으면 LocationManager로 폴백.
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
+    // 실제 지도(OpenStreetMap) — API 키 없이 지도 타일 + 내 위치 마커 표시.
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
     // Testing (unit tests, run on JVM, no emulator needed)
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

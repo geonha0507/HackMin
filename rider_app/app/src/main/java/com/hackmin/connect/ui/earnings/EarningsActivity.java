@@ -81,15 +81,21 @@ public class EarningsActivity extends BaseActivity {
     private void renderEarnings(List<DeliveryDto> all) {
         List<DeliveryDto> done = new ArrayList<>();
         int todayCount = 0;
+        long todayFee = 0, totalFee = 0;
         for (DeliveryDto d : all) {
             if ("delivered".equals(d.getStatus())) {
                 done.add(d);
-                if (ConnectFormat.isToday(d.getAssignedAt())) todayCount++;
+                long fee = DeliveryFee.feeOf(d);   // 서버가 거리로 산정한 실제 배달료
+                totalFee += fee;
+                if (ConnectFormat.isToday(d.getAssignedAt())) {
+                    todayCount++;
+                    todayFee += fee;
+                }
             }
         }
-        tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayCount)));
+        tvTodayEarn.setText(ConnectFormat.won(todayFee));
         tvTodayCount.setText("완료 " + todayCount + "건");
-        tvTotalEarn.setText(ConnectFormat.won(DeliveryFee.earned(done.size())));
+        tvTotalEarn.setText(ConnectFormat.won(totalFee));
         tvTotalCount.setText("완료 " + done.size() + "건");
         adapter.submit(done);
         tvEmpty.setVisibility(done.isEmpty() ? View.VISIBLE : View.GONE);

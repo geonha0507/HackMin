@@ -10,6 +10,8 @@ public class DeliveryDto {
     @SerializedName("restaurant_image") private String restaurantImage;
     @SerializedName("total") private int total;
     @SerializedName("status") private String status;
+    @SerializedName("distance_km") private double distanceKm;
+    @SerializedName("fee") private int fee;
     @SerializedName("assigned_at") private String assignedAt;
 
     public long getId() { return id; }
@@ -19,5 +21,7 @@ public class DeliveryDto {
     public String getRestaurantImage() { return restaurantImage; }
     public int getTotal() { return total; }
     public String getStatus() { return status; }
+    public double getDistanceKm() { return distanceKm; }
+    public int getFee() { return fee; }
     public String getAssignedAt() { return assignedAt; }
 }

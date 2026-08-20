@@ -10,4 +10,5 @@ urlpatterns = [
     path('rider/deliveries/<int:pk>/status', views.delivery_status, name='delivery-status'),
     path('rider/location', views.location, name='location'),
     path('rider/menus', views.menus, name='menus'),
+    path('rider/profile', views.profile, name='profile'),
 ]

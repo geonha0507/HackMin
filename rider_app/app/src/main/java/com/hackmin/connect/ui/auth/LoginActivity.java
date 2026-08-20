@@ -15,6 +15,7 @@ import com.hackmin.connect.data.model.auth.UserDto;
 import com.hackmin.connect.network.ApiClient;
 import com.hackmin.connect.network.SessionManager;
 import com.hackmin.connect.ui.common.BaseActivity;
+import com.hackmin.connect.ui.education.EducationActivity;
 import com.hackmin.connect.ui.home.HomeActivity;
 
 import retrofit2.Call;
@@ -44,10 +45,9 @@ public class LoginActivity extends BaseActivity {
         btnLogin = findViewById(R.id.btn_login);
         cbSaveId = findViewById(R.id.cb_save_id);
 
-        // 이미 라이더로 로그인돼 있으면 바로 홈으로.
+        // 이미 라이더로 로그인돼 있으면 교육 이수 여부에 따라 진입.
         if (session.isLoggedIn() && "rider".equals(session.getRole())) {
-            startActivity(new Intent(this, HomeActivity.class));
-            finish();
+            goAfterLogin();
             return;
         }
 
@@ -77,6 +77,15 @@ public class LoginActivity extends BaseActivity {
             }
             return false;
         });
+    }
+
+    /** 로그인 후 진입: 개인정보보호 교육 미이수면 교육 화면, 이수했으면 홈. */
+    private void goAfterLogin() {
+        boolean eduDone = session.isEducationDone(session.getUsername());
+        Intent intent = new Intent(this,
+                eduDone ? HomeActivity.class : EducationActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     private void doLogin() {
@@ -117,8 +126,7 @@ public class LoginActivity extends BaseActivity {
                 session.saveTokens(body.getAccessToken(), body.getRefreshToken());
                 session.saveUser(user.getId(), user.getUsername(), user.getNickname(), user.getRole());
                 Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
-                startActivity(new Intent(LoginActivity.this, HomeActivity.class));
-                finish();
+                goAfterLogin();
             }
 
             @Override

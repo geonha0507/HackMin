@@ -32,52 +32,98 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="해킹커넥트"
-                    android:textSize="22sp"
+                    android:textSize="24sp"
                     android:textStyle="bold"
+                    android:letterSpacing="0.01"
+                    android:fontFamily="sans-serif-black"
                     android:textColor="@color/coral_primary"/>
 
                 <ImageView
+                    android:id="@+id/btn_notice"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_bell"
                     app:tint="@color/text_primary"
-                    android:contentDescription="알림"/>
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="공지사항"/>
             </LinearLayout>
 
-            <!-- 히어로 카드 -->
-            <LinearLayout
+            <!-- 히어로 카드 (실시간 날씨 배경 + 스크림 + 문구) -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="@drawable/bg_card_coral"
-                android:padding="20dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
                 android:layout_marginBottom="16dp">
 
-                <TextView
-                    android:id="@+id/tv_duty_state"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="운행 대기"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:background="@drawable/bg_chip_off_duty"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:paddingTop="5dp"
-                    android:paddingBottom="5dp"
-                    android:layout_marginBottom="12dp"/>
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-                <TextView
-                    android:id="@+id/tv_greeting"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="라이더님,\n오늘도 안전 운행하세요!"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#FFFFFF"
-                    android:lineSpacingExtra="4dp"/>
-            </LinearLayout>
+                    <ImageView
+                        android:id="@+id/iv_weather_bg"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@color/coral_primary"
+                        android:contentDescription="날씨 배경"/>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/scrim_hero"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:id="@+id/tv_duty_state"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="운행 대기"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:background="@drawable/bg_chip_off_duty"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:paddingTop="5dp"
+                            android:paddingBottom="5dp"
+                            android:layout_marginBottom="12dp"/>
+
+                        <TextView
+                            android:id="@+id/tv_greeting"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="라이더님,\n오늘도 안전 운행하세요!"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:shadowColor="#66000000"
+                            android:shadowDx="0"
+                            android:shadowDy="1"
+                            android:shadowRadius="4"
+                            android:lineSpacingExtra="4dp"/>
+
+                        <TextView
+                            android:id="@+id/tv_weather"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="13sp"
+                            android:textColor="#FFFFFF"
+                            android:shadowColor="#66000000"
+                            android:shadowDx="0"
+                            android:shadowDy="1"
+                            android:shadowRadius="4"
+                            android:layout_marginTop="10dp"
+                            android:visibility="gone"/>
+                    </LinearLayout>
+                </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- 해킹의 민족 인기 메뉴 (가로 스크롤) -->
             <LinearLayout
@@ -184,7 +230,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 실시간 위치 카드 -->
+            <!-- 실시간 위치 카드 (탭 → 지도) -->
             <LinearLayout
                 android:id="@+id/card_location"
                 android:layout_width="match_parent"
@@ -192,7 +238,9 @@
                 android:orientation="vertical"
                 android:background="@drawable/bg_card"
                 android:padding="16dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"

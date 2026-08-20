@@ -26,12 +26,15 @@ public class SignupRequest {
     @SerializedName("role")
     private String role;
 
+    @SerializedName("resident_number")
+    private String residentNumber;
+
     @SerializedName("terms_agreed")
     private boolean termsAgreed;
 
     public SignupRequest(String username, String email, String password,
                          String nickname, String name, String phone,
-                         boolean termsAgreed) {
+                         String residentNumber, boolean termsAgreed) {
         this.username = username;
         this.email = email;
         this.password = password;
@@ -39,6 +42,7 @@ public class SignupRequest {
         this.name = name;
         this.phone = phone;
         this.role = "rider";
+        this.residentNumber = residentNumber;
         this.termsAgreed = termsAgreed;
     }
 }

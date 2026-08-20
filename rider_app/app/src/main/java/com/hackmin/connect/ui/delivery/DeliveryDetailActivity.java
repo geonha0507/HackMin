@@ -43,6 +43,13 @@ public class DeliveryDetailActivity extends BaseActivity {
     private View[] stepDots;
     private Button btnAction, btnCall;
 
+    // 거리 기반 배달료용 GPS 추적. 픽업 시점 좌표 → 배달완료 시점 좌표로 이동거리를 계산해 보고한다.
+    private com.hackmin.connect.util.LocationTracker tracker;
+    private double curLat, curLng;
+    private boolean hasLoc = false;
+    private double pickupLat, pickupLng;
+    private boolean hasPickup = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -89,7 +96,28 @@ public class DeliveryDetailActivity extends BaseActivity {
         });
 
         btnAction.setOnClickListener(v -> advanceStatus());
+
+        // 이동 거리 계산용 위치 추적기(권한은 홈에서 이미 요청됨).
+        tracker = new com.hackmin.connect.util.LocationTracker(this,
+                (latitude, longitude, accuracyMeters) -> {
+                    curLat = latitude; curLng = longitude; hasLoc = true;
+                });
+
         load();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (com.hackmin.connect.util.LocationTracker.hasPermission(this)) {
+            tracker.start();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (tracker != null) tracker.stop();
     }
 
     private void load() {
@@ -123,6 +151,13 @@ public class DeliveryDetailActivity extends BaseActivity {
             tvRestaurant.setText(current.getRestaurant());
         }
         com.hackmin.connect.util.ImageLoader.loadStore(ivRestaurant, current.getRestaurantImage());
+        // 배달료: 완료 건은 서버가 거리로 산정한 실제 금액, 그 외엔 기본료 안내.
+        if ("delivered".equals(status) && current.getFee() > 0) {
+            tvFee.setText("배달료 " + ConnectFormat.won(current.getFee())
+                    + " (" + String.format(java.util.Locale.KOREA, "%.1f", current.getDistanceKm()) + "km)");
+        } else {
+            tvFee.setText("배달료 기본 " + ConnectFormat.won(DeliveryFee.PER_DELIVERY) + " + 거리요금");
+        }
         tvOrderNumber.setText("주문 " + (current.getOrderNumber() == null ? "-" : current.getOrderNumber()));
         tvCustomer.setText(emptyDash(current.getCustomer()));
         String addr = emptyDash(current.getAddress());
@@ -179,8 +214,21 @@ public class DeliveryDetailActivity extends BaseActivity {
                 return;
         }
 
+        // 픽업 시점 좌표 기록(배달 완료 시 이 지점부터의 이동거리로 배달료 계산).
+        if ("picked_up".equals(next) && hasLoc) {
+            pickupLat = curLat; pickupLng = curLng; hasPickup = true;
+        }
+
+        // 배달 완료면 픽업→현재 이동거리(km)를 계산해 함께 보고한다(서버가 거리로 요금 산정).
+        DeliveryStatusRequest req;
+        if ("delivered".equals(next)) {
+            req = new DeliveryStatusRequest(next, reportedDistanceKm());
+        } else {
+            req = new DeliveryStatusRequest(next);
+        }
+
         btnAction.setEnabled(false);
-        ApiClient.riderApi(this).updateDeliveryStatus(deliveryId, new DeliveryStatusRequest(next))
+        ApiClient.riderApi(this).updateDeliveryStatus(deliveryId, req)
                 .enqueue(new Callback<DeliveryDetailDto>() {
             @Override
             public void onResponse(Call<DeliveryDetailDto> call, Response<DeliveryDetailDto> response) {
@@ -189,8 +237,9 @@ public class DeliveryDetailActivity extends BaseActivity {
                     current = response.body();
                     if ("delivered".equals(current.getStatus())) {
                         Toast.makeText(DeliveryDetailActivity.this,
-                                "배달 완료! 배달료 " + ConnectFormat.won(DeliveryFee.PER_DELIVERY)
-                                        + "이 적립됐어요.", Toast.LENGTH_LONG).show();
+                                "배달 완료! 이동 " + String.format(java.util.Locale.KOREA, "%.1f", current.getDistanceKm())
+                                        + "km · 배달료 " + ConnectFormat.won(current.getFee())
+                                        + " 적립!", Toast.LENGTH_LONG).show();
                     }
                     render();
                 } else {
@@ -206,6 +255,14 @@ public class DeliveryDetailActivity extends BaseActivity {
                         "네트워크 연결 실패", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    /** 픽업 지점 → 현재 위치의 직선 이동거리(km). GPS로 계산해 서버에 보고하는 값. */
+    private double reportedDistanceKm() {
+        if (!hasPickup || !hasLoc) return 0;
+        float[] result = new float[1];
+        android.location.Location.distanceBetween(pickupLat, pickupLng, curLat, curLng, result);
+        return result[0] / 1000.0; // m → km
     }
 
     private static int stepOf(String status) {

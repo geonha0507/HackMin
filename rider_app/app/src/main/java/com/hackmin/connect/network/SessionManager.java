@@ -118,6 +118,16 @@ public final class SessionManager
         return prefs.getString(KEY_ROLE, "");
     }
 
+    // ── 개인정보보호 교육 이수 여부(아이디별) ─────────────────
+
+    public void setEducationDone(String username) {
+        prefs.edit().putBoolean("edu_done_" + (username == null ? "" : username), true).apply();
+    }
+
+    public boolean isEducationDone(String username) {
+        return prefs.getBoolean("edu_done_" + (username == null ? "" : username), false);
+    }
+
     // ── 운행 상태 ─────────────────────────────────────────
 
     public void setOnDuty(boolean onDuty) {

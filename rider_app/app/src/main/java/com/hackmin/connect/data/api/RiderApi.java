@@ -41,4 +41,12 @@ public interface RiderApi {
     /** 해킹의 민족 전체 메뉴 목록(홈 노출용, 사진 포함) */
     @GET("rider/menus")
     Call<PagedResponse<MenuDto>> getMenus(@Query("limit") Integer limit);
+
+    /** 배달 전 정보(정산 계좌·면허·차량·희망지역·배달수단) 조회 */
+    @GET("rider/profile")
+    Call<RiderProfileDto> getProfile();
+
+    /** 배달 전 정보 저장(부분 수정) */
+    @PUT("rider/profile")
+    Call<RiderProfileDto> updateProfile(@Body RiderProfileDto profile);
 }

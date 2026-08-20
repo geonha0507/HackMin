@@ -30,6 +30,8 @@ public class SignupActivity extends com.hackmin.connect.ui.common.BaseActivity {
     private TextInputEditText etSignupPwConfirm;
     private TextInputEditText etSignupName;
     private TextInputEditText etSignupPhone;
+    private TextInputEditText etSignupRrnFront;
+    private TextInputEditText etSignupRrnBack;
     private TextView tvNicknameCheckResult;
     private TextView tvIdCheckResult;
     private TextView tvPwCondition;
@@ -49,6 +51,8 @@ public class SignupActivity extends com.hackmin.connect.ui.common.BaseActivity {
         etSignupPwConfirm = findViewById(R.id.et_signup_pw_confirm);
         etSignupName = findViewById(R.id.et_signup_name);
         etSignupPhone = findViewById(R.id.et_signup_phone);
+        etSignupRrnFront = findViewById(R.id.et_signup_rrn_front);
+        etSignupRrnBack = findViewById(R.id.et_signup_rrn_back);
         tvNicknameCheckResult = findViewById(R.id.tv_nickname_check_result);
         tvIdCheckResult = findViewById(R.id.tv_id_check_result);
         tvPwCondition = findViewById(R.id.tv_pw_condition);
@@ -253,6 +257,13 @@ public class SignupActivity extends com.hackmin.connect.ui.common.BaseActivity {
                 Toast.makeText(this, "전화번호는 010으로 시작하는 11자리로 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
+            String rrnFront = etSignupRrnFront.getText() != null ? etSignupRrnFront.getText().toString().trim() : "";
+            String rrnBack = etSignupRrnBack.getText() != null ? etSignupRrnBack.getText().toString().trim() : "";
+            String residentNumber = rrnFront + rrnBack;
+            if (!residentNumber.matches("^\\d{13}$")) {
+                Toast.makeText(this, "주민등록번호를 앞 6자리·뒤 7자리 모두 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (!isNicknameChecked) {
                 Toast.makeText(this, "닉네임 중복확인을 먼저 진행해 주세요.", Toast.LENGTH_SHORT).show();
                 return;
@@ -270,8 +281,8 @@ public class SignupActivity extends com.hackmin.connect.ui.common.BaseActivity {
                 return;
             }
 
-            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호 (주민번호는 수집하지 않음)
-            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, true);
+            // username=아이디, email=아이디, nickname=닉네임, name=실명, phone=전화번호, 주민번호(13자리)
+            SignupRequest request = new SignupRequest(id, id, pw, nickname, name, phone, residentNumber, true);
 
             ApiClient.authApi(this).signup(request).enqueue(new Callback<UserDto>() {
                 @Override

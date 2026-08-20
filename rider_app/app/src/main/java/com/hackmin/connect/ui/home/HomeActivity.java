@@ -53,6 +53,10 @@ public class HomeActivity extends BaseActivity {
     private long lastSentAt = 0L;
     private MenuAdapter menuAdapter;
     private View sectionMenus;
+    private android.widget.ImageView ivWeatherBg;
+    private TextView tvWeather;
+    private double lastLat = 37.5665, lastLng = 126.9780;  // 기본값: 서울시청
+    private boolean weatherLoaded = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +77,8 @@ public class HomeActivity extends BaseActivity {
         tvLocationAddress = findViewById(R.id.tv_location_address);
         tvLocationCoords = findViewById(R.id.tv_location_coords);
         dotLive = findViewById(R.id.dot_live);
+        ivWeatherBg = findViewById(R.id.iv_weather_bg);
+        tvWeather = findViewById(R.id.tv_weather);
 
         // 해킹의 민족 인기 메뉴 (가로 스크롤).
         sectionMenus = findViewById(R.id.section_menus);
@@ -93,6 +99,14 @@ public class HomeActivity extends BaseActivity {
                 tvLocationCoords.setVisibility(View.VISIBLE);
                 tvLocationCoords.setText(String.format(Locale.US, "%.6f, %.6f", latitude, longitude));
                 sendLocationToServer(latitude, longitude, accuracyMeters);
+
+                // 첫 위치 확보 시 실제 날씨를 그 좌표로 조회한다.
+                lastLat = latitude;
+                lastLng = longitude;
+                if (!weatherLoaded) {
+                    weatherLoaded = true;
+                    loadWeather();
+                }
             }
 
             @Override
@@ -119,6 +133,20 @@ public class HomeActivity extends BaseActivity {
 
         cardNewCalls.setOnClickListener(v ->
                 startActivity(new Intent(this, DeliveryListActivity.class)));
+
+        // 내 위치 카드 → 실제 지도로 위치 보기.
+        View cardLocation = findViewById(R.id.card_location);
+        if (cardLocation != null) {
+            cardLocation.setOnClickListener(v ->
+                    startActivity(new Intent(this, com.hackmin.connect.ui.map.MapActivity.class)));
+        }
+
+        // 벨 아이콘 → 공지사항.
+        View btnNotice = findViewById(R.id.btn_notice);
+        if (btnNotice != null) {
+            btnNotice.setOnClickListener(v ->
+                    startActivity(new Intent(this, com.hackmin.connect.ui.notice.NoticeActivity.class)));
+        }
     }
 
     @Override
@@ -127,6 +155,11 @@ public class HomeActivity extends BaseActivity {
         renderDuty();
         loadSummary();
         loadMenus();
+        // 위치 권한/추적이 아직이면 기본 좌표(서울)로라도 날씨를 먼저 표시.
+        if (!weatherLoaded) {
+            weatherLoaded = true;
+            loadWeather();
+        }
         // 운행 중이면 화면 복귀 시 추적을 (재)개한다.
         if (session.isOnDuty()) {
             startLocationTracking();
@@ -278,20 +311,54 @@ public class HomeActivity extends BaseActivity {
         menuAdapter.submit(menus);
     }
 
+    /** 현재(또는 기본) 좌표의 실제 날씨를 가져와 히어로 카드 배경·문구에 반영한다. */
+    private void loadWeather() {
+        com.hackmin.connect.util.WeatherClient.fetch(lastLat, lastLng, this::applyWeather);
+    }
+
+    private void applyWeather(com.hackmin.connect.util.WeatherClient.Weather w) {
+        int bg;
+        String phrase;
+        switch (w) {
+            case CLEAR:
+                bg = R.drawable.weather_clear;
+                phrase = "맑은 날이에요. 기분 좋은 배달 되세요!";
+                break;
+            case SNOW:
+                bg = R.drawable.weather_snow;
+                phrase = "눈이 와요. 미끄러우니 천천히 운행하세요.";
+                break;
+            case RAIN:
+                bg = R.drawable.weather_rain;
+                phrase = "비 오는 날이네요. 조심히 운행하세요.";
+                break;
+            case CLOUDY:
+            default:
+                bg = R.drawable.weather_cloudy;
+                phrase = "흐린 날이에요. 시야 확보하고 안전 운행하세요.";
+                break;
+        }
+        ivWeatherBg.setImageResource(bg);
+        tvWeather.setText(phrase);
+        tvWeather.setVisibility(View.VISIBLE);
+    }
+
     private void renderSummary(java.util.List<DeliveryDto> deliveries) {
         int todayDone = 0;
         int newCalls = 0;
+        long todayFee = 0;
         for (DeliveryDto d : deliveries) {
             if ("delivered".equals(d.getStatus())
                     && ConnectFormat.isToday(d.getAssignedAt())) {
                 todayDone++;
+                todayFee += DeliveryFee.feeOf(d);   // 서버가 거리로 산정한 실제 배달료 합산
             }
             if ("assigned".equals(d.getStatus())) {
                 newCalls++;
             }
         }
         tvTodayCount.setText(todayDone + "건");
-        tvTodayEarn.setText(ConnectFormat.won(DeliveryFee.earned(todayDone)));
+        tvTodayEarn.setText(ConnectFormat.won(todayFee));
         tvNewCalls.setText(newCalls > 0
                 ? "대기 중인 신규 콜 " + newCalls + "건"
                 : "대기 중인 신규 콜이 없어요");

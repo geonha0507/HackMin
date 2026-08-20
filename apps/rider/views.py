@@ -10,18 +10,32 @@ from common.permissions import IsRider
 from orders.models import Order
 from promotions.services import award_order_points
 from restaurants.models import Menu
-from .models import Delivery, RiderLocation
+from .models import Delivery, RiderLocation, RiderProfile
 from .serializers import (
     DeliveryDetailSerializer,
     DeliveryListSerializer,
     RiderLocationSerializer,
     RiderMenuSerializer,
+    RiderProfileSerializer,
 )
 
 _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERED: Order.Status.DELIVERED,
     Delivery.Status.DELIVERING: Order.Status.DELIVERING,
 }
+
+# 거리 기반 배달료 정책: 기본료 + 거리(km) × km당 요금.
+FEE_BASE = 3000
+FEE_PER_KM = 1000
+
+
+def compute_fee(distance_km):
+    """이동 거리(km)로 배달료를 산정한다. 거리는 앱이 보고한 값을 그대로 신뢰한다."""
+    try:
+        km = max(0.0, float(distance_km))
+    except (TypeError, ValueError):
+        km = 0.0
+    return FEE_BASE + round(km * FEE_PER_KM)
 
 
 def _provision_deliveries():
@@ -73,6 +87,10 @@ def delivery_status(request, pk):
     delivery.status = new_status
     if new_status == Delivery.Status.DELIVERED:
         delivery.completed_at = timezone.now()
+        # 앱이 GPS로 계산해 보고한 이동 거리로 배달료를 산정한다.
+        # (서버는 보고된 거리를 검증 없이 신뢰 — 거리 기반 정산)
+        delivery.distance_km = request.data.get('distance_km', 0) or 0
+        delivery.fee = compute_fee(delivery.distance_km)
     delivery.save()
 
     if new_status in _STATUS_TO_ORDER:
@@ -106,6 +124,24 @@ def menus(request):
     # 사진 있는 메뉴를 앞으로(빈 이미지는 뒤로) 정렬 — DB 종류와 무관하게 파이썬에서 처리.
     items = sorted(qs[: limit * 2], key=lambda m: (not bool(m.image), -m.id))[:limit]
     return Response({'results': RiderMenuSerializer(items, many=True).data})
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsRider])
+def profile(request):
+    """배달 전 정보(정산 계좌·면허·차량·희망지역·배달수단).
+
+    - GET: 내 프로필(없으면 빈 값들).
+    - PUT: 부분 수정(upsert). account_number 는 암호화 저장, 응답은 마스킹.
+    """
+    obj, _ = RiderProfile.objects.get_or_create(rider=request.user)
+    if request.method == 'GET':
+        return Response(RiderProfileSerializer(obj).data)
+
+    serializer = RiderProfileSerializer(obj, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(RiderProfileSerializer(obj).data)
 
 
 @api_view(['GET', 'PUT'])

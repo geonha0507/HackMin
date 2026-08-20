@@ -14,6 +14,8 @@ public class DeliveryDetailDto {
     @SerializedName("address") private String address;
     @SerializedName("address_detail") private String addressDetail;
     @SerializedName("request_note") private String requestNote;
+    @SerializedName("distance_km") private double distanceKm;
+    @SerializedName("fee") private int fee;
     @SerializedName("assigned_at") private String assignedAt;
     @SerializedName("completed_at") private String completedAt;
 
@@ -28,6 +30,8 @@ public class DeliveryDetailDto {
     public String getAddress() { return address; }
     public String getAddressDetail() { return addressDetail; }
     public String getRequestNote() { return requestNote; }
+    public double getDistanceKm() { return distanceKm; }
+    public int getFee() { return fee; }
     public String getAssignedAt() { return assignedAt; }
     public String getCompletedAt() { return completedAt; }
 }

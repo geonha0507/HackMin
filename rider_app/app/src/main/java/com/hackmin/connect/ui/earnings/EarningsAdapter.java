@@ -40,9 +40,13 @@ public class EarningsAdapter extends RecyclerView.Adapter<EarningsAdapter.Holder
         DeliveryDto d = items.get(position);
         h.tvRestaurant.setText(d.getRestaurant() == null || d.getRestaurant().isEmpty()
                 ? "가게 미지정" : d.getRestaurant());
-        h.tvMeta.setText(ConnectFormat.shortTime(d.getAssignedAt())
-                + " · 주문 " + (d.getOrderNumber() == null ? "-" : d.getOrderNumber()));
-        h.tvFee.setText("+" + ConnectFormat.won(DeliveryFee.PER_DELIVERY));
+        String meta = ConnectFormat.shortTime(d.getAssignedAt())
+                + " · 주문 " + (d.getOrderNumber() == null ? "-" : d.getOrderNumber());
+        if (d.getDistanceKm() > 0) {
+            meta += " · " + String.format(java.util.Locale.KOREA, "%.1fkm", d.getDistanceKm());
+        }
+        h.tvMeta.setText(meta);
+        h.tvFee.setText("+" + ConnectFormat.won(DeliveryFee.feeOf(d)));
     }
 
     @Override

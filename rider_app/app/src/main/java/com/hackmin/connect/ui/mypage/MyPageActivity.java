@@ -43,6 +43,15 @@ public class MyPageActivity extends BaseActivity {
         tvNickname.setText(session.getNickname().isEmpty() ? "라이더" : session.getNickname());
         tvUsername.setText(session.getUsername());
 
+        findViewById(R.id.row_delivery_info).setOnClickListener(v ->
+                startActivity(new Intent(this, DeliveryInfoActivity.class)));
+
+        findViewById(R.id.row_education).setOnClickListener(v -> {
+            Intent i = new Intent(this, com.hackmin.connect.ui.education.EducationActivity.class);
+            i.putExtra("review", true);   // 다시보기 모드(확인 게이트 없이 열람)
+            startActivity(i);
+        });
+
         findViewById(R.id.row_logout).setOnClickListener(v -> {
             if (!ClickGuard.allow()) return;
             confirmLogout();

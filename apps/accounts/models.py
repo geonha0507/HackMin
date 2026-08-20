@@ -62,6 +62,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="계좌번호 (AES-128 암호화). accounts.crypto_utils.encrypt_aes128 으로 저장한다.",
     )
 
+    # --- 라이더 본인확인 (해킹커넥트 가입 시 수집) ---
+    resident_number_encrypted = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="주민등록번호 13자리 (AES-128 암호화). 본인확인·정산신고용. 평문 저장 금지.",
+    )
+
     # --- 고객 결제정보 (앱 내정보에서 등록) ---
     # NOTE: CVC 와 카드 비밀번호는 원칙적으로 보관 대상이 아니다(PCI DSS).
     #       모의해킹 시나리오용으로 남겨두는 것이라면 docs 에 의도된 항목으로 표시할 것.

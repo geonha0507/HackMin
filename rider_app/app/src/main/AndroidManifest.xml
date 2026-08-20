@@ -34,8 +34,25 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.education.EducationActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.home.HomeActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ui.map.MapActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.notice.NoticeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.mypage.DeliveryInfoActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".ui.delivery.DeliveryListActivity"

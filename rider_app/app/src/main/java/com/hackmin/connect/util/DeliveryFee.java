@@ -18,6 +18,14 @@ public final class DeliveryFee {
 
     private DeliveryFee() {}
 
+    /**
+     * 배달 한 건의 실제 배달료(원). 서버가 거리로 산정한 fee 를 우선 쓰고,
+     * 아직 값이 없으면(구 데이터 등) 기본료로 대체한다.
+     */
+    public static long feeOf(DeliveryDto d) {
+        return d != null && d.getFee() > 0 ? d.getFee() : PER_DELIVERY;
+    }
+
     /** 완료(delivered)된 배달 건수 × 단가. */
     public static long earned(int deliveredCount) {
         return (long) deliveredCount * PER_DELIVERY;

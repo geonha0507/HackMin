@@ -97,6 +97,110 @@ class RiderLocationTest(APITestCase):
         self.assertIn(resp.status_code, (403, 401))
 
 
+class RiderSignupResidentTest(APITestCase):
+    def test_signup_stores_resident_number_encrypted(self):
+        """라이더 가입 시 주민번호는 암호화 컬럼에 저장되고 평문은 남지 않는다."""
+        resp = self.client.post('/api/v1/auth/signup', {
+            'username': 'rr@test.com', 'email': 'rr@test.com', 'password': 'Rider1234!',
+            'nickname': '라이더RR', 'name': '주민', 'phone': '01012349999',
+            'role': 'rider', 'resident_number': '900101-1234567', 'terms_agreed': True,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.content)
+        user = User.objects.get(username='rr@test.com')
+        self.assertTrue(user.resident_number_encrypted)
+        self.assertNotIn('9001011234567', user.resident_number_encrypted)
+        from accounts.crypto_utils import decrypt_aes128
+        self.assertEqual(decrypt_aes128(user.resident_number_encrypted), '9001011234567')
+
+    def test_signup_rejects_bad_resident_number(self):
+        resp = self.client.post('/api/v1/auth/signup', {
+            'username': 'rr2@test.com', 'email': 'rr2@test.com', 'password': 'Rider1234!',
+            'nickname': '라이더RR2', 'name': '주민', 'phone': '01012340000',
+            'role': 'rider', 'resident_number': '12345', 'terms_agreed': True,
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class RiderProfileTest(APITestCase):
+    def setUp(self):
+        self.rider = User.objects.create_user(
+            username='rp@test.com', email='rp@test.com', password='Rider1234!',
+            nickname='라이더P', name='프로', phone='01011112222', role=User.Role.RIDER,
+        )
+
+    def test_profile_get_empty_then_put_roundtrip(self):
+        self.client.force_authenticate(self.rider)
+        empty = self.client.get('/api/v1/rider/profile')
+        self.assertEqual(empty.status_code, 200)
+
+        put = self.client.put('/api/v1/rider/profile', {
+            'bank_name': '카카오뱅크', 'account_number': '3333012345678',
+            'account_holder': '김라이더', 'license_number': '11-22-334455-66',
+            'vehicle_number': '12가3456', 'region': '서울 강남구',
+            'delivery_method': 'motorcycle',
+        }, format='json')
+        self.assertEqual(put.status_code, 200, put.content)
+        self.assertEqual(put.data['delivery_method_label'], '오토바이')
+        # 계좌번호는 마스킹되어 내려오고 평문은 응답에 없음.
+        self.assertTrue(put.data['account_number_masked'].endswith('5678'))
+        self.assertNotIn('account_number', put.data)
+
+        from rider.models import RiderProfile
+        prof = RiderProfile.objects.get(rider=self.rider)
+        self.assertTrue(prof.account_number_encrypted)
+        self.assertNotIn('3333012345678', prof.account_number_encrypted)
+
+    def test_profile_rejects_bad_method(self):
+        self.client.force_authenticate(self.rider)
+        resp = self.client.put('/api/v1/rider/profile',
+                               {'delivery_method': 'rocket'}, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class RiderDistanceFeeTest(APITestCase):
+    def setUp(self):
+        from orders.models import Order
+        from restaurants.models import Restaurant
+        from rider.models import Delivery
+        self.rider = User.objects.create_user(
+            username='dr@test.com', email='dr@test.com', password='Rider1234!',
+            nickname='거리라이더', name='거리', phone='01012223333', role=User.Role.RIDER,
+        )
+        self.owner = User.objects.create_user(
+            username='dro@test.com', email='dro@test.com', password='Owner1234!',
+            nickname='점주D', name='점주', phone='01044445555', role=User.Role.OWNER,
+        )
+        self.customer = User.objects.create_user(
+            username='drc@test.com', email='drc@test.com', password='Cust1234!',
+            nickname='손님D', name='손님', phone='01066667777', role=User.Role.CUSTOMER,
+        )
+        rest = Restaurant.objects.create(owner=self.owner, name='교촌치킨', cuisine_type='치킨')
+        order = Order.objects.create(user=self.customer, restaurant=rest, total=20000,
+                                     status=Order.Status.DELIVERING)
+        self.delivery = Delivery.objects.create(order=order, status=Delivery.Status.DELIVERING,
+                                                rider=self.rider)
+
+    def test_fee_scales_with_reported_distance(self):
+        """앱이 보고한 거리로 배달료가 커진다(서버가 거리를 신뢰)."""
+        self.client.force_authenticate(self.rider)
+        resp = self.client.put(
+            f'/api/v1/rider/deliveries/{self.delivery.id}/status',
+            {'status': 'delivered', 'distance_km': 7.5}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        # 기본 3000 + 7.5km × 1000 = 10500
+        self.assertEqual(resp.data['fee'], 10500)
+        self.assertAlmostEqual(resp.data['distance_km'], 7.5)
+
+    def test_spoofed_large_distance_inflates_fee(self):
+        """거리 조작(과장 보고) 시 요금이 그대로 부풀려진다(의도된 취약점)."""
+        self.client.force_authenticate(self.rider)
+        resp = self.client.put(
+            f'/api/v1/rider/deliveries/{self.delivery.id}/status',
+            {'status': 'delivered', 'distance_km': 9999}, format='json')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['fee'], 3000 + 9999 * 1000)
+
+
 class RiderMenusTest(APITestCase):
     def setUp(self):
         from restaurants.models import Menu, Restaurant

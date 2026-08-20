@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
+from accounts.crypto_utils import decrypt_aes128, encrypt_aes128
 from restaurants.models import Menu
-from .models import Delivery, RiderLocation
+from .models import Delivery, RiderLocation, RiderProfile
 
 
 def _restaurant_image_url(delivery):
@@ -22,7 +23,7 @@ class DeliveryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Delivery
         fields = ['id', 'order', 'order_number', 'restaurant', 'restaurant_image',
-                  'total', 'status', 'assigned_at']
+                  'total', 'status', 'distance_km', 'fee', 'assigned_at']
 
     def get_restaurant_image(self, obj):
         return _restaurant_image_url(obj)
@@ -44,7 +45,7 @@ class DeliveryDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order', 'order_number', 'status', 'restaurant', 'restaurant_image',
             'customer', 'phone', 'address', 'address_detail', 'request_note',
-            'assigned_at', 'completed_at',
+            'distance_km', 'fee', 'assigned_at', 'completed_at',
         ]
 
     def get_restaurant_image(self, obj):
@@ -63,6 +64,48 @@ class RiderMenuSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         # 상대경로(/media/...)로 내려가면 앱 ImageLoader가 절대 URL로 만든다(고객 앱과 동일).
         return obj.image.url if obj.image else None
+
+
+class RiderProfileSerializer(serializers.ModelSerializer):
+    """배달 전 정보(정산 계좌·면허·차량·희망지역·배달수단).
+
+    account_number 는 평문으로 받아 암호화 저장하고, 응답에는 마스킹된 값만 내려준다.
+    """
+    account_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    account_number_masked = serializers.SerializerMethodField()
+    delivery_method_label = serializers.CharField(
+        source='get_delivery_method_display', read_only=True)
+
+    class Meta:
+        model = RiderProfile
+        fields = [
+            'bank_name', 'account_number', 'account_number_masked', 'account_holder',
+            'license_number', 'vehicle_number', 'region',
+            'delivery_method', 'delivery_method_label', 'updated_at',
+        ]
+        read_only_fields = ['updated_at']
+
+    def get_account_number_masked(self, obj):
+        enc = obj.account_number_encrypted
+        if not enc:
+            return ''
+        try:
+            plain = decrypt_aes128(enc)
+        except Exception:
+            return ''
+        # 뒤 4자리만 노출.
+        return ('*' * max(0, len(plain) - 4)) + plain[-4:] if plain else ''
+
+    def validate_delivery_method(self, value):
+        if value and value not in RiderProfile.DeliveryMethod.values:
+            raise serializers.ValidationError('유효하지 않은 배달수단입니다.')
+        return value
+
+    def save(self, **kwargs):
+        account_number = self.validated_data.pop('account_number', None)
+        if account_number:
+            kwargs['account_number_encrypted'] = encrypt_aes128(account_number)
+        return super().save(**kwargs)
 
 
 class RiderLocationSerializer(serializers.ModelSerializer):
