@@ -259,8 +259,25 @@ def rider_account_by_id(request, pk):
     """라이더 pk 의 정산 계좌 변경. 소유권 검증 없음(IDOR).
 
     body: {"account_number": "...", "bank_name"?, "account_holder"?}
-    공격자가 타 라이더 계좌를 자기 것으로 바꿔 정산금을 가로챌 수 있다.
+
+    [방어 ④] 계좌 변경은 Keystore 거래 서명(X-Txn-*)을 필수로 요구한다. 개인키가
+    하드웨어(TEE)에 격리돼 커스텀 클라이언트(무루팅)는 유효 서명을 못 만든다 → 401.
+    유일한 우회는 라이더 앱을 루팅해 살아있는 서명 함수를 오라클로 부리는 것.
+
+    단 서명은 '진짜 앱 인스턴스가 보냄'만 증명하고 **소유권은 검사하지 않으므로**,
+    요청자는 자기 키로 서명한 요청으로 **타 라이더 계좌**를 바꿀 수 있다(=IDOR).
     """
+    from common.txnsig import TxnSigError, verify_txn
+    try:
+        verify_txn(
+            request.user, request.method, request.path,
+            request.headers.get('X-Txn-Ts'), request.headers.get('X-Txn-Nonce'),
+            request.headers.get('X-Txn-Sig'), request.headers.get('X-Key-Id'),
+            request.body,
+        )
+    except TxnSigError as exc:
+        return error_response('txn_sig_required', f'거래 서명 검증 실패: {exc}', 401)
+
     if not User.objects.filter(pk=pk).exists():
         return error_response('not_found', '라이더를 찾을 수 없습니다.', 404)
     obj, _ = RiderProfile.objects.get_or_create(rider_id=pk)
@@ -268,3 +285,21 @@ def rider_account_by_id(request, pk):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(RiderProfileSerializer(obj).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsRider])
+def register_txn_key(request):
+    """[방어 ④] 거래서명 공개키 등록.
+
+    라이더 앱이 Android Keystore(EC P-256)에서 개인키를 만들고, 공개키(PEM)만
+    올린다. 서버는 이 공개키로 계좌변경 서명을 검증한다(개인키는 저장하지 않음).
+    """
+    from .models import TxnKey
+    key_id = request.data.get('key_id')
+    pem = request.data.get('public_key_pem')
+    if not key_id or not pem:
+        return error_response('bad_request', 'key_id/public_key_pem 이 필요합니다.', 400)
+    TxnKey.objects.update_or_create(
+        user=request.user, key_id=key_id, defaults={'public_key_pem': pem})
+    return Response({'key_id': key_id}, status=201)

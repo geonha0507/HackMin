@@ -1,9 +1,25 @@
 """라이더 회원가입 + 실시간 위치(GPS relay) 엔드포인트 테스트."""
 
+import base64
+import json
+import time
+import uuid
+
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 User = get_user_model()
+
+
+def _gen_txn_key():
+    """테스트용 EC P-256 키쌍 생성 → (private_key, public_pem_str). 앱 Keystore 대역."""
+    priv = ec.generate_private_key(ec.SECP256R1())
+    pem = priv.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    return priv, pem
 
 
 class RiderSignupTest(APITestCase):
@@ -359,9 +375,39 @@ class RiderIdorTest(APITestCase):
             rider=self.victim, bank_name='국민은행', account_holder='피해자')
         prof.account_number_encrypted = encrypt_aes128('110001112222')
         prof.save()
+        # 계좌변경은 거래서명(Keystore EC)을 요구한다. 공격자의 키쌍(=루팅 후 오라클로
+        # 확보한 앱의 서명 능력 대역)을 준비해 둔다.
+        self.priv, self.pem = _gen_txn_key()
+        self.key_id = 'atk-key'
+
+    def _register_key(self):
+        self.client.force_authenticate(self.attacker)
+        r = self.client.post('/api/v1/rider/txn-key',
+                             {'key_id': self.key_id, 'public_key_pem': self.pem},
+                             format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+
+    def _account_change(self, target_id, body_dict, nonce=None, ts=None, sign=True):
+        """계좌변경 요청. sign=True 면 canonical 을 공격자 키로 ECDSA 서명해 헤더 부착."""
+        self.client.force_authenticate(self.attacker)
+        path = f'/api/v1/riders/{target_id}/account'
+        body = json.dumps(body_dict)
+        extra = {}
+        if sign:
+            nonce = nonce or str(uuid.uuid4())
+            ts = ts if ts is not None else int(time.time() * 1000)
+            canon = f'PUT\n{path}\n{ts}\n{nonce}\n{body}'.encode('utf-8')
+            sig = self.priv.sign(canon, ec.ECDSA(hashes.SHA256()))
+            extra = {
+                'HTTP_X_TXN_TS': str(ts),
+                'HTTP_X_TXN_NONCE': nonce,
+                'HTTP_X_TXN_SIG': base64.b64encode(sig).decode(),
+                'HTTP_X_KEY_ID': self.key_id,
+            }
+        return self.client.put(path, data=body, content_type='application/json', **extra)
 
     def test_attacker_reads_victim_profile_via_idor(self):
-        """공격자가 피해자 pk 로 프로필을 열람할 수 있다(소유권 검증 없음)."""
+        """공격자가 피해자 pk 로 프로필을 열람할 수 있다(소유권 검증 없음, GET은 서명 불요)."""
         self.client.force_authenticate(self.attacker)
         resp = self.client.get(f'/api/v1/riders/{self.victim.id}/profile')
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -369,19 +415,34 @@ class RiderIdorTest(APITestCase):
         self.assertEqual(resp.data['nickname'], '피해자')
         self.assertEqual(resp.data['bank_name'], '국민은행')
 
-    def test_attacker_changes_victim_account_via_idor(self):
-        """공격자가 피해자 계좌를 자기 것으로 바꾼다(정산금 탈취)."""
-        self.client.force_authenticate(self.attacker)
-        resp = self.client.put(
-            f'/api/v1/riders/{self.victim.id}/account',
-            {'account_number': '999888777666', 'account_holder': '공격자'},
-            format='json')
+    def test_account_change_without_signature_rejected(self):
+        """[무루팅 커스텀 클라] 서명 없이 계좌변경 → 401. 하드웨어 서명이 필수라 막힘."""
+        resp = self._account_change(
+            self.victim.id, {'account_number': '999888777666'}, sign=False)
+        self.assertEqual(resp.status_code, 401, resp.content)
+
+    def test_attacker_changes_victim_account_with_signature(self):
+        """[루팅+서명 오라클] 공격자가 '자기 키로 서명'해 피해자 계좌를 바꾼다.
+
+        서명은 '진짜 앱 인스턴스가 보냄'만 증명 → 소유권 미검사(IDOR)라 남의 계좌가 바뀐다.
+        """
+        self._register_key()
+        resp = self._account_change(
+            self.victim.id, {'account_number': '999888777666', 'account_holder': '공격자'})
         self.assertEqual(resp.status_code, 200, resp.content)
         from accounts.crypto_utils import decrypt_aes128
         from rider.models import RiderProfile
         prof = RiderProfile.objects.get(rider=self.victim)
-        # 피해자 계좌가 공격자 값으로 바뀌었다.
         self.assertEqual(decrypt_aes128(prof.account_number_encrypted), '999888777666')
+
+    def test_replayed_nonce_rejected(self):
+        """캡처한 서명 재전송(같은 nonce) → 401. 재전송 방지."""
+        self._register_key()
+        nonce = str(uuid.uuid4())
+        r1 = self._account_change(self.victim.id, {'account_number': '111111111111'}, nonce=nonce)
+        self.assertEqual(r1.status_code, 200, r1.content)
+        r2 = self._account_change(self.victim.id, {'account_number': '222222222222'}, nonce=nonce)
+        self.assertEqual(r2.status_code, 401, r2.content)
 
     def test_idor_endpoint_requires_rider_role(self):
         """비-라이더(고객)는 접근 불가(인증은 있으나 IsRider 통과 못함)."""

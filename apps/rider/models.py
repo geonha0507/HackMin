@@ -86,3 +86,35 @@ class RiderLocation(models.Model):
 
     def __str__(self):
         return f'RiderLocation(rider={self.rider_id}, {self.latitude},{self.longitude})'
+
+
+class TxnKey(models.Model):
+    """[방어 ④] 사용자별 거래서명 공개키 (Keystore/TEE 하드웨어 키의 공개부).
+
+    라이더 앱이 Android Keystore(EC P-256, StrongBox→TEE)에서 개인키를 생성하고
+    공개키만 등록한다. 개인키는 하드웨어에 격리돼 앱조차 추출 불가하므로, 서버는
+    이 공개키로만 '계좌 변경' 같은 민감 요청의 서명을 검증한다.
+
+    → 커스텀 클라이언트(무루팅)는 개인키가 없어 유효 서명을 못 만든다(=401).
+      유일한 우회는 루팅한 기기에서 살아있는 앱의 서명 함수를 후킹(서명 오라클)하는 것.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='txn_keys')
+    key_id = models.CharField(max_length=64)
+    public_key_pem = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'key_id')
+
+    def __str__(self):
+        return f'TxnKey(user={self.user_id}, {self.key_id})'
+
+
+class TxnNonce(models.Model):
+    """[방어 ④] 1회성 nonce 기록(재전송 방지). 이미 쓰인 nonce 요청은 거부한다."""
+    nonce = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.nonce

@@ -49,4 +49,8 @@ public interface RiderApi {
     /** 배달 전 정보 저장(부분 수정) */
     @PUT("rider/profile")
     Call<RiderProfileDto> updateProfile(@Body RiderProfileDto profile);
+
+    /** [방어 ④] 거래서명 공개키 등록 (Keystore EC 공개키 PEM). body: {key_id, public_key_pem} */
+    @POST("rider/txn-key")
+    Call<Void> registerTxnKey(@Body java.util.Map<String, String> body);
 }

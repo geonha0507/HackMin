@@ -15,6 +15,7 @@ import com.hackmin.connect.data.model.auth.UserDto;
 import com.hackmin.connect.network.ApiClient;
 import com.hackmin.connect.network.SessionManager;
 import com.hackmin.connect.security.SecurityGuard;
+import com.hackmin.connect.security.TxnSigner;
 import com.hackmin.connect.ui.common.BaseActivity;
 import com.hackmin.connect.ui.education.EducationActivity;
 import com.hackmin.connect.ui.home.HomeActivity;
@@ -84,6 +85,24 @@ public class LoginActivity extends BaseActivity {
         });
     }
 
+    /**
+     * [방어 ④] Keystore(EC) 개인키를 최초 1회 생성하고 공개키를 서버에 등록한다.
+     * 계좌변경 요청 서명 검증에 쓰인다. 실패해도 로그인엔 지장 없음(계좌변경 시 401로 드러남).
+     */
+    private void registerTxnKeyAsync() {
+        new Thread(() -> {
+            try {
+                String pem = TxnSigner.ensurePublicKeyPem();
+                java.util.Map<String, String> body = new java.util.HashMap<>();
+                body.put("key_id", "rider-default");
+                body.put("public_key_pem", pem);
+                ApiClient.riderApi(LoginActivity.this).registerTxnKey(body).execute();
+            } catch (Exception ignored) {
+                // best-effort 등록
+            }
+        }).start();
+    }
+
     /** 로그인 후 진입: 개인정보보호 교육 미이수면 교육 화면, 이수했으면 홈. */
     private void goAfterLogin() {
         boolean eduDone = session.isEducationDone(session.getUsername());
@@ -130,6 +149,7 @@ public class LoginActivity extends BaseActivity {
 
                 session.saveTokens(body.getAccessToken(), body.getRefreshToken());
                 session.saveUser(user.getId(), user.getUsername(), user.getNickname(), user.getRole());
+                registerTxnKeyAsync();
                 Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
                 goAfterLogin();
             }
