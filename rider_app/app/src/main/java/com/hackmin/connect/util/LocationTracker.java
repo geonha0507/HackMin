@@ -8,6 +8,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -45,6 +46,9 @@ public final class LocationTracker implements LocationListener {
 
         /** 역지오코딩된 도로명/지번 주소. 실패하면 호출되지 않는다. */
         default void onAddress(String address) {}
+
+        /** [방어 ②] 모의 위치(가짜 GPS 앱)가 감지됐을 때. 기본은 무시. */
+        default void onMockDetected() {}
     }
 
     // 최소 갱신 간격(ms)과 최소 이동 거리(m). "실시간" 체감을 위해 짧게 잡는다.
@@ -202,9 +206,29 @@ public final class LocationTracker implements LocationListener {
     // ── 공통 ────────────────────────────────────────────────
 
     private void deliver(Location location) {
+        // [방어 ②] 모의 위치(가짜 GPS 앱)로 만든 좌표는 신뢰하지 않는다 — 실제 센서 위치만 사용.
+        // → 무루팅 '가짜GPS 앱' 경로가 막힌다. 우회하려면 Frida로 isMock/isFromMockProvider 를
+        //   후킹해 'false'로 거짓말시켜야 한다(= 루팅 필요). 그래서 GPS 조작에 루팅이 강제된다.
+        if (isMockLocation(location)) {
+            main.post(callback::onMockDetected);
+            return;
+        }
         callback.onLocation(location.getLatitude(), location.getLongitude(),
                 location.hasAccuracy() ? location.getAccuracy() : 0f);
         reverseGeocode(location.getLatitude(), location.getLongitude());
+    }
+
+    /** 이 위치가 모의 위치 제공자(가짜 GPS 앱)에서 왔는지. API 31+ 는 isMock(), 이하는 isFromMockProvider(). */
+    private static boolean isMockLocation(Location loc) {
+        if (loc == null) return false;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                return loc.isMock();
+            }
+            return loc.isFromMockProvider();
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** 좌표를 한글 주소로 역지오코딩한다(백그라운드 스레드). Android 33+ 비동기 API가 없어 스레드 사용. */
