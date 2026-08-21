@@ -15,6 +15,15 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // 앱↔서버 페이로드 HMAC 서명 시크릿을 BuildConfig 로 주입한다(소스 하드코딩 금지).
+        //  값은 gitignore 된 gradle.properties 또는 ~/.gradle/gradle.properties 의
+        //  payloadHmacSecret 에서 읽는다. 미주입(빈 값)이면 PayloadCrypto.hasSecret()=false 라
+        //  X-Sig 없이 전송(dual-mode) — 빌드/실행은 되고 PAYLOAD_ENFORCE 서버만 못 통과한다.
+        buildConfigField(
+            "String", "PAYLOAD_HMAC_SECRET",
+            "\"${project.findProperty("payloadHmacSecret") ?: ""}\"",
+        )
+
         // 네이티브 루팅 탐지(libhackminsec) 빌드 설정.
         //  가드 종료 방식을 빌드 플래그로 전환한다(기본 inline):
         //    ./gradlew assembleRelease                     → inline  (탐지 즉시 조용히 종료, Ghidra 필수)
