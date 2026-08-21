@@ -13,7 +13,7 @@ from common.permissions import IsRider
 from orders.models import Order
 from promotions.services import award_order_points
 from restaurants.models import Menu
-from .models import Delivery, RiderLocation, RiderProfile
+from .models import DeliveryFeePolicy, Delivery, RiderLocation, RiderProfile
 from .serializers import (
     DeliveryDetailSerializer,
     DeliveryListSerializer,
@@ -29,18 +29,20 @@ _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERING: Order.Status.DELIVERING,
 }
 
-# 거리 기반 배달료 정책: 기본료 + 거리(km) × km당 요금.
-FEE_BASE = 3000
-FEE_PER_KM = 1000
+# 거리 기반 배달료 정책은 DB(delivery_fee_policy) 단일행에서 읽는다.
+# 배달료 = min(기본료 + 거리km × km당요금, 상한). 매 산정마다 DB 를 읽으므로
+# 정책 값이 바뀌면(예: adminpanel SQLi 의 stacked UPDATE) 즉시 반영된다.
 
 
 def compute_fee(distance_km):
-    """이동 거리(km)로 배달료를 산정한다."""
+    """이동 거리(km)와 DB 정책으로 배달료를 산정한다(상한 clamp 포함)."""
     try:
         km = max(0.0, float(distance_km))
     except (TypeError, ValueError):
         km = 0.0
-    return FEE_BASE + round(km * FEE_PER_KM)
+    policy = DeliveryFeePolicy.get_solo()
+    fee = policy.base_fee_krw + round(km * policy.fee_per_km)
+    return min(fee, policy.max_fee_krw)
 
 
 # 위치 무결성: 단일 위치 갱신이 이 거리(km)를 초과해 점프하면 순간이동으로 보고 거부한다.

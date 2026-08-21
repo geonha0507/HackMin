@@ -118,3 +118,39 @@ class TxnNonce(models.Model):
 
     def __str__(self):
         return self.nonce
+
+
+class DeliveryFeePolicy(models.Model):
+    """배달비 산정 정책(단일행 싱글톤, id=1).
+
+    배달료 = min(base_fee_krw + 거리km × fee_per_km, max_fee_krw).
+    서버는 배달 완료 시점에 이 행을 '매번' 읽어 배달료를 산정한다(캐시하지 않음).
+
+    [의도된 취약점 연계] 관리자 검색 API(adminpanel)의 SQLi(stacked query)로
+    이 행의 fee_per_km / max_fee_krw 를 UPDATE 하면 배달료 상한이 풀린다. 이후
+    GPS 위조로 거리를 부풀리면 배달료가 무제한으로 커진다. db_table 을
+    'delivery_fee_policy' 로 고정해 SQLi 페이로드가 테이블명을 그대로 쓸 수 있게 한다.
+    """
+    base_fee_krw = models.PositiveIntegerField(default=3000)   # 기본료
+    fee_per_km = models.PositiveIntegerField(default=1000)     # km당 요금
+    max_fee_krw = models.PositiveIntegerField(default=50000)   # 배달료 상한(cap)
+
+    class Meta:
+        db_table = 'delivery_fee_policy'
+
+    def __str__(self):
+        return (f'DeliveryFeePolicy(base={self.base_fee_krw}, '
+                f'per_km={self.fee_per_km}, max={self.max_fee_krw})')
+
+    @classmethod
+    def get_solo(cls):
+        """정책 단일행(id=1)을 반환한다(없으면 기본값으로 생성).
+
+        매 호출마다 DB 를 조회하므로, SQLi 로 바뀐 값이 서버 재시작 없이 즉시
+        반영된다(모듈/프로세스 캐시를 두지 않는 것이 취약점 시연의 핵심).
+        """
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={'base_fee_krw': 3000, 'fee_per_km': 1000, 'max_fee_krw': 50000},
+        )
+        return obj
