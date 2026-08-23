@@ -19,9 +19,14 @@
 # → 디컴파일 시 API 흐름이 드러난다(의도된 잔여 노출).
 -keep interface com.hackmin.connect.data.api.** { *; }
 
-# 보안 검사 클래스(RootDetector/SecurityGuard/SecureStore/TxnSigner)는 이름·메서드를
-# 보존한다(모의해킹 실습: 문서화된 이름으로 후킹 우회를 재현할 수 있어야 함).
--keep class com.hackmin.connect.security.** { *; }
+# 보안 검사 클래스(security.**: RootDetector/SecurityGuard/SecureStore/TxnSigner)는
+# '실제 앱 수준'으로 이름을 난독화하되(allowobfuscation), 클래스는 유지한다(삭제·인라인
+# 방지). 이 클래스들은 실제로 호출되므로(SecurityGuard.enforce, SecureStore.encrypt 등),
+# 그냥 keep 을 빼면 R8 이 shrink/inline 으로 없애버려 동작이 바뀐다 → allowobfuscation 으로
+# '남기되 이름만 a,b,c 로' 치환한다. 결과: 클래스는 APK/JADX 에 남지만 이름 검색으론 못 찾고,
+# 분석은 문자열(su·magisk)·프레임워크 심볼(KeyStore/Signature/Location/Runtime)·API 경로
+# 앵커 + Find Usages/Frida 역추적으로 해야 한다. (data.api/data.model 은 통신 파싱 때문에 keep)
+-keep,allowobfuscation class com.hackmin.connect.security.** { *; }
 
 # ── 어노테이션/제네릭 시그니처 보존(Retrofit·Gson 동작에 필요) ──
 -keepattributes Signature
