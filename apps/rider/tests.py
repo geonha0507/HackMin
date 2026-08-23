@@ -310,6 +310,38 @@ class ReceiptConfirmGateTest(APITestCase):
             f'/api/v1/rider/deliveries/{self.delivery.id}/status',
             {'status': 'delivered'}, format='json')
 
+    def _key_for(self, user):
+        """user 별 EC P-256 키쌍을 만들어 수령확인 공개키로 등록(캐시). 앱 Keystore 대역."""
+        cache = getattr(self, '_keys', None) or {}
+        self._keys = cache
+        if user.id not in cache:
+            priv, pem = _gen_txn_key()
+            self.client.force_authenticate(user)
+            r = self.client.post('/api/v1/orders/receipt-key',
+                                 {'key_id': 'rk1', 'public_key_pem': pem}, format='json')
+            self.assertEqual(r.status_code, 201, r.content)
+            cache[user.id] = priv
+        return cache[user.id]
+
+    def _confirm(self, user, order_id, sign=True):
+        """수령확인 요청. sign=True 면 canonical 을 user 키로 ECDSA 서명해 헤더 부착."""
+        path = f'/api/v1/orders/{order_id}/confirm-receipt'
+        extra = {}
+        if sign:
+            priv = self._key_for(user)
+            nonce = str(uuid.uuid4())
+            ts = int(time.time() * 1000)
+            canon = f'POST\n{path}\n{ts}\n{nonce}\n'.encode('utf-8')
+            sig = priv.sign(canon, ec.ECDSA(hashes.SHA256()))
+            extra = {
+                'HTTP_X_RECEIPT_TS': str(ts),
+                'HTTP_X_RECEIPT_NONCE': nonce,
+                'HTTP_X_RECEIPT_SIG': base64.b64encode(sig).decode(),
+                'HTTP_X_KEY_ID': 'rk1',
+            }
+        self.client.force_authenticate(user)
+        return self.client.post(path, **extra)
+
     def test_delivered_is_pending_until_customer_confirms(self):
         """라이더 배달완료 직후엔 정산 대기(settled=False), earnings는 pending."""
         resp = self._complete_delivery()
@@ -322,11 +354,10 @@ class ReceiptConfirmGateTest(APITestCase):
         self.assertEqual(earn.data['pending_total'], fee)  # 배달비는 아직 '대기'
 
     def test_customer_confirm_settles_fee(self):
-        """고객 수령확인 → settled=True, earnings가 settled로 이동."""
+        """[fix②③⑤] 고객 수령확인(유효 서명) → 정산 재계산에서 settled 로 이동."""
         comp = self._complete_delivery()
         fee = comp.data['fee']
-        self.client.force_authenticate(self.customer)
-        conf = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        conf = self._confirm(self.customer, self.order.id)
         self.assertEqual(conf.status_code, 200, conf.content)
         self.assertTrue(conf.data['settled'])
 
@@ -335,25 +366,49 @@ class ReceiptConfirmGateTest(APITestCase):
 
         self.client.force_authenticate(self.rider)
         earn = self.client.get('/api/v1/rider/earnings')
-        self.assertEqual(earn.data['settled_total'], fee)  # 확인 후 지급 확정으로 이동
+        self.assertEqual(earn.data['settled_total'], fee)  # 서명 재검증+거리 도장 통과
         self.assertEqual(earn.data['pending_total'], 0)
 
     def test_confirm_before_delivered_rejected(self):
-        """배달완료 전엔 수령확인 불가(409)."""
-        self.client.force_authenticate(self.customer)
-        resp = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        """배달완료 전엔 수령확인 불가(409). (유효 서명이어도 상태 검사에서 막힘)"""
+        resp = self._confirm(self.customer, self.order.id)
         self.assertEqual(resp.status_code, 409, resp.content)
 
     def test_non_owner_cannot_confirm(self):
-        """남의 주문은 수령확인 불가(404)."""
+        """남의 주문은 수령확인 불가(404). (타인이 자기 키로 서명해도 주문 소유 아님)"""
         self._complete_delivery()
         other = User.objects.create_user(
             username='sx@test.com', email='sx@test.com', password='Cust1234!',
             nickname='타인', name='타인', phone='01044440000', role=User.Role.CUSTOMER,
         )
-        self.client.force_authenticate(other)
-        resp = self.client.post(f'/api/v1/orders/{self.order.id}/confirm-receipt')
+        resp = self._confirm(other, self.order.id)
         self.assertEqual(resp.status_code, 404, resp.content)
+
+    def test_sqli_distance_tamper_rejected_in_settlement(self):
+        """[fix⑤] SQLi 로 distance_km/fee 를 부풀려도 거리 도장 불일치로 정산 무효."""
+        self._complete_delivery()
+        self._confirm(self.customer, self.order.id)
+        from rider.models import Delivery
+        # SQLi 시뮬레이션: 도장은 그대로 두고 거리·요금만 직접 조작
+        Delivery.objects.filter(pk=self.delivery.id).update(
+            distance_km=99999, fee=99_999_999)
+        self.client.force_authenticate(self.rider)
+        earn = self.client.get('/api/v1/rider/earnings')
+        # 부풀린 금액이 안 잡힘(도장 불일치 → 미인정)
+        self.assertEqual(earn.data['settled_total'], 0)
+
+    def test_sqli_pubkey_swap_rejected_in_settlement(self):
+        """[fix③ 앵커] SQLi 로 등록 공개키를 스왑하면 정산 재검증에서 탈락."""
+        self._complete_delivery()
+        self._confirm(self.customer, self.order.id)
+        from rider.models import TxnKey
+        _, other_pem = _gen_txn_key()
+        # SQLi 시뮬레이션: reg_seal 은 그대로 두고 공개키만 공격자 키로 교체
+        TxnKey.objects.filter(user=self.customer, key_id='rk1').update(
+            public_key_pem=other_pem)
+        self.client.force_authenticate(self.rider)
+        earn = self.client.get('/api/v1/rider/earnings')
+        self.assertEqual(earn.data['settled_total'], 0)   # 봉인 불일치 → 미인정
 
 
 class RiderIdorTest(APITestCase):
