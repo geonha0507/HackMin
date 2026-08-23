@@ -46,8 +46,11 @@ android {
 
     buildTypes {
         release {
-            // 라이더 앱은 훈련 표적이 아니므로 난독화 없이 배포한다(빌드 단순화).
-            isMinifyEnabled = false
+            // 실제 앱처럼 R8 난독화를 켠다. proguard-rules.pro 의 keep 규칙으로
+            // 데이터 모델·API 인터페이스·보안 클래스는 흐름 파악이 가능한 수준으로 남긴다
+            // (배달앱과 동일한 "난독화 적용, 흐름 노출" 상태).
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
