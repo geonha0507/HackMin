@@ -244,6 +244,16 @@ else:
 # 기본값을 두지 않는다(리포에 값이 있으면 우회로가 그대로 열린다).
 PAYLOAD_APP_HMAC_SECRET = os.environ.get('PAYLOAD_APP_HMAC_SECRET', '')
 
+# [정산 5-fix] 서버 전용 무결성 시크릿(앱과 공유하지 않는 'DB 밖 앵커').
+#   - DISTANCE_SEAL_SECRET: 서버가 관측·확정한 이동거리에 HMAC 도장을 찍는다(fix⑤).
+#     SQLi 로 rider_delivery.distance_km 를 바꿔도 이 도장과 불일치 → 정산에서 무효.
+#   - TXNKEY_REG_SECRET: 등록된 서명 공개키(TxnKey)를 HMAC 봉인한다(fix③ 앵커).
+#     SQLi 로 public_key_pem 을 스왑해도 봉인과 불일치 → 검증에서 걸러진다.
+# 이 둘은 앱에 넣지 않는다(서버 계산 전용). 운영에서는 env 로 주입하고, 미설정 시
+# 아래 dev 기본값으로 동작한다(로컬/테스트 편의).
+DISTANCE_SEAL_SECRET = os.environ.get('DISTANCE_SEAL_SECRET', 'dev-distance-seal-secret')
+TXNKEY_REG_SECRET = os.environ.get('TXNKEY_REG_SECRET', 'dev-txnkey-reg-secret')
+
 # 서버측 BFF(web_bff/admin_bff)만 아는 내부 호출 키. 이 키가 유효하면 평문 호출을
 # 허용한다(SSR 호환 + curl 로 운영/디버깅). **APK·브라우저·리포에 절대 넣지 말 것** —
 # 넣으면 헤더 한 줄로 강제 미들웨어를 통째로 우회할 수 있다.

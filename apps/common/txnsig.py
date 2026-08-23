@@ -20,7 +20,12 @@ canonical = "METHOD\\nPATH\\nTS\\nNONCE\\nBODY"
 """
 import base64
 import binascii
+import hashlib
+import hmac
 import time
+
+from django.conf import settings
+from django.utils.crypto import constant_time_compare
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -42,12 +47,55 @@ def canonical(method, path, ts, nonce, body):
     return '{}\n{}\n{}\n{}\n{}'.format(method, path, ts, nonce, body).encode('utf-8')
 
 
+def reg_seal(user_id, key_id, pem):
+    """[정산 fix③ 앵커] 등록 공개키 봉인값(env 시크릿 HMAC).
+
+    서버만 아는 TXNKEY_REG_SECRET 으로만 만들 수 있으므로, SQLi 로
+    public_key_pem 을 공격자 키로 스왑해도 이 봉인과 불일치한다 → 검증 거부.
+    """
+    msg = '{}\n{}\n{}'.format(user_id, key_id, pem).encode('utf-8')
+    secret = (settings.TXNKEY_REG_SECRET or '').encode('utf-8')
+    return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+
+
+def _verified_pubkey(user, key_id):
+    """등록 봉인(reg_seal)이 유효한 TxnKey 의 공개키만 로드한다(공개키 스왑 차단)."""
+    from rider.models import TxnKey
+    tk = TxnKey.objects.filter(user=user, key_id=key_id).first()
+    if not tk:
+        raise TxnSigError('등록된 서명 키 없음')
+    expected = reg_seal(tk.user_id, tk.key_id, tk.public_key_pem)
+    if not tk.reg_seal or not constant_time_compare(tk.reg_seal, expected):
+        raise TxnSigError('공개키 등록 무결성 위반(스왑 의심)')
+    return load_pem_public_key(tk.public_key_pem.encode('utf-8'))
+
+
+def verify_sig_stored(user, method, path, ts, nonce, sig_b64, key_id, body=b''):
+    """[정산 fix③] 저장된 수령확인 서명을 '순수 암호검증'만 한다(정산 재검증용).
+
+    verify_txn 과 달리 신선도(ts 창)·nonce 소모 검사를 하지 않는다 — 그것들은
+    수령확인 시점의 재전송 방지용이고, 여기선 '나중에 정산 집계 시점'에 그 서명이
+    등록 공개키로 유효한지만 다시 확인하기 때문이다. 실패해도 예외 없이 False.
+    """
+    if not (sig_b64 and key_id and nonce and ts is not None):
+        return False
+    try:
+        ts_norm = str(int(ts))
+        pub = _verified_pubkey(user, key_id)
+        sig = base64.b64decode(sig_b64, validate=True)
+        pub.verify(sig, canonical(method, path, ts_norm, nonce, body),
+                   ec.ECDSA(hashes.SHA256()))
+        return True
+    except Exception:
+        return False
+
+
 def verify_txn(user, method, path, ts_raw, nonce, sig_b64, key_id, body):
     """요청자(user)의 등록 공개키로 거래 서명을 검증한다. 성공 시 nonce 를 소모한다.
 
     실패하면 TxnSigError 를 던진다(=401). 성공하면 True.
     """
-    from rider.models import TxnKey, TxnNonce
+    from rider.models import TxnNonce
 
     try:
         ts = int(ts_raw)
@@ -63,9 +111,8 @@ def verify_txn(user, method, path, ts_raw, nonce, sig_b64, key_id, body):
     if TxnNonce.objects.filter(nonce=nonce).exists():
         raise TxnSigError('nonce 재사용')
 
-    tk = TxnKey.objects.filter(user=user, key_id=key_id).first()
-    if not tk:
-        raise TxnSigError('등록된 서명 키 없음')
+    # [fix③ 앵커] 등록 봉인이 유효한 공개키만 사용한다(SQLi 공개키 스왑 차단).
+    pub = _verified_pubkey(user, key_id)
 
     try:
         sig = base64.b64decode(sig_b64, validate=True)
@@ -73,7 +120,6 @@ def verify_txn(user, method, path, ts_raw, nonce, sig_b64, key_id, body):
         raise TxnSigError('서명 base64 디코딩 실패')
 
     try:
-        pub = load_pem_public_key(tk.public_key_pem.encode('utf-8'))
         pub.verify(sig, canonical(method, path, ts, nonce, body),
                    ec.ECDSA(hashes.SHA256()))
     except InvalidSignature:

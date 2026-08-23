@@ -30,6 +30,14 @@ class Delivery(models.Model):
     # 되어 지급 대상이 된다. 고객 확인 없이는 라이더가 돈을 받을 수 없다.
     settled = models.BooleanField(default=False)
     settled_at = models.DateTimeField(null=True, blank=True)
+    # [정산 fix⑤] 서버가 관측·확정한 이동거리에 대한 무결성 도장(env 키 HMAC).
+    # 배달완료 시 (delivery_id, distance_km)로 계산해 저장한다. 정산 집계는 이 도장이
+    # 맞는 거리만 인정하므로, SQLi 로 distance_km 를 바꿔 써도 도장 불일치로 무효가 된다.
+    distance_seal = models.CharField(max_length=64, blank=True, default='')
+    # [정산 fix③] 고객 수령확인 서명 증거(정산 재검증용). {ts, nonce, sig, key_id, path}.
+    # 정산 집계는 이 서명을 '등록 공개키'로 다시 검증한 배달만 지급 대상으로 삼는다.
+    # SQLi 로 임의 값을 써 넣어도 TEE 개인키가 만든 유효 서명이 아니면 검증에서 탈락한다.
+    receipt_proof = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f'Delivery(order={self.order_id}, {self.status})'
@@ -102,6 +110,10 @@ class TxnKey(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='txn_keys')
     key_id = models.CharField(max_length=64)
     public_key_pem = models.TextField()
+    # [정산 fix③ 앵커] 등록 공개키 봉인값(서버 env 시크릿 HMAC). 등록 시 서버가 계산해
+    # 저장한다. 검증 때 이 값을 다시 계산해 대조하므로, SQLi 로 public_key_pem 을
+    # 공격자 키로 바꿔치기해도 봉인과 불일치하여 검증에서 걸러진다.
+    reg_seal = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

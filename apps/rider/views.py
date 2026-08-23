@@ -1,9 +1,12 @@
 """Rider delivery endpoints (/api/v1/rider/deliveries). Require rider role."""
 
+import hashlib
+import hmac
 import math
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -29,20 +32,45 @@ _STATUS_TO_ORDER = {
     Delivery.Status.DELIVERING: Order.Status.DELIVERING,
 }
 
-# 거리 기반 배달료 정책은 DB(delivery_fee_policy) 단일행에서 읽는다.
-# 배달료 = min(기본료 + 거리km × km당요금, 상한). 매 산정마다 DB 를 읽으므로
-# 정책 값이 바뀌면(예: adminpanel SQLi 의 stacked UPDATE) 즉시 반영된다.
+# [정산 fix①] 요금률(기본료·km당 요금)은 '코드 상수'로 고정한다. SQLi 로
+# delivery_fee_policy 를 UPDATE 해도 이 두 값은 못 바꾼다 → 배달료를 키우는 유일한
+# 레버가 '거리(km)'가 된다(= GPS 조작이 필수, 서버 DB 쓰기만으론 금액을 못 키움).
+# DB(delivery_fee_policy)에서는 '상한(cap = max_fee_krw)'만 읽는다. 즉 SQLi 표적은
+# 오직 상한뿐이고, 상한을 풀어도 거리(도장 검증됨)가 없으면 금액이 안 커진다.
+BASE_FEE_KRW = 3000    # 기본료(코드 고정)
+FEE_PER_KM = 1000      # km당 요금(코드 고정)
 
 
 def compute_fee(distance_km):
-    """이동 거리(km)와 DB 정책으로 배달료를 산정한다(상한 clamp 포함)."""
+    """이동 거리(km)로 배달료를 산정한다. 요금률은 코드 상수, 상한만 DB(fix①)."""
     try:
         km = max(0.0, float(distance_km))
     except (TypeError, ValueError):
         km = 0.0
-    policy = DeliveryFeePolicy.get_solo()
-    fee = policy.base_fee_krw + round(km * policy.fee_per_km)
+    policy = DeliveryFeePolicy.get_solo()          # 상한(cap)만 DB 에서 읽는다
+    fee = BASE_FEE_KRW + round(km * FEE_PER_KM)
     return min(fee, policy.max_fee_krw)
+
+
+def seal_distance(delivery_id, distance_km):
+    """[정산 fix⑤] 확정 이동거리 무결성 도장(서버 env 시크릿 HMAC).
+
+    서버만 아는 DISTANCE_SEAL_SECRET 으로만 만들 수 있으므로, SQLi 로 distance_km 를
+    바꿔 써도 이 도장과 불일치한다. 정상 경로(위치 핑 누적→배달완료 계산)로만 유효한
+    도장이 생기고, 그 경로는 실제 GPS 궤적(=앱 내 좌표)에 의존한다.
+    """
+    msg = '{}:{:.3f}'.format(delivery_id, float(distance_km)).encode('utf-8')
+    secret = (settings.DISTANCE_SEAL_SECRET or '').encode('utf-8')
+    return hmac.new(secret, msg, hashlib.sha256).hexdigest()
+
+
+def distance_ok(delivery):
+    """저장된 거리 도장이 현재 distance_km 와 일치하는지(=SQLi 변조 안 됐는지)."""
+    if not delivery.distance_seal:
+        return False
+    from django.utils.crypto import constant_time_compare
+    return constant_time_compare(
+        delivery.distance_seal, seal_distance(delivery.id, delivery.distance_km))
 
 
 # 위치 무결성: 단일 위치 갱신이 이 거리(km)를 초과해 점프하면 순간이동으로 보고 거부한다.
@@ -122,6 +150,8 @@ def delivery_status(request, pk):
         observed = (loc.total_distance_km - delivery.start_distance_km) if loc else 0.0
         delivery.distance_km = max(0.0, round(observed, 3))
         delivery.fee = compute_fee(delivery.distance_km)
+        # [fix⑤] 확정 거리에 무결성 도장을 찍는다(정산이 이 도장 맞는 거리만 인정).
+        delivery.distance_seal = seal_distance(delivery.id, delivery.distance_km)
     delivery.save()
 
     if new_status in _STATUS_TO_ORDER:
@@ -215,20 +245,49 @@ def location(request):
     return Response(RiderLocationSerializer(loc).data)
 
 
+def _receipt_verified(delivery):
+    """[정산 fix③] 저장된 고객 수령확인 서명을 '등록 공개키'로 재검증한다.
+
+    수령확인 시점에 한 번 검증했더라도, 정산 집계 시점에 다시 암호검증한다.
+    SQLi 로 receipt_proof/settled 를 조작해도 TEE 개인키가 만든 유효 서명이
+    아니면(또는 공개키 봉인이 깨졌으면) 여기서 탈락한다.
+    """
+    from common.txnsig import verify_sig_stored
+    proof = delivery.receipt_proof
+    if not proof:
+        return False
+    customer = getattr(delivery.order, 'user', None)
+    if customer is None:
+        return False
+    return verify_sig_stored(
+        customer, 'POST', proof.get('path', ''), proof.get('ts'),
+        proof.get('nonce'), proof.get('sig'), proof.get('key_id'), b'')
+
+
 @api_view(['GET'])
 @permission_classes([IsRider])
 def earnings(request):
     """내 배달비 정산 현황.
 
-    배달완료(delivered) 건의 배달료를 두 갈래로 집계한다:
-      - settled_total : 고객 수령확인까지 끝나 '지급 확정'된 금액
-      - pending_total : 배달은 끝났으나 고객 수령확인 대기 중(=아직 못 받는 돈)
-    즉 고객이 수령확인을 해야만 배달료가 settled_total 로 넘어간다.
+    [정산 fix②③⑤] settled/fee/distance 원시 컬럼을 신뢰하지 않는다. 배달완료 건마다:
+      1) 거리 도장(fix⑤)이 유효할 때만 그 거리로 배달료를 '재계산'(fix①)한다.
+         도장이 없거나 어긋나면(=SQLi 로 거리 변조) 금액을 0 으로 본다.
+      2) 고객 수령확인 서명(fix③)이 등록 공개키로 재검증되면 '지급 확정',
+         아니면(아직 미확인 or 위조) '지급 대기'로 잡는다.
+    → SQLi 로 fee/settled/distance_km 를 직접 써도 도장·서명이 없으면 정산에 안 잡힌다.
     """
-    qs = Delivery.objects.filter(rider=request.user, status=Delivery.Status.DELIVERED)
-    settled = qs.filter(settled=True).aggregate(s=Sum('fee'))['s'] or 0
-    pending = qs.filter(settled=False).aggregate(s=Sum('fee'))['s'] or 0
-    return Response({'settled_total': settled, 'pending_total': pending})
+    settled_total = 0
+    pending_total = 0
+    qs = (Delivery.objects
+          .filter(rider=request.user, status=Delivery.Status.DELIVERED)
+          .select_related('order'))
+    for d in qs:
+        amount = compute_fee(d.distance_km) if distance_ok(d) else 0
+        if amount and _receipt_verified(d):
+            settled_total += amount
+        else:
+            pending_total += amount
+    return Response({'settled_total': settled_total, 'pending_total': pending_total})
 
 
 # ─────────────────────────────────────────────────────────────
@@ -298,10 +357,14 @@ def register_txn_key(request):
     올린다. 서버는 이 공개키로 계좌변경 서명을 검증한다(개인키는 저장하지 않음).
     """
     from .models import TxnKey
+    from common.txnsig import reg_seal
     key_id = request.data.get('key_id')
     pem = request.data.get('public_key_pem')
     if not key_id or not pem:
         return error_response('bad_request', 'key_id/public_key_pem 이 필요합니다.', 400)
+    # [fix③ 앵커] 등록과 동시에 봉인값을 계산·저장한다(SQLi 공개키 스왑 차단).
     TxnKey.objects.update_or_create(
-        user=request.user, key_id=key_id, defaults={'public_key_pem': pem})
+        user=request.user, key_id=key_id,
+        defaults={'public_key_pem': pem,
+                  'reg_seal': reg_seal(request.user.id, key_id, pem)})
     return Response({'key_id': key_id}, status=201)
