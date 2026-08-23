@@ -12,6 +12,7 @@ urlpatterns = [
     path('rider/menus', views.menus, name='menus'),
     path('rider/profile', views.profile, name='profile'),
     path('rider/earnings', views.earnings, name='earnings'),
+    path('rider/payouts', views.payouts, name='payouts'),
     # [방어 ④] 거래서명 공개키 등록 (Keystore EC 공개키)
     path('rider/txn-key', views.register_txn_key, name='txn-key'),
     # [의도된 취약점] IDOR — rider pk 로 타인 프로필/계좌 접근(소유권 검증 없음)

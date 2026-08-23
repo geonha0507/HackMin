@@ -508,3 +508,92 @@ class RiderIdorTest(APITestCase):
         self.client.force_authenticate(customer)
         resp = self.client.get(f'/api/v1/riders/{self.victim.id}/profile')
         self.assertIn(resp.status_code, (401, 403))
+
+
+class PayoutBatchTest(APITestCase):
+    """[정산 배치 + IDOR-절도] 지급 로직 검증.
+
+    · 정상: 재검증된 정산금이 라이더 '본인 계좌'로 지급
+    · IDOR-절도: 계좌가 공격자 것으로 바뀌면 피해자 정산금이 공격자 계좌로 지급
+    · 방어: SQLi 로 위조한 정산(거리 도장 불일치)은 지급 배치에서도 제외
+    """
+
+    def setUp(self):
+        from orders.models import Order
+        from restaurants.models import Restaurant
+        from rider.models import Delivery
+        self.rider = User.objects.create_user(
+            username='pr@test.com', email='pr@test.com', password='Rider1234!',
+            nickname='지급라이더', name='지급', phone='01088880000', role=User.Role.RIDER)
+        self.owner = User.objects.create_user(
+            username='po@test.com', email='po@test.com', password='Owner1234!',
+            nickname='점주P', name='점주', phone='01088881111', role=User.Role.OWNER)
+        self.customer = User.objects.create_user(
+            username='pc@test.com', email='pc@test.com', password='Cust1234!',
+            nickname='손님P', name='손님', phone='01088882222', role=User.Role.CUSTOMER)
+        rest = Restaurant.objects.create(owner=self.owner, name='지급식당', cuisine_type='분식')
+        self.order = Order.objects.create(user=self.customer, restaurant=rest, total=20000,
+                                          status=Order.Status.DELIVERING)
+        self.delivery = Delivery.objects.create(order=self.order, rider=self.rider,
+                                                status=Delivery.Status.DELIVERING)
+        self._set_account(self.rider, '3333000011112222')   # 본인 계좌(끝 2222)
+
+    def _set_account(self, rider, number, bank='국민은행', holder='홍길동'):
+        from rider.models import RiderProfile
+        from accounts.crypto_utils import encrypt_aes128
+        RiderProfile.objects.update_or_create(
+            rider=rider,
+            defaults={'bank_name': bank, 'account_holder': holder,
+                      'account_number_encrypted': encrypt_aes128(number)})
+
+    def _earn_one_delivery(self):
+        """배달 완료 + 고객 유효 서명 수령확인 → 정산 확정 1건. 반환: fee."""
+        self.client.force_authenticate(self.rider)
+        comp = self.client.put(f'/api/v1/rider/deliveries/{self.delivery.id}/status',
+                               {'status': 'delivered'}, format='json')
+        fee = comp.data['fee']
+        priv, pem = _gen_txn_key()
+        self.client.force_authenticate(self.customer)
+        self.client.post('/api/v1/orders/receipt-key',
+                         {'key_id': 'rk1', 'public_key_pem': pem}, format='json')
+        path = f'/api/v1/orders/{self.order.id}/confirm-receipt'
+        ts = int(time.time() * 1000)
+        nonce = str(uuid.uuid4())
+        canon = f'POST\n{path}\n{ts}\n{nonce}\n'.encode('utf-8')
+        sig = base64.b64encode(priv.sign(canon, ec.ECDSA(hashes.SHA256()))).decode()
+        self.client.post(path, HTTP_X_RECEIPT_TS=str(ts), HTTP_X_RECEIPT_NONCE=nonce,
+                         HTTP_X_RECEIPT_SIG=sig, HTTP_X_KEY_ID='rk1')
+        return fee
+
+    def test_legit_payout_to_own_account(self):
+        """정상: 재검증된 정산금이 본인 계좌로 지급되고, 재실행 시 중복 지급 없음."""
+        from rider.views import run_payout_batch
+        from rider.models import RiderPayout, Delivery
+        fee = self._earn_one_delivery()
+        results = run_payout_batch()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['amount'], fee)
+        self.assertTrue(results[0]['account'].endswith('2222'))     # 본인 계좌
+        self.assertEqual(RiderPayout.objects.get(rider=self.rider).amount, fee)
+        self.assertTrue(Delivery.objects.get(pk=self.delivery.id).paid_out)
+        self.assertEqual(run_payout_batch(), [])                    # 중복 지급 방지
+
+    def test_idor_account_swap_steals_payout(self):
+        """[IDOR-절도] 피해자 계좌를 공격자 것으로 바꾸면 피해자 정산금이 공격자 계좌로 지급."""
+        from rider.views import run_payout_batch
+        fee = self._earn_one_delivery()
+        # IDOR 결과 시뮬: 피해자 계좌를 공격자 계좌(끝 9999)로 스왑
+        self._set_account(self.rider, '7777000099999999', bank='공격자은행', holder='공격자')
+        results = run_payout_batch()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['amount'], fee)                 # 피해자 실적 금액
+        self.assertTrue(results[0]['account'].endswith('9999'))     # 공격자 계좌로 지급됨
+        self.assertEqual(results[0]['bank'], '공격자은행')
+
+    def test_forged_settlement_not_paid(self):
+        """[fix⑤] SQLi 로 거리 위조한 정산은 지급 배치에서도 제외(도장 불일치)."""
+        from rider.views import run_payout_batch
+        from rider.models import Delivery
+        self._earn_one_delivery()
+        Delivery.objects.filter(pk=self.delivery.id).update(distance_km=99999, fee=99_999_999)
+        self.assertEqual(run_payout_batch(), [])

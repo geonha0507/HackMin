@@ -38,6 +38,8 @@ class Delivery(models.Model):
     # 정산 집계는 이 서명을 '등록 공개키'로 다시 검증한 배달만 지급 대상으로 삼는다.
     # SQLi 로 임의 값을 써 넣어도 TEE 개인키가 만든 유효 서명이 아니면 검증에서 탈락한다.
     receipt_proof = models.JSONField(null=True, blank=True)
+    # 정산 배치가 이 배달의 배달료를 라이더 계좌로 지급했는지(중복 지급 방지).
+    paid_out = models.BooleanField(default=False)
 
     def __str__(self):
         return f'Delivery(order={self.order_id}, {self.status})'
@@ -166,3 +168,32 @@ class DeliveryFeePolicy(models.Model):
             defaults={'base_fee_krw': 3000, 'fee_per_km': 1000, 'max_fee_krw': 50000},
         )
         return obj
+
+
+class RiderPayout(models.Model):
+    """정산 배치가 라이더에게 실제 '지급'한 기록(= 돈이 계좌로 나간 시점).
+
+    지급 대상 계좌는 **지급 시점의 RiderProfile 저장 계좌**를 그대로 읽는다.
+
+    [의도된 취약점 연계] IDOR(rider_account_by_id, 소유권 미검사)로 피해자 라이더의
+    정산계좌가 공격자 것으로 바뀌어 있으면, 배치가 피해자의 '정직하게 번' 정산금을
+    **공격자 계좌로 지급**한다(계좌 스왑 → 배치 지급 → 절도). 지급 금액은 5-fix 재검증
+    (서명·거리 도장)을 통과한 배달만 합산하므로, SQLi 로 부풀린 위조 정산은 지급되지 않는다.
+    """
+    class Status(models.TextChoices):
+        PAID = 'paid', 'Paid'
+
+    rider = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payouts')
+    amount = models.PositiveIntegerField(default=0)
+    dest_bank_name = models.CharField(max_length=64, blank=True)      # 지급 시점 계좌(스냅샷)
+    dest_account_masked = models.CharField(max_length=64, blank=True)
+    dest_account_holder = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PAID)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'RiderPayout(rider={self.rider_id}, {self.amount}→{self.dest_account_masked})'

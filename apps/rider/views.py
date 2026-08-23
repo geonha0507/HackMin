@@ -290,6 +290,71 @@ def earnings(request):
     return Response({'settled_total': settled_total, 'pending_total': pending_total})
 
 
+def _dest_account(profile):
+    """지급 대상 계좌 스냅샷(은행, 마스킹된 번호, 예금주). RiderProfile 저장값을 읽는다.
+    IDOR 로 이 값이 공격자 것으로 바뀌어 있으면, 지급이 그 계좌로 나간다."""
+    from accounts.crypto_utils import decrypt_aes128
+    if not profile:
+        return '', '', ''
+    masked = ''
+    enc = profile.account_number_encrypted
+    if enc:
+        try:
+            plain = decrypt_aes128(enc)
+            masked = (('*' * max(0, len(plain) - 4)) + plain[-4:]) if plain else ''
+        except Exception:
+            masked = ''
+    return profile.bank_name or '', masked, profile.account_holder or ''
+
+
+def run_payout_batch():
+    """[정산 배치] 미지급 배달 중 5-fix 재검증(서명 재검증 + 거리 도장)을 통과한 것을
+    라이더별로 합산해, 각 라이더의 '현재 저장된 정산계좌'로 지급하고 지급완료 처리한다.
+
+    · 금액은 재검증된 배달만 합산 → SQLi 로 부풀린 위조 정산은 지급되지 않는다(fix②③⑤).
+    · 대상 계좌는 지급 시점 RiderProfile 값 → IDOR 로 바뀐 계좌면 그리로 지급된다(절도).
+    반환: [{rider_id, amount, bank, account, holder}] 지급 내역.
+    """
+    from .models import RiderPayout, RiderProfile
+    results = []
+    rider_ids = list(Delivery.objects.filter(
+        status=Delivery.Status.DELIVERED, paid_out=False, rider__isnull=False,
+    ).values_list('rider_id', flat=True).distinct())
+    for rid in rider_ids:
+        qs = Delivery.objects.filter(
+            rider_id=rid, status=Delivery.Status.DELIVERED, paid_out=False,
+        ).select_related('order')
+        total = 0
+        paid_ids = []
+        for d in qs:
+            if distance_ok(d) and _receipt_verified(d):
+                total += compute_fee(d.distance_km)
+                paid_ids.append(d.id)
+        if total <= 0:
+            continue
+        profile = RiderProfile.objects.filter(rider_id=rid).first()
+        bank, masked, holder = _dest_account(profile)
+        RiderPayout.objects.create(
+            rider_id=rid, amount=total,
+            dest_bank_name=bank, dest_account_masked=masked, dest_account_holder=holder)
+        Delivery.objects.filter(id__in=paid_ids).update(paid_out=True)
+        results.append({'rider_id': rid, 'amount': total,
+                        'bank': bank, 'account': masked, 'holder': holder})
+    return results
+
+
+@api_view(['GET'])
+@permission_classes([IsRider])
+def payouts(request):
+    """내 지급 내역(정산 배치가 내 계좌로 지급한 기록)."""
+    from .models import RiderPayout
+    rows = RiderPayout.objects.filter(rider=request.user)
+    data = [{'amount': p.amount, 'bank': p.dest_bank_name,
+             'account': p.dest_account_masked, 'holder': p.dest_account_holder,
+             'created_at': p.created_at} for p in rows]
+    return Response({'total_paid': sum(r['amount'] for r in data), 'payouts': data})
+
+
 # ─────────────────────────────────────────────────────────────
 #  [의도된 취약점] IDOR / BOLA (Broken Object Level Authorization)
 #
