@@ -6,6 +6,8 @@ app_name = 'orders'
 
 urlpatterns = [
     path('orders', views.create_order, name='create'),
+    # [방어 ⑩] 수령확인 서명용 공개키 등록 (int pk 라우트보다 먼저 둔다)
+    path('orders/receipt-key', views.register_receipt_key, name='receipt-key'),
     path('orders/<int:pk>', views.order_detail, name='detail'),
     path('orders/<int:pk>/status', views.order_status, name='status'),
     path('orders/<int:pk>/confirm-receipt', views.confirm_receipt, name='confirm-receipt'),
