@@ -69,3 +69,6 @@ find_offset*.js
 # 서명 키스토어
 *.keystore
 *.jks
+
+# dev payload 공개키 아티팩트(로컬)
+keys/payload_public_dev*.txt
