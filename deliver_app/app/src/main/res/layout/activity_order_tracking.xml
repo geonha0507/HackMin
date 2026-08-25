@@ -138,6 +138,19 @@
     </LinearLayout>
 
     <!-- 리뷰 쓰기 버튼 (배달완료 시에만 보임) -->
+    <!-- [방어 ⑩] 수령확인 (배달완료 시 노출). 네이티브 서명 붙여 서버로 전송 -->
+    <Button
+        android:id="@+id/btnConfirmReceipt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:backgroundTint="@color/coral_primary"
+        android:text="수령확인"
+        android:textColor="#FFFFFF"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/btnWriteReview"
         android:layout_width="match_parent"

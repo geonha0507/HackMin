@@ -90,7 +90,7 @@
                 android:textColor="@color/text_primary"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <CheckBox
+        <androidx.appcompat.widget.AppCompatCheckBox
             android:id="@+id/cb_save_id"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -98,7 +98,7 @@
             android:textColor="@color/text_secondary"
             android:layout_gravity="start"
             android:layout_marginBottom="32dp"
-            app:buttonCompat="@drawable/checkbox_selector"
+            android:button="@drawable/checkbox_selector"
             app:buttonTint="@null"
             android:paddingStart="8dp"/>
 

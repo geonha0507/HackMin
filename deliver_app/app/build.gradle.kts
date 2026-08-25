@@ -24,6 +24,16 @@ android {
             "\"${project.findProperty("payloadHmacSecret") ?: ""}\"",
         )
 
+        // 서버 페이로드 공개키(SPKI base64). 비우면 소스의 기본값(개발용 키)을 쓴다.
+        //  프로덕션(hackmin.com)은 다른 키쌍을 쓰므로, 그 대상 테스트 빌드는
+        //  gitignore 된 gradle.properties 또는 ~/.gradle/gradle.properties 에
+        //    payloadServerPublicKey=<프로덕션 공개키>
+        //  를 넣어 주입한다(미주입이면 dev 키 → hackmin.com 붙으면 "세션키 복호화 실패").
+        buildConfigField(
+            "String", "PAYLOAD_SERVER_PUBLIC_KEY",
+            "\"${project.findProperty("payloadServerPublicKey") ?: ""}\"",
+        )
+
         // 네이티브 루팅 탐지(libhackminsec) 빌드 설정.
         //  가드 종료 방식을 빌드 플래그로 전환한다(기본 inline):
         //    ./gradlew assembleRelease                     → inline  (탐지 즉시 조용히 종료, Ghidra 필수)
@@ -57,6 +67,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // [훈련용] release 를 debug 키스토어로 서명해 바로 설치 가능하게 한다.
+            //  자체 취약 훈련앱이라 서명 키 정체성은 무의미(Play 배포 없음). 실배포용이면
+            //  별도 릴리즈 키스토어로 교체할 것. → 커밋/머지 전 검토 필요.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     // ApiClient가 BuildConfig.DEBUG로 네트워크 로깅을 껐다 켜므로 생성이 필요하다.

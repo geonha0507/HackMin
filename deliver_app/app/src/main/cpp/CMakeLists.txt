@@ -8,7 +8,7 @@ project("hackminsec")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(hackminsec SHARED native_guard.cpp)
+add_library(hackminsec SHARED native_guard.cpp receipt_sign.cpp)
 
 # 가드 종료 방식 전환 플래그(build.gradle.kts 의 -PguardMode 로 주입).
 #   GUARD_MODE=message → 지연 종료 + "루팅 감지" 토스트(백그라운드 스레드, pthread/JNI 사용)

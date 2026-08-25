@@ -1,7 +1,5 @@
 package com.hackmin.connect.security;
 
-import android.os.Build;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -28,7 +26,7 @@ public final class RootDetector {
     private static final String[] SU_PATHS = {
             "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su",
             "/system/sd/xbin/su", "/data/local/xbin/su", "/data/local/bin/su",
-            "/data/local/su", "/system/bin/failsafe/su", "/system/xbin/busybox",
+            "/data/local/su", "/system/bin/failsafe/su",
     };
     private static final String[] ROOT_APKS = {
             "/system/app/Superuser.apk", "/system/app/SuperSU.apk",
@@ -38,15 +36,13 @@ public final class RootDetector {
             "/data/adb/ksu", "/cache/.disable_magisk",
     };
 
-    /** 하나라도 걸리면 루팅으로 판정. */
+    /** 하나라도 걸리면 루팅으로 판정.
+     *  주의: test-keys 태그와 busybox 는 정상 에뮬레이터·AOSP 빌드에도 흔해 오탐을
+     *  유발하므로 지표에서 제외했다. 실제 루팅의 강한 지표(su 바이너리·루팅 관리앱·
+     *  Magisk 경로·which su)만 사용한다. */
     public static boolean isRooted() {
-        return hasTestKeys() || anyExists(SU_PATHS) || anyExists(ROOT_APKS)
+        return anyExists(SU_PATHS) || anyExists(ROOT_APKS)
                 || anyExists(MAGISK_PATHS) || canExecSu();
-    }
-
-    private static boolean hasTestKeys() {
-        String tags = Build.TAGS;
-        return tags != null && tags.contains("test-keys");
     }
 
     private static boolean anyExists(String[] paths) {

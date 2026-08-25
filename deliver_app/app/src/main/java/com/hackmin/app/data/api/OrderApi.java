@@ -3,6 +3,9 @@ package com.hackmin.app.data.api;
 import com.hackmin.app.data.model.common.PagedResponse;
 import com.hackmin.app.data.model.order.*;
 
+import java.util.Map;
+
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -38,4 +41,13 @@ public interface OrderApi {
             @Query("status") String status,
             @Query("page") Integer page
     );
+
+    /** [방어 ⑩] 수령확인 서명용 공개키 등록 (고객앱 Keystore EC 공개키) */
+    @POST("orders/receipt-key")
+    Call<ResponseBody> registerReceiptKey(@Body Map<String, String> body);
+
+    /** [방어 ⑩] 고객 수령확인 — 네이티브 서명 헤더(X-Receipt-Ts/Nonce/Sig, X-Key-Id) 필수 */
+    @POST("orders/{id}/confirm-receipt")
+    Call<ResponseBody> confirmReceipt(@Path("id") long orderId,
+                                      @HeaderMap Map<String, String> sigHeaders);
 }

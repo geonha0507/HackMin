@@ -64,5 +64,18 @@
 -keep class com.bumptech.glide.** { *; }
 -dontwarn com.bumptech.glide.**
 
+# ── R8 클래스 병합 크래시 방지 (API28 / LDPlayer Android 9) ──
+# 원인: R8 수평 클래스 병합이 API33 클래스(android.animation.ValueAnimator$DurationScaleChangeListener)
+#   를 참조하는 클래스를 androidx.lifecycle 시작 클래스에 합쳐버림. 그 클래스는 androidx.startup 의
+#   InitializationProvider → ProcessLifecycleInitializer 로 앱 기동 시 '무조건' 로드되므로, API28
+#   에서 해당 API33 클래스를 조기 해석하려다 NoClassDefFoundError → 기동 즉시 크래시 루프(흰화면).
+#   debug(병합 없음)는 정상. 스택: androidx.lifecycle.j.<clinit> ← ProcessLifecycleInitializer ← startup.
+# 해결: 병합 대상이 되는 startup/lifecycle 체인을 원본 그대로 keep 해 병합을 차단한다.
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.startup.** { *; }
+# (Material 도 안전차원 보존 — 라이브러리라 앱 코드 난독화엔 무관)
+-keep class com.google.android.material.** { *; }
+-dontwarn com.google.android.material.**
+
 # BuildConfig(로깅 스위치 등에서 참조).
 -keep class com.hackmin.app.BuildConfig { *; }

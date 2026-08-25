@@ -56,3 +56,16 @@ _to_delete/
 # 로컬 인증서/키 파일
 global-bundle.pem
 nginx/hackmin.conf
+
+# 개인 분석/자가진단 (리포 밖 보관 — 커밋 금지)
+_analysis_mob003/
+
+# 공격 PoC 스크립트 (실수 커밋 방지 — 실제 스크립트는 리포 밖 보관)
+bypass*.js
+decrypt*.js
+recon*.js
+find_offset*.js
+
+# 서명 키스토어
+*.keystore
+*.jks

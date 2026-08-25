@@ -17,7 +17,14 @@ import com.hackmin.app.network.OrderWebSocketClient;
 import com.hackmin.app.network.SessionManager;
 import com.hackmin.app.ui.home.HomeActivity;
 import com.hackmin.app.ui.review.WriteReviewActivity;
+import com.hackmin.app.security.ReceiptSigner;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -40,7 +47,7 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
 
     private TextView tvCurrentStatus, tvRestaurantName, tvOrderItemsSummary, tvDeliveryAddress, tvCancelledBanner;
     private View containerProgress;
-    private Button btnCancelOrder, btnGoHome, btnWriteReview;
+    private Button btnCancelOrder, btnGoHome, btnWriteReview, btnConfirmReceipt;
     private ImageButton btnBack;
 
     /** 취소/거절 배너 문구 구분을 위해 최근 조회한 서버 상태 문자열을 보관. */
@@ -61,6 +68,7 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
         btnBack.setOnClickListener(v -> finish());
         btnGoHome.setOnClickListener(v -> goHome());
         btnWriteReview.setOnClickListener(v -> goWriteReview());
+        btnConfirmReceipt.setOnClickListener(v -> confirmReceipt());
 
         orderId = getIntent().getLongExtra("order_id", -1);
 
@@ -126,6 +134,7 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
         btnCancelOrder = findViewById(R.id.btnCancelOrder);
         btnGoHome = findViewById(R.id.btnGoHome);
         btnWriteReview = findViewById(R.id.btnWriteReview);
+        btnConfirmReceipt = findViewById(R.id.btnConfirmReceipt);
 
         dots = new View[]{
                 findViewById(R.id.dot1), findViewById(R.id.dot2),
@@ -254,6 +263,7 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
             containerProgress.setVisibility(View.GONE);
             btnCancelOrder.setVisibility(View.GONE);
             btnWriteReview.setVisibility(View.GONE);
+            btnConfirmReceipt.setVisibility(View.GONE);
             return;
         }
 
@@ -275,5 +285,51 @@ public class OrderTrackingActivity extends com.hackmin.app.ui.common.BaseActivit
 
         btnCancelOrder.setVisibility(currentStatusIndex >= 3 ? View.GONE : View.VISIBLE);
         btnWriteReview.setVisibility(currentStatusIndex == 4 ? View.VISIBLE : View.GONE);
+        btnConfirmReceipt.setVisibility(currentStatusIndex == 4 ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * [방어 ⑩] 고객 수령확인 — 네이티브 서명(ReceiptSigner.signReceipt → Keystore)을 붙여 서버로 전송.
+     * 배달완료 상태에서만 노출. 백그라운드 스레드에서 키 등록 → 서명 → 호출을 수행한다.
+     */
+    private void confirmReceipt() {
+        btnConfirmReceipt.setEnabled(false);
+        new Thread(() -> {
+            String msg;
+            try {
+                // 1) Keystore 키 확보 + 공개키 등록 (idempotent)
+                String pem = ReceiptSigner.ensurePublicKeyPem();
+                String keyId = ReceiptSigner.keyId();
+                Map<String, String> reg = new HashMap<>();
+                reg.put("key_id", keyId);
+                reg.put("public_key_pem", pem);
+                ApiClient.orderApi(this).registerReceiptKey(reg).execute();
+
+                // 2) canonical 서명 (네이티브 signReceipt → Keystore). 서버 common/txnsig 규약과 동일.
+                long ts = System.currentTimeMillis();
+                String nonce = UUID.randomUUID().toString();
+                String path = "/api/v1/orders/" + orderId + "/confirm-receipt";
+                String canonical = "POST\n" + path + "\n" + ts + "\n" + nonce + "\n";
+                String sig = ReceiptSigner.signB64(canonical.getBytes(StandardCharsets.UTF_8));
+
+                // 3) 수령확인 호출 (서명 헤더 첨부)
+                Map<String, String> h = new HashMap<>();
+                h.put("X-Receipt-Ts", String.valueOf(ts));
+                h.put("X-Receipt-Nonce", nonce);
+                h.put("X-Receipt-Sig", sig);
+                h.put("X-Key-Id", keyId);
+                Response<ResponseBody> resp = ApiClient.orderApi(this).confirmReceipt(orderId, h).execute();
+                msg = resp.isSuccessful()
+                        ? "수령확인 완료 — 정산이 확정되었습니다."
+                        : "수령확인 실패 (서명/상태 확인, code=" + resp.code() + ")";
+            } catch (Throwable t) {
+                msg = "수령확인 오류: " + t.getMessage();
+            }
+            final String out = msg;
+            runOnUiThread(() -> {
+                btnConfirmReceipt.setEnabled(true);
+                Toast.makeText(this, out, Toast.LENGTH_LONG).show();
+            });
+        }).start();
     }
 }

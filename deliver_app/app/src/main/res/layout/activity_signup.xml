@@ -323,7 +323,7 @@
                     android:gravity="center_vertical"
                     android:paddingBottom="12dp">
 
-                    <CheckBox
+                    <androidx.appcompat.widget.AppCompatCheckBox
                         android:id="@+id/cb_agree_all"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -331,7 +331,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
-                        app:buttonCompat="@drawable/checkbox_selector"
+                        android:button="@drawable/checkbox_selector"
                         app:buttonTint="@null"
                         android:paddingStart="8dp"/>
                 </LinearLayout>
@@ -344,70 +344,70 @@
                     android:layout_marginBottom="12dp"/>
 
                 <!-- 필수 1: 이용약관 -->
-                <CheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_agree_terms"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="(필수) 이용약관 동의"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary"
-                    app:buttonCompat="@drawable/checkbox_selector"
+                    android:button="@drawable/checkbox_selector"
                     app:buttonTint="@null"
                     android:paddingStart="4dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginBottom="10dp"/>
 
                 <!-- 필수 2: 개인정보 처리방침 -->
-                <CheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_agree_privacy"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="(필수) 개인정보 수집 및 이용 동의"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary"
-                    app:buttonCompat="@drawable/checkbox_selector"
+                    android:button="@drawable/checkbox_selector"
                     app:buttonTint="@null"
                     android:paddingStart="4dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginBottom="10dp"/>
 
                 <!-- 필수 3: 만 14세 이상 -->
-                <CheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_agree_age"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="(필수) 만 14세 이상입니다"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary"
-                    app:buttonCompat="@drawable/checkbox_selector"
+                    android:button="@drawable/checkbox_selector"
                     app:buttonTint="@null"
                     android:paddingStart="4dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginBottom="10dp"/>
 
                 <!-- 선택 1: 마케팅 정보 수신 -->
-                <CheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_agree_marketing"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="(선택) 마케팅 정보 수신 동의"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary"
-                    app:buttonCompat="@drawable/checkbox_selector"
+                    android:button="@drawable/checkbox_selector"
                     app:buttonTint="@null"
                     android:paddingStart="4dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginBottom="10dp"/>
 
                 <!-- 선택 2: 이벤트/혜택 알림 -->
-                <CheckBox
+                <androidx.appcompat.widget.AppCompatCheckBox
                     android:id="@+id/cb_agree_event"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="(선택) 이벤트 및 혜택 알림 수신 동의"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary"
-                    app:buttonCompat="@drawable/checkbox_selector"
+                    android:button="@drawable/checkbox_selector"
                     app:buttonTint="@null"
                     android:paddingStart="4dp"
                     android:layout_marginStart="4dp"/>
