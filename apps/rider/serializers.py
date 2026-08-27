@@ -101,12 +101,18 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('유효하지 않은 배달수단입니다.')
         return value
 
+    # def save(self, **kwargs):
+    #    account_number = self.validated_data.pop('account_number', None)
+    #    if account_number:
+    #        kwargs['account_number_encrypted'] = encrypt_aes128(account_number)
+    #    return super().save(**kwargs)
+    
     def save(self, **kwargs):
         account_number = self.validated_data.pop('account_number', None)
         if account_number:
-            kwargs['account_number_encrypted'] = encrypt_aes128(account_number)
+            # 암호화 제거 → 평문 저장
+            kwargs['account_number_encrypted'] = account_number
         return super().save(**kwargs)
-
 
 class RiderLocationSerializer(serializers.ModelSerializer):
     """라이더 위치 조회/저장. 위도·경도는 필수, 정확도(오차 m)는 선택."""
