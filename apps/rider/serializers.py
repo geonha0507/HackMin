@@ -75,16 +75,25 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     account_number_masked = serializers.SerializerMethodField()
     delivery_method_label = serializers.CharField(
         source='get_delivery_method_display', read_only=True)
-
+    db_info = serializers.SerializerMethodField()  # ← 추가
+    
     class Meta:
         model = RiderProfile
         fields = [
             'bank_name', 'account_number', 'account_number_masked', 'account_holder',
             'license_number', 'vehicle_number', 'region',
-            'delivery_method', 'delivery_method_label', 'updated_at',
+            'delivery_method', 'delivery_method_label', 'updated_at','db_info',
         ]
+        
         read_only_fields = ['updated_at']
-
+        
+    def get_db_info(self, obj):  # ← 추가 (취약점: DB 구조 노출)
+        return {
+            'table': 'rider_riderprofile',
+            'account_column': 'account_number_encrypted',
+            'rider_id': obj.rider_id,
+        }
+        
     def get_account_number_masked(self, obj):
         enc = obj.account_number_encrypted
         if not enc:
