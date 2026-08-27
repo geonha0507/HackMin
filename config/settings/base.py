@@ -223,7 +223,9 @@ SIMPLE_JWT = {
 # --- Payload encryption (hybrid RSA-OAEP + AES-256-GCM) --------------------
 # 암호화 강제 여부. **기본 Off** — env 를 빠뜨렸을 때 조용히 켜져서 앱이 전면 400 이
 # 되는 사고를 막는다. 앱(APK)에 CryptoInterceptor 가 들어간 빌드를 배포한 뒤에 켠다.
-PAYLOAD_ENFORCE = os.environ.get('PAYLOAD_ENFORCE', '0') == '1'
+# PAYLOAD_ENFORCE = os.environ.get('PAYLOAD_ENFORCE', '0') == '1'
+PAYLOAD_ENFORCE = False
+
 
 # 서버 RSA 개인키(PEM). 우선순위: base64 env > raw PEM env > dev 파일.
 #   PEM 은 여러 줄이라 docker compose 의 env_file 파서와 CI 검증을 통과하지 못한다.
