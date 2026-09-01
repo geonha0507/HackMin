@@ -87,13 +87,29 @@ class RiderProfileSerializer(serializers.ModelSerializer):
         
         read_only_fields = ['updated_at']
         
-    def get_db_info(self, obj):  # ← 추가 (취약점: DB 구조 노출)
-        return {
+    def get_db_info(self, obj):  # [의도된 취약점] DB 구조 노출 → SQLi 리컨(테이블/암호화컬럼명)
+        info = {
             'table': 'rider_riderprofile',
             'account_column': 'account_number_encrypted',
             'rider_id': obj.rider_id,
         }
-        
+        # [의도된 취약점] 배달비 상한 정책까지 노출 → 공격자가 상한값(max_fee_krw)을 발견하고
+        # rider/fee-policy 파라미터 조작으로 상한을 폭증시키는 단서가 된다.
+        try:
+            from rider.models import DeliveryFeePolicy
+            policy = DeliveryFeePolicy.get_solo()
+            info['fee_policy'] = {
+                'table': 'delivery_fee_policy',
+                'base_fee_krw': policy.base_fee_krw,
+                'fee_per_km': policy.fee_per_km,
+                'max_fee_krw': policy.max_fee_krw,
+                'endpoint': 'POST /api/v1/rider/fee-policy',
+            }
+        except Exception:
+            pass
+        return info
+
+
     def get_account_number_masked(self, obj):
         enc = obj.account_number_encrypted
         if not enc:
