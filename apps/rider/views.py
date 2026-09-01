@@ -104,6 +104,11 @@ def delivery_list(request):
     _provision_deliveries()
     deliveries = Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True))
     deliveries = deliveries.select_related('order', 'order__restaurant').order_by('-assigned_at')
+    # 배달중 건은 '현재까지 이동거리·예상 배달료'를 실시간 계산해 내려준다(홈 카드 폴링용).
+    loc = RiderLocation.objects.filter(rider=request.user).first()
+    deliveries = list(deliveries)
+    for d in deliveries:
+        _apply_live_distance(d, request, loc=loc)
     return Response({'results': DeliveryListSerializer(deliveries, many=True).data})
 
 
@@ -111,13 +116,32 @@ def _get_delivery(request, pk):
     return Delivery.objects.filter(Q(rider=request.user) | Q(rider__isnull=True), pk=pk).first()
 
 
+def _apply_live_distance(delivery, request, loc=None):
+    """배달중(delivering) 건이면 '현재까지 이동거리·예상 배달료'를 완료와 동일한 방식
+    (observed = total_distance_km - start_distance_km)으로 in-memory 세팅한다(저장 안 함).
+    → 앱이 이 값을 폴링해 표시하면 완료 팝업·배달료와 정확히 일치한다."""
+    if delivery.status == Delivery.Status.DELIVERING:
+        if loc is None:
+            loc = RiderLocation.objects.filter(rider=request.user).first()
+        observed = (loc.total_distance_km - delivery.start_distance_km) if loc else 0.0
+        delivery.distance_km = max(0.0, round(observed, 3))
+        delivery.fee = compute_fee(delivery.distance_km)
+    return delivery
+
+
 @api_view(['GET'])
 @permission_classes([IsRider])
 def delivery_detail(request, pk):
-    """배달 상세(주소·연락처)."""
+    """배달 상세(주소·연락처).
+
+    배달중(delivering)이면 '현재까지의 이동거리·예상 배달료'를 실시간으로 계산해 응답한다.
+    완료 시점 계산(observed = total_distance_km - start_distance_km)과 '동일한 방식'이라,
+    앱이 이 값을 폴링해 표시하면 완료 팝업·배달료와 정확히 일치한다. (in-memory 값만 세팅, 저장 안 함)
+    """
     delivery = _get_delivery(request, pk)
     if not delivery:
         return error_response('not_found', '배달 정보를 찾을 수 없습니다.', 404)
+    _apply_live_distance(delivery, request)
     return Response(DeliveryDetailSerializer(delivery).data)
 
 
