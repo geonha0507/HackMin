@@ -101,7 +101,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
         try:
             plain = decrypt_aes128(enc)
         except Exception:
-            return ''
+            plain = enc  # prod는 계좌를 평문 저장 → 복호화 실패 시 원문을 그대로 마스킹한다.
         # 뒤 4자리만 노출.
         return ('*' * max(0, len(plain) - 4)) + plain[-4:] if plain else ''
 
