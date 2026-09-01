@@ -155,8 +155,15 @@ def delivery_status(request, pk):
     delivery.save()
 
     if new_status in _STATUS_TO_ORDER:
-        delivery.order.status = _STATUS_TO_ORDER[new_status]
-        delivery.order.save(update_fields=['status'])
+        # MySQL(mysqlclient)은 UPDATE 시 '값이 실제로 바뀐 행 수'를 리턴한다. 이미 같은
+        # 상태면 0행이 되어 update_fields save 가 이를 실패로 보고 DatabaseError('Save with
+        # update_fields did not affect any rows')를 낸다. 배달이 붙는 주문은 provisioning
+        # 시 이미 DELIVERING 상태라, →delivering 전이가 항상 no-op UPDATE 가 되어 500 이 났다.
+        # (SQLite 는 matched 행을 세어 로컬에선 재현 안 됨.) → 값이 바뀔 때만 저장한다.
+        new_order_status = _STATUS_TO_ORDER[new_status]
+        if delivery.order.status != new_order_status:
+            delivery.order.status = new_order_status
+            delivery.order.save(update_fields=['status'])
         if new_status == Delivery.Status.DELIVERED:
             award_order_points(delivery.order)
 
