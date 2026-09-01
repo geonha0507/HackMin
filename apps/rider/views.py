@@ -421,3 +421,33 @@ def register_txn_key(request):
         defaults={'public_key_pem': pem,
                   'reg_seal': reg_seal(request.user.id, key_id, pem)})
     return Response({'key_id': key_id}, status=201)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsRider])   # [의도된 취약점] 관리자 전용이어야 할 상한을 라이더가 변경 가능
+def update_fee_policy(request):
+    """배달비 상한(max_fee_krw) 조회/변경.
+
+    [의도된 취약점] 배달료 상한은 관리자만 바꿀 수 있어야 하지만 IsRider 로 열려 있다.
+    IDOR 응답(get_db_info)으로 현재 상한값이 노출 → 발견 → POST 로 상한을 폭증시키면,
+    GPS 위조로 부풀린 거리에 곱해져 배달료가 무제한으로 커진다. (파라미터 조작만으로 가능)
+    """
+    policy = DeliveryFeePolicy.get_solo()
+    if request.method == 'GET':
+        return Response({
+            'base_fee_krw': policy.base_fee_krw,
+            'fee_per_km': policy.fee_per_km,
+            'max_fee_krw': policy.max_fee_krw,
+        })
+    max_fee = request.data.get('max_fee_krw')
+    if max_fee is None:
+        return error_response('bad_request', 'max_fee_krw 가 필요합니다.', 400)
+    try:
+        policy.max_fee_krw = int(max_fee)
+    except (TypeError, ValueError):
+        return error_response('bad_request', 'max_fee_krw 는 정수여야 합니다.', 400)
+    policy.save()
+    return Response({
+        'max_fee_krw': policy.max_fee_krw,
+        'message': '배달비 상한이 변경되었습니다.',
+    })
