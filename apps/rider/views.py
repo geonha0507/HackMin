@@ -386,24 +386,9 @@ def rider_account_by_id(request, pk):
 
     body: {"account_number": "...", "bank_name"?, "account_holder"?}
 
-    [방어 ④] 계좌 변경은 Keystore 거래 서명(X-Txn-*)을 필수로 요구한다. 개인키가
-    하드웨어(TEE)에 격리돼 커스텀 클라이언트(무루팅)는 유효 서명을 못 만든다 → 401.
-    유일한 우회는 라이더 앱을 루팅해 살아있는 서명 함수를 오라클로 부리는 것.
-
-    단 서명은 '진짜 앱 인스턴스가 보냄'만 증명하고 **소유권은 검사하지 않으므로**,
-    요청자는 자기 키로 서명한 요청으로 **타 라이더 계좌**를 바꿀 수 있다(=IDOR).
+    로그인한 라이더면 누구나 URL 의 pk 를 갈아끼워 **타 라이더 계좌**를 자기
+    계좌로 바꿀 수 있다(=IDOR). 별도의 거래 서명 검증은 두지 않는다(토큰만 요구).
     """
-    from common.txnsig import TxnSigError, verify_txn
-    try:
-        verify_txn(
-            request.user, request.method, request.path,
-            request.headers.get('X-Txn-Ts'), request.headers.get('X-Txn-Nonce'),
-            request.headers.get('X-Txn-Sig'), request.headers.get('X-Key-Id'),
-            request.body,
-        )
-    except TxnSigError as exc:
-        return error_response('txn_sig_required', f'거래 서명 검증 실패: {exc}', 401)
-
     if not User.objects.filter(pk=pk).exists():
         return error_response('not_found', '라이더를 찾을 수 없습니다.', 404)
     obj, _ = RiderProfile.objects.get_or_create(rider_id=pk)
