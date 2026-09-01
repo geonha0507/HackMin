@@ -369,13 +369,16 @@ def payouts(request):
 @permission_classes([IsRider])
 def rider_profile_by_id(request, pk):
     """라이더 pk 의 프로필 조회. 소유권 검증 없음(IDOR)."""
-    obj = RiderProfile.objects.filter(rider_id=pk).select_related('rider').first()
+    obj = RiderProfile.objects.filter(rider_id=pk).first()
     if not obj:
         return error_response('not_found', '프로필을 찾을 수 없습니다.', 404)
     data = RiderProfileSerializer(obj).data
     # id↔사람 매핑을 쉽게 해 열거(enumeration)를 돕는다 — 취약점 데모용.
     data['rider_id'] = obj.rider_id
-    data['nickname'] = getattr(obj.rider, 'nickname', '')
+    # 닉네임만 컬럼 조회한다. select_related/obj.rider 로 User 전체를 로드하면 일부
+    # 계정의 불량 컬럼값(예: MySQL zero-date)에서 모델 인스턴스화가 깨져 500이 난다.
+    data['nickname'] = (User.objects.filter(pk=obj.rider_id)
+                        .values_list('nickname', flat=True).first() or '')
     return Response(data)
 
 
