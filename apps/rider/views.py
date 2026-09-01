@@ -235,13 +235,11 @@ def location(request):
     prev = RiderLocation.objects.filter(rider=request.user).first()
     total = 0.0
     if prev:
+        # [취약] 원래는 직전 위치 대비 이동거리(2km 초과 점프)를 검증해 순간이동을 거부했으나,
+        # 앱이 보낸 위치를 전부 신뢰하도록 검증을 제거한다 → 어떤 점프(순간이동)든 그대로 누적된다.
+        # GPS 위조 앱이 좌표를 마음대로 찍어도 서버가 그 거리를 배달료로 인정하게 되는 취약점.
         seg = _haversine_km(prev.latitude, prev.longitude,
                             data['latitude'], data['longitude'])
-        if seg > MAX_SEGMENT_KM:
-            return error_response(
-                'implausible_move',
-                f'위치가 한 번에 너무 멀리 이동했습니다({seg:.1f}km). 순간이동은 허용되지 않습니다.',
-                400)
         total = prev.total_distance_km + seg
 
     defaults = dict(data)
